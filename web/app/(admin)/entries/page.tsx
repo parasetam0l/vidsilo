@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Search, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, FilmIcon, Search, Trash2 } from "lucide-react";
 
 import { api, type Category, type Entry, type EntryList } from "@/lib/api";
 import { useT } from "@/lib/i18n";
@@ -29,6 +29,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function EntriesPage() {
   const t = useT();
@@ -141,11 +142,11 @@ export default function EntriesPage() {
         ) : null}
       </div>
 
-      <Card>
+      <Card className="overflow-hidden shadow-sm">
         <CardContent className="p-0">
           <Table>
             <TableHeader>
-              <TableRow>
+              <TableRow className="bg-muted/50 hover:bg-muted/50 [&_th:first-child]:rounded-tl-xl [&_th:last-child]:rounded-tr-xl">
                 <TableHead className="w-10">
                   <Checkbox
                     checked={list != null && (list.items ?? []).length > 0 && (list.items ?? []).every((e) => selected.has(e.id))}
@@ -167,13 +168,17 @@ export default function EntriesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {!list ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
-                    {t("loading")}
-                  </TableCell>
-                </TableRow>
-              ) : null}
+              {!list
+                ? [1, 2, 3, 4, 5].map((i) => (
+                    <TableRow key={i}>
+                      {[1, 2, 3, 4, 5, 6, 7].map((j) => (
+                        <TableCell key={j}>
+                          <Skeleton className="h-4 w-full max-w-24" />
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                : null}
               {(list?.items ?? []).map((e: Entry) => (
                 <TableRow key={e.id}>
                   <TableCell>
@@ -182,7 +187,7 @@ export default function EntriesPage() {
                       onCheckedChange={() => toggleSelect(e.id)}
                     />
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="font-medium">
                     <Link href={`/entries?id=${e.id}`} className="hover:underline">
                       {e.title || t("untitled")}
                     </Link>
@@ -205,9 +210,12 @@ export default function EntriesPage() {
                 </TableRow>
               ))}
               {list && (list.items ?? []).length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
-                    {t("entriesEmpty")}
+                <TableRow className="hover:bg-transparent">
+                  <TableCell colSpan={7} className="py-10">
+                    <div className="flex flex-col items-center gap-2 text-center">
+                      <FilmIcon className="size-6 text-muted-foreground/50" />
+                      <p className="text-sm text-muted-foreground">{t("entriesEmpty")}</p>
+                    </div>
                   </TableCell>
                 </TableRow>
               ) : null}
