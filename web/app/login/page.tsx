@@ -2,7 +2,7 @@
 
 import { ClapperboardIcon } from "lucide-react";
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useT } from "@/lib/i18n";
 
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -24,14 +24,18 @@ export default function LoginPage() {
   const t = useT();
   const { login, user } = useAuth();
   const router = useRouter();
+  const params = useSearchParams();
+  // Same-origin return path only (no open redirect).
+  const rawNext = params.get("next");
+  const next = rawNext && rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/dashboard";
   const [username, setUsername] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState(false);
 
   React.useEffect(() => {
-    if (user) router.replace("/dashboard");
-  }, [user, router]);
+    if (user) router.replace(next);
+  }, [user, router, next]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -39,7 +43,7 @@ export default function LoginPage() {
     setError(null);
     try {
       await login(username, password);
-      router.replace("/dashboard");
+      router.replace(next);
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Sign in failed — try again.",

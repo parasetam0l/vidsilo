@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 import { AppSidebar } from "@/components/app-sidebar";
 import { useAuth } from "@/components/auth-provider";
@@ -25,6 +25,7 @@ import {
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const t = useT();
   const { user, loading } = useAuth();
   const pageTitles: Record<string, string> = {
@@ -38,19 +39,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   };
   const pageTitle = pageTitles[pathname] ?? "VOD Admin";
 
-  if (loading) {
+  // Unauthenticated visitors are sent to the login page, returning to the
+  // page they tried to open after signing in.
+  React.useEffect(() => {
+    if (!loading && !user) {
+      router.replace(`/login?next=${encodeURIComponent(pathname)}`);
+    }
+  }, [loading, user, pathname, router]);
+
+  if (loading || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">
         {t("loading")}
-      </div>
-    );
-  }
-  if (!user) {
-    return (
-      <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">
-        <a href="/login" className="underline">
-          {t("navSignIn")}
-        </a>
       </div>
     );
   }
