@@ -42,7 +42,7 @@ Horizontal scale: `DATABASE_URL` + shared storage (local: NFS — install warns;
 | Dashboard | KPI cards, entries by status, recent uploads |
 | Entries | Search (ILIKE), status/category filters, pagination, bulk delete |
 | Entry detail | Metadata, sprite poster picker, subtitle upload, flavor ticks, playback ACL + embed snippet, analytics (SVG charts) |
-| Upload | Drag & drop, tus resumable, title/description/category/flavor ticks |
+| Upload | Drag & drop, tus resumable, title/description/category — opens in a dialog from anywhere (sidebar, dashboard); uploads survive page changes and refreshes (resumable via IndexedDB + tus URLs) |
 | Users / Categories / Flavors / Settings | Admin CRUD + grouped settings (transcoding, storage, analytics, embed policy, TLS) |
 
 ## Player
@@ -82,7 +82,7 @@ cd web && npm run dev                         # UI dev server on :3000 (proxies 
 
 The dev proxy target defaults to `:8090` (port 8080 is often taken by Docker Desktop on macOS) — adjust `web/next.config.ts` if you run the backend elsewhere.
 
-The UI is built with **shadcn/ui** (not pure Tailwind) on Tailwind v4 — shadcn/ui components, Radix/Base UI primitives, lucide icons — so we get a consistent premium look without hand-rolling components. The production UI is a static export (`web/out`) embedded into the binary via `go:embed`; the Dockerfile builds it in a `node:24` stage (`NEXT_OUTPUT=export`) and copies it into `internal/ui/web/out/` before `go build`. To embed a fresh UI locally:
+The UI is built with **shadcn/ui** (not pure Tailwind) on Tailwind v4 — shadcn/ui components, Base UI primitives, lucide icons — so we get a consistent premium look without hand-rolling components. Shared app-level hooks: `useDialog` (programmatic dialogs + confirm), `useToast` (sonner), and an upload store with localStorage/IndexedDB persistence. A language selector (English only for now) and theme toggle live in the admin header and on the login page. The production UI is a static export (`web/out`) embedded into the binary via `go:embed`; the Dockerfile builds it in a `node:24` stage (`NEXT_OUTPUT=export`) and copies it into `internal/ui/web/out/` before `go build`. To embed a fresh UI locally:
 
 ```bash
 cd web && NEXT_OUTPUT=export npm run build && cd ..
