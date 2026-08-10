@@ -119,7 +119,7 @@ const en = {
   entriesDeleteN: "Delete ({n})",
   entriesReprocessN: "Reprocess ({n})",
   entriesReprocessTitle: "Reprocess {n} entries?",
-  entriesReprocessDesc: "The probe and transcode pipeline will re-run for the selected entries.",
+  entriesReprocessDesc: "The processing pipeline will re-run for the selected entries.",
   entriesReprocessed: "Reprocessing {n} entries",
   entriesEmpty: "No entries match your filters.",
   entriesNoneTitle: "No entries yet",
@@ -137,7 +137,7 @@ const en = {
   entryReprocess: "Reprocess",
   entryDeleteTitle: "Delete this entry?",
   entryDeleteDesc:
-    "The entry and all its media (original, renditions, posters, analytics) will be permanently removed.",
+    "The entry and all its media (original file, quality presets, posters, analytics) will be permanently removed.",
   tabMetadata: "Metadata",
   tabFlavors: "Flavors",
   tabPoster: "Poster",
@@ -153,7 +153,7 @@ const en = {
   labelSubtitleLabel: "Label",
   labelFrame: "Frame {n}",
   notTicked: "not ticked",
-  noSprite: "No sprite sheet yet — the probe job generates one. Reprocess the entry if it is ready and this is still empty.",
+  noSprite: "No preview frames yet — they're generated during processing. Reprocess the entry if it is ready and this stays empty.",
   useAsPoster: "Use as poster",
   posterSaved: "Poster updated",
   noSubtitles: "No subtitles",
@@ -184,12 +184,12 @@ const en = {
 
   // upload
   uploadDragDrop: "Drag & drop videos here",
-  uploadOrClick: "or click to browse — resumable via tus, up to {max}",
-  uploadDone: " — done, opening entries…",
-  uploadFailed: " — failed: {error}",
+  uploadOrClick: "or click to browse — up to {max}",
+  uploadDone: "Upload complete",
+  uploadFailed: "Upload failed: {error}",
   uploadStart: "Start upload",
   uploadDialogTitle: "Upload videos",
-  uploadInterrupted: "interrupted — re-select this file to resume",
+  uploadInterrupted: "paused — pick this file again to continue",
   uploadStartN: "Upload {n} file{s}",
 
   // users
@@ -214,7 +214,7 @@ const en = {
   // flavors
   flavorsTitle: "Flavors",
   flavorsSubtitle:
-    "Transcode renditions — only enabled flavors are built; flavors taller than the source are skipped",
+    "Video quality presets — only enabled ones are produced; presets larger than the source are skipped",
   flavorsNew: "New flavor",
   newFlavorTitle: "New flavor",
   editFlavorTitle: "Edit flavor",
@@ -229,7 +229,7 @@ const en = {
   labelPreset: "Preset",
   saveFlavor: "Save flavor",
   deleteFlavorTitle: "Delete flavor?",
-  deleteFlavorDesc: "This removes the flavor definition. Existing renditions remain on disk.",
+  deleteFlavorDesc: "This removes the quality preset. Existing output files are kept.",
 
   // settings
   settingsRestart: "Restart required",
@@ -251,7 +251,7 @@ const en = {
   settingsSave: "Save {group}",
 
   // player
-  playerError: "Playback error — check server logs",
+  playerError: "Playback failed — try again later.",
   playerPlay: "Play",
   playerPause: "Pause",
   playerMute: "Mute",
@@ -262,7 +262,7 @@ const en = {
   playerPictureInPicture: "Picture in picture",
   playerAuto: "Auto",
   playerOff: "Off",
-  playerVideoStatus: "Video is {status}",
+  playerVideoStatus: "This video isn't ready to watch yet — check back shortly.",
   playerMissingId: "Missing entry id in URL",
   videoUnavailable: "Video is unavailable.",
 } as const;

@@ -52,7 +52,7 @@ export default function EmbedPage() {
     <div className="h-full w-full bg-black">
       {info.status !== "ready" ? (
         <div className="grid h-full place-items-center text-xs text-muted-foreground">
-          {t("playerVideoStatus", { status: info.status })}
+          {t("playerVideoStatus")}
         </div>
       ) : (
         <VODPlayer info={info} publicId={uuid} autoplay={opts.autoplay} muted={opts.muted} loop={opts.loop} />

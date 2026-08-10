@@ -52,9 +52,7 @@ export default function PlayPage() {
       ) : !info ? (
         <p className="text-sm text-muted-foreground">{t("loading")}</p>
       ) : info.status !== "ready" ? (
-        <p className="text-sm text-muted-foreground">
-          {t("playerVideoStatus", { status: info.status })} — check back shortly.
-        </p>
+        <p className="text-sm text-muted-foreground">{t("playerVideoStatus")}</p>
       ) : (
         <>
           <VODPlayer info={info} publicId={uuid} autoplay={opts.autoplay} muted={opts.muted} loop={opts.loop} />
