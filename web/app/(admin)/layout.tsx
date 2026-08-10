@@ -4,6 +4,8 @@ import * as React from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 import { AppSidebar } from "@/components/app-sidebar";
+import { LanguageSelect } from "@/components/language-select";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/components/auth-provider";
 import {
   Breadcrumb,
@@ -82,6 +84,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
+          <div className="ml-auto flex items-center gap-2">
+            <LanguageSelect />
+            <ThemeToggle />
+          </div>
         </header>
         {children}
       </SidebarInset>
