@@ -24,3 +24,7 @@ data/
 .DS_Store
 .idea/
 .vscode/
+
+# built web export (placeholder index.html stays committed)
+internal/ui/web/out/
+!internal/ui/web/out/index.html

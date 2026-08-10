@@ -1,9 +1,10 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { usePathname } from "next/navigation"
+import * as React from "react";
+import { usePathname } from "next/navigation";
 
-import { AppSidebar } from "@/components/app-sidebar"
+import { AppSidebar } from "@/components/app-sidebar";
+import { useAuth } from "@/components/auth-provider";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -11,13 +12,13 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
-import { Separator } from "@/components/ui/separator"
+} from "@/components/ui/breadcrumb";
+import { Separator } from "@/components/ui/separator";
 import {
   SidebarInset,
   SidebarProvider,
   SidebarTrigger,
-} from "@/components/ui/sidebar"
+} from "@/components/ui/sidebar";
 
 const pageTitles: Record<string, string> = {
   "/dashboard": "Dashboard",
@@ -27,11 +28,29 @@ const pageTitles: Record<string, string> = {
   "/categories": "Categories",
   "/flavors": "Flavors",
   "/settings": "Settings",
-}
+};
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname()
-  const pageTitle = pageTitles[pathname] ?? "VOD Admin"
+  const pathname = usePathname();
+  const { user, loading } = useAuth();
+  const pageTitle = pageTitles[pathname] ?? "VOD Admin";
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">
+        Loading…
+      </div>
+    );
+  }
+  if (!user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">
+        <a href="/login" className="underline">
+          Sign in
+        </a>
+      </div>
+    );
+  }
 
   return (
     <SidebarProvider
@@ -64,5 +83,5 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {children}
       </SidebarInset>
     </SidebarProvider>
-  )
+  );
 }

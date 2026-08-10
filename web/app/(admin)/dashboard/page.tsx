@@ -1,18 +1,66 @@
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+"use client";
 
-const kpis = [
-  { title: "Entries", value: "–", hint: "total media entries" },
-  { title: "Storage used", value: "–", hint: "across all drivers" },
-  { title: "Queue depth", value: "–", hint: "jobs waiting to transcode" },
-  { title: "Plays today", value: "–", hint: "last 24h" },
-]
+import * as React from "react";
+import Link from "next/link";
+
+import { api, type Dashboard } from "@/lib/api";
+import { formatBytes, formatDuration } from "@/lib/format";
+import { StatusBadge } from "@/components/status-badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 export default function DashboardPage() {
+  const [data, setData] = React.useState<Dashboard | null>(null);
+  const [error, setError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    api<Dashboard>("/api/dashboard").then(setData).catch((e) => setError(e.message));
+  }, []);
+
+  if (error) return <div className="p-4 text-sm text-red-500">{error}</div>;
+  if (!data) {
+    return (
+      <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-32" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  const kpis = [
+    {
+      title: "Entries",
+      value: String(data.totalEntries),
+      hint: "total in catalog",
+    },
+    {
+      title: "Storage used",
+      value: formatBytes(data.storageUsed),
+      hint: "media across all entries",
+    },
+    {
+      title: "Queue depth",
+      value: String(data.queueDepth),
+      hint: "jobs waiting or running",
+    },
+    {
+      title: "Ready",
+      value: String(data.entriesByStatus.ready ?? 0),
+      hint: "playable entries",
+    },
+  ];
+
   return (
     <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
       <div className="grid auto-rows-min gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -33,25 +81,76 @@ export default function DashboardPage() {
         ))}
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="min-h-[16rem]">
+        <Card>
           <CardHeader>
             <CardTitle>Entries by status</CardTitle>
           </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            Placeholder — will render per-status counts from{" "}
-            <code className="text-foreground">/api/dashboard</code>.
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(data.entriesByStatus).map(([status, count]) => (
+                <div
+                  key={status}
+                  className="flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm"
+                >
+                  <StatusBadge status={status as never} />
+                  <span className="font-medium">{count}</span>
+                </div>
+              ))}
+              {Object.keys(data.entriesByStatus).length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No entries yet — upload your first video.
+                </p>
+              ) : null}
+            </div>
           </CardContent>
         </Card>
-        <Card className="min-h-[16rem]">
+        <Card>
           <CardHeader>
             <CardTitle>Recent uploads</CardTitle>
           </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            Placeholder — will list the latest entries with uploader and status
-            badges.
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Title</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Duration</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.recent.map((e) => (
+                  <TableRow key={e.id}>
+                    <TableCell>
+                      <Link
+                        href={`/entries?id=${e.id}`}
+                        className="hover:underline"
+                      >
+                        {e.title || "(untitled)"}
+                      </Link>
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge status={e.status} />
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {formatDuration(e.durationMs)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {data.recent.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={3}
+                      className="text-center text-muted-foreground"
+                    >
+                      Nothing here yet
+                    </TableCell>
+                  </TableRow>
+                ) : null}
+              </TableBody>
+            </Table>
           </CardContent>
         </Card>
       </div>
     </div>
-  )
+  );
 }

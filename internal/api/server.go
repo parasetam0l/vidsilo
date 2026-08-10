@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"path"
 	"strings"
 	"time"
 
@@ -29,7 +30,6 @@ type Server struct {
 	media     *media.Manager
 	analytics *analytics.Accumulator
 
-	uiHandler  http.Handler
 	uiFS       http.FileSystem
 	tusHandler http.Handler
 	health     func() []HealthCheck
@@ -59,7 +59,6 @@ func NewServer(log *slog.Logger, uiFS http.FileSystem, pool *pgxpool.Pool, secre
 		queue:        q,
 		media:        m,
 		analytics:    acc,
-		uiHandler:    http.FileServer(uiFS),
 		uiFS:         uiFS,
 		apiLimiter:   newRateLimiter(apiRate, apiRate),
 		loginLimiter: newRateLimiter(loginRate, loginRate),
@@ -92,9 +91,13 @@ func (s *Server) Handler() http.Handler {
 	s.registerFlavorRoutes(mux)
 	s.registerDashboardRoutes(mux)
 
+	// Exact admin page route: prevents ServeMux's /upload -> /upload/ redirect
+	// (the tus subtree owns /upload/).
+	mux.HandleFunc("GET /upload", s.serveUI)
+
 	mux.HandleFunc("GET /healthz", s.handleHealthz)
 	mux.HandleFunc("GET /api/", s.handleNotFound())
-	mux.Handle("/", s.uiHandler)
+	mux.HandleFunc("/", s.serveUI)
 
 	var h http.Handler = mux
 	h = s.originCheck(h)
@@ -133,7 +136,30 @@ func (s *Server) internalError(w http.ResponseWriter, r *http.Request, op string
 	writeError(w, http.StatusInternalServerError, "internal", "internal error")
 }
 
-// gzipMiddleware compresses JSON and text responses (never video).
+// serveUI maps the static export onto clean URLs: /login -> login.html,
+// /_next/... as-is, index fallback for /, and the exported 404 page.
+func (s *Server) serveUI(w http.ResponseWriter, r *http.Request) {
+	p := strings.TrimPrefix(r.URL.Path, "/")
+	if p == "" {
+		p = "index.html"
+	}
+	if strings.HasPrefix(p, "_next/") {
+		http.FileServer(s.uiFS).ServeHTTP(w, r)
+		return
+	}
+	// Extensionless paths resolve to their .html file (Next static export).
+	if !strings.Contains(path.Base(p), ".") && !strings.HasSuffix(p, "/") {
+		candidate := p + ".html"
+		if f, err := s.uiFS.Open(candidate); err == nil {
+			f.Close()
+			r2 := r.Clone(r.Context())
+			r2.URL.Path = "/" + candidate
+			http.FileServer(s.uiFS).ServeHTTP(w, r2)
+			return
+		}
+	}
+	http.FileServer(s.uiFS).ServeHTTP(w, r)
+}
 func gzipMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
