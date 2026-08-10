@@ -19,7 +19,7 @@ import {
 } from "@/lib/upload-store";
 import { formatBytes } from "@/lib/format";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -82,7 +82,7 @@ export function UploadDialogContent() {
       </div>
 
       <div
-        className={`flex min-h-28 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-6 text-center transition-colors ${
+        className={`flex min-h-56 cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-8 text-center transition-colors ${
           dragOver ? "border-primary bg-muted/40" : "border-muted"
         }`}
         onDragOver={(e) => {
@@ -97,8 +97,9 @@ export function UploadDialogContent() {
         }}
         onClick={() => inputRef.current?.click()}
       >
-        <UploadCloud className="size-7 text-muted-foreground" />
-        <p className="text-sm font-medium">{t("uploadDragDrop")}</p>
+        <UploadCloud className="size-10 text-muted-foreground" />
+        <p className="font-medium">{t("uploadDragDrop")}</p>
+        <p className="text-sm text-muted-foreground">{t("uploadOrClick")}</p>
         <input
           ref={inputRef}
           type="file"
@@ -194,14 +195,7 @@ export function UploadDialogContent() {
             </Card>
           ))}
         </div>
-      ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">{t("uploadHowTitle")}</CardTitle>
-            <CardDescription>{t("uploadHowDesc")}</CardDescription>
-          </CardHeader>
-        </Card>
-      )}
+      ) : null}
 
       {hasPending ? (
         <Button className="w-full" onClick={startAll} disabled={activeCount === 0}>

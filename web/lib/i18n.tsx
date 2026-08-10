@@ -162,9 +162,6 @@ const en = {
   uploadDialogTitle: "Upload videos",
   uploadInterrupted: "interrupted — re-select this file to resume",
   uploadStartN: "Upload {n} file{s}",
-  uploadHowTitle: "How it works",
-  uploadHowDesc:
-    "Files upload straight to media storage with the tus resumable protocol — safe to close and reopen the browser mid-upload. After completion, the probe job inspects the source, generates a poster + sprite sheet, and the transcode job builds adaptive HLS renditions.",
 
   // users
   usersTitle: "Users",
