@@ -149,10 +149,10 @@ export default function EntriesPage() {
               <TableRow>
                 <TableHead className="w-10">
                   <Checkbox
-                    checked={list != null && list.items.length > 0 && list.items.every((e) => selected.has(e.id))}
+                    checked={list != null && (list.items ?? []).length > 0 && (list.items ?? []).every((e) => selected.has(e.id))}
                     onCheckedChange={(checked) => {
                       if (checked && list) {
-                        setSelected(new Set(list.items.map((e) => e.id)));
+                        setSelected(new Set((list.items ?? []).map((e) => e.id)));
                       } else {
                         setSelected(new Set());
                       }
@@ -175,7 +175,7 @@ export default function EntriesPage() {
                   </TableCell>
                 </TableRow>
               ) : null}
-              {list?.items.map((e: Entry) => (
+              {(list?.items ?? []).map((e: Entry) => (
                 <TableRow key={e.id}>
                   <TableCell>
                     <Checkbox
@@ -205,7 +205,7 @@ export default function EntriesPage() {
                   </TableCell>
                 </TableRow>
               ))}
-              {list && list.items.length === 0 ? (
+              {list && (list.items ?? []).length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
                     {t("entriesEmpty")}

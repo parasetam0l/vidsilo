@@ -45,7 +45,7 @@ func ListUsers(ctx context.Context, pool *pgxpool.Pool) ([]User, error) {
 		return nil, err
 	}
 	defer rows.Close()
-	var users []User
+	users := []User{}
 	for rows.Next() {
 		u, err := scanUser(rows)
 		if err != nil {

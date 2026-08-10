@@ -73,7 +73,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">
-              {Object.entries(data.entriesByStatus).map(([status, count]) => (
+              {Object.entries(data.entriesByStatus ?? {}).map(([status, count]) => (
                 <div
                   key={status}
                   className="flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm"
@@ -102,7 +102,7 @@ export default function DashboardPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.recent.map((e) => (
+                {(data.recent ?? []).map((e) => (
                   <TableRow key={e.id}>
                     <TableCell>
                       <Link
@@ -120,7 +120,7 @@ export default function DashboardPage() {
                     </TableCell>
                   </TableRow>
                 ))}
-                {data.recent.length === 0 ? (
+                {((data.recent ?? []).length === 0) ? (
                   <TableRow>
                     <TableCell
                       colSpan={3}

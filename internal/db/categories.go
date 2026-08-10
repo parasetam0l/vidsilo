@@ -21,7 +21,7 @@ func ListCategories(ctx context.Context, pool *pgxpool.Pool) ([]Category, error)
 		return nil, err
 	}
 	defer rows.Close()
-	var out []Category
+	out := []Category{}
 	for rows.Next() {
 		c, err := scanCategory(rows)
 		if err != nil {
@@ -42,7 +42,7 @@ func CategoryTree(ctx context.Context, pool *pgxpool.Pool) ([]Category, error) {
 	for i := range flat {
 		byID[flat[i].ID] = &flat[i]
 	}
-	var roots []Category
+	roots := []Category{}
 	for i := range flat {
 		c := &flat[i]
 		if c.ParentID != nil {

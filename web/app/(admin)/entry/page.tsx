@@ -549,18 +549,19 @@ function PlaybackTab({ entry }: { entry: EntryDetail }) {
 
 function AnalyticsTab({ data }: { data: AnalyticsResponse }) {
   const t = useT();
-  const plays = data.series.map((d) => ({ label: d.day, value: d.plays }));
-  const watch = data.series.map((d) => ({
+  const series = data.series ?? [];
+  const plays = series.map((d) => ({ label: d.day, value: d.plays }));
+  const watch = series.map((d) => ({
     label: d.day,
     value: Math.round(d.watchSeconds / 60),
   }));
-  const bytes = data.series.map((d) => ({
+  const bytes = series.map((d) => ({
     label: d.day,
     value: Number(formatGb(d.bytes)),
   }));
   const cards = [
     { title: t("statPlays"), value: String(data.totals.plays) },
-    { title: t("statViewers"), value: String(data.series.reduce((s, d) => s + d.uniqueViewers, 0)) },
+    { title: t("statViewers"), value: String(series.reduce((s, d) => s + d.uniqueViewers, 0)) },
     { title: t("statWatchTime"), value: `${formatWatchHours(data.totals.watchSeconds)} h` },
     { title: t("statBandwidth"), value: `${formatGb(data.totals.bytes)} GB` },
   ];

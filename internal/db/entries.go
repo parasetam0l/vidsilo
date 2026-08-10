@@ -122,7 +122,7 @@ func ListEntries(ctx context.Context, pool *pgxpool.Pool, f EntryFilter) (EntryL
 		return EntryList{}, err
 	}
 	defer rows.Close()
-	var items []Entry
+	items := []Entry{}
 	for rows.Next() {
 		e, err := scanEntry(rows)
 		if err != nil {
@@ -181,7 +181,7 @@ func EntryFlavors(ctx context.Context, pool *pgxpool.Pool, entryID int64) ([]Ent
 		return nil, err
 	}
 	defer rows.Close()
-	var out []EntryFlavor
+	out := []EntryFlavor{}
 	for rows.Next() {
 		var ef EntryFlavor
 		if err := rows.Scan(&ef.EntryID, &ef.FlavorID, &ef.Status, &ef.Error, &ef.PlaylistKey); err != nil {
@@ -219,7 +219,7 @@ func ListSubtitles(ctx context.Context, pool *pgxpool.Pool, entryID int64) ([]Su
 		return nil, err
 	}
 	defer rows.Close()
-	var out []Subtitle
+	out := []Subtitle{}
 	for rows.Next() {
 		var s Subtitle
 		if err := rows.Scan(&s.ID, &s.Lang, &s.Label, &s.VTTKey); err != nil {

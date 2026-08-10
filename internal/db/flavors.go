@@ -44,7 +44,7 @@ func ListFlavors(ctx context.Context, pool *pgxpool.Pool) ([]Flavor, error) {
 		return nil, err
 	}
 	defer rows.Close()
-	var out []Flavor
+	out := []Flavor{}
 	for rows.Next() {
 		f, err := scanFlavor(rows)
 		if err != nil {
@@ -61,7 +61,7 @@ func EnabledFlavors(ctx context.Context, pool *pgxpool.Pool) ([]Flavor, error) {
 		return nil, err
 	}
 	defer rows.Close()
-	var out []Flavor
+	out := []Flavor{}
 	for rows.Next() {
 		f, err := scanFlavor(rows)
 		if err != nil {

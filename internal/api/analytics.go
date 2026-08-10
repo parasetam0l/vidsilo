@@ -80,7 +80,7 @@ func (s *Server) handleEntryAnalytics(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	var out analyticsResponse
+	out := analyticsResponse{Series: []analyticsDay{}}
 	err := s.pool.QueryRow(r.Context(), `
 		SELECT plays, watch_seconds, bytes FROM analytics_totals WHERE entry_id = $1`, e.ID).
 		Scan(&out.Totals.Plays, &out.Totals.WatchSeconds, &out.Totals.Bytes)
