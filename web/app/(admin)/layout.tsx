@@ -76,9 +76,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               className="mx-2 data-[orientation=vertical]:h-4"
             />
             <h1 className="text-base font-medium">{pageTitle}</h1>
-            <Button className="ml-auto" onClick={openUpload}>
-              <UploadCloudIcon className="size-4" /> {t("navUpload")}
-            </Button>
+            {pathname === "/entries" ? (
+              <Button className="ml-auto" onClick={openUpload}>
+                <UploadCloudIcon className="size-4" /> {t("navUpload")}
+              </Button>
+            ) : null}
           </div>
         </header>
         {children}
