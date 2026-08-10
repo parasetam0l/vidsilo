@@ -48,6 +48,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     "/entries": t("navEntries"),
     "/upload": t("navUpload"),
     "/users": t("navUsers"),
+    "/jobs": t("navJobs"),
     "/categories": t("navCategories"),
     "/flavors": t("navFlavors"),
     "/settings": t("navSettings"),

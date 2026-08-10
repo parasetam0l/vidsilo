@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useT } from "@/lib/i18n";
 import { useDialog } from "@/hooks/use-dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -49,24 +49,51 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { SvgChart } from "@/components/svg-chart";
 
-export default function EntryPage() {
+// Opens the entry detail in a dialog (useDialog). The entries table and the
+// dashboard open it; there is no dedicated detail page anymore.
+export function useEntryDetailDialog() {
+  const dialog = useDialog();
+  return React.useCallback(
+    (publicId: string) => {
+      dialog.open({
+        content: (close) => (
+          <EntryDetailDialog publicId={publicId} onClose={close} />
+        ),
+        size: "4xl",
+        dismissible: false,
+        showCloseButton: true,
+      });
+    },
+    [dialog],
+  );
+}
+
+export function EntryDetailDialog({
+  publicId,
+  onClose,
+}: {
+  publicId: string;
+  onClose: () => void;
+}) {
   const t = useT();
   const { confirm } = useDialog();
   const toast = useToast();
-  const params = useSearchParams();
   const router = useRouter();
-  const id = params.get("id");
   const [entry, setEntry] = React.useState<EntryDetail | null>(null);
   const [flavors, setFlavors] = React.useState<Flavor[]>([]);
   const [categories, setCategories] = React.useState<Category[]>([]);
-
-
   const [ticked, setTicked] = React.useState<Set<number>>(new Set());
   const [analytics, setAnalytics] = React.useState<AnalyticsResponse | null>(null);
+  const [reloadKey, setReloadKey] = React.useState(0);
+
+  // Reload re-fetches everything after mutations (poster, subtitles, embed).
+  const reload = React.useCallback(
+    () => setReloadKey((k) => k + 1),
+    [],
+  );
 
   React.useEffect(() => {
-    if (!id) return;
-    api<EntryDetail>(`/api/entries/${id}`)
+    api<EntryDetail>(`/api/entries/${publicId}`)
       .then((e) => {
         setEntry(e);
         setTicked(
@@ -76,13 +103,12 @@ export default function EntryPage() {
       .catch((err) => toast.error(err.message));
     api<Flavor[]>("/api/flavors").then(setFlavors).catch(() => {});
     api<Category[]>("/api/categories").then(setCategories).catch(() => {});
-    api<AnalyticsResponse>(`/api/entries/${id}/analytics`).then(setAnalytics).catch(() => {});
-  }, [id, toast]);
+    api<AnalyticsResponse>(`/api/entries/${publicId}/analytics`).then(setAnalytics).catch(() => {});
+  }, [publicId, reloadKey, toast]);
 
-  if (!id) return <div className="p-4 text-sm text-muted-foreground">{t("entryNotFound")}</div>;
-  if (!entry) return <div className="p-4 text-sm text-muted-foreground">{t("loading")}</div>;
+  if (!entry) return <p className="text-sm text-muted-foreground">{t("loading")}</p>;
 
-    const catName = categories.find((c) => c.id === entry.categoryId)?.name ?? "—";
+  const catName = categories.find((c) => c.id === entry.categoryId)?.name ?? "—";
 
   const saveMetadata = async () => {
     try {
@@ -100,16 +126,16 @@ export default function EntryPage() {
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : t("error"));
     }
-  }
+  };
 
   const reprocess = async () => {
     try {
       await api<void>(`/api/entries/${entry.id}/reprocess`, { method: "POST" });
-      router.refresh();
+      reload();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t("error"));
     }
-  }
+  };
 
   const applyFlavors = async () => {
     try {
@@ -117,17 +143,23 @@ export default function EntryPage() {
         method: "POST",
         body: JSON.stringify({ flavorIds: [...ticked] }),
       });
-      router.refresh();
+      reload();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t("error"));
     }
-  }
+  };
 
   const deleteEntry = async () => {
-    await api<void>(`/api/entries/${entry.id}`, { method: "DELETE" });
-    toast.success(t("deleted"));
-    router.push("/entries");
-  }
+    try {
+      await api<void>(`/api/entries/${entry.id}`, { method: "DELETE" });
+      toast.success(t("deleted"));
+      onClose();
+      router.push("/entries");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("error"));
+      throw e; // keep the confirm dialog open on failure
+    }
+  };
 
   const askDelete = () => {
     confirm({
@@ -138,16 +170,16 @@ export default function EntryPage() {
       cancelLabel: t("cancel"),
       onConfirm: deleteEntry,
     });
-  }
+  };
 
   return (
-    <div className="flex flex-1 flex-col gap-4 p-4">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-4 pr-6">
+        <div className="min-w-0">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-semibold tracking-tight">
+            <h2 className="text-lg font-semibold tracking-tight">
               {entry.title || t("untitled")}
-            </h1>
+            </h2>
             <StatusBadge status={entry.status} />
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -167,7 +199,12 @@ export default function EntryPage() {
           <Button variant="outline" onClick={reprocess}>
             <RotateCcw className="size-4" /> {t("entryReprocess")}
           </Button>
-          <Button variant="outline" render={<a href={`/play/${entry.id}`} target="_blank" rel="noreferrer" />}>
+          <Button
+            variant="outline"
+            render={
+              <a href={`/play/${entry.id}`} target="_blank" rel="noreferrer" />
+            }
+          >
             <Play className="size-4" /> {t("entryWatch")}
           </Button>
           <Button variant="destructive" onClick={askDelete}>
@@ -214,7 +251,7 @@ export default function EntryPage() {
                       setEntry({ ...entry, categoryId: v === "none" ? null : Number(v) })
                     }
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -313,19 +350,23 @@ export default function EntryPage() {
         </TabsContent>
 
         <TabsContent value="poster" className="mt-4">
-          <PosterPicker entry={entry} onPicked={() => window.location.reload()} />
+          <PosterPicker entry={entry} onPicked={reload} />
         </TabsContent>
 
         <TabsContent value="subtitles" className="mt-4">
-          <SubtitlesTab entry={entry} />
+          <SubtitlesTab entry={entry} onChanged={reload} />
         </TabsContent>
 
         <TabsContent value="playback" className="mt-4">
-          <PlaybackTab entry={entry} />
+          <PlaybackTab entry={entry} onChanged={reload} />
         </TabsContent>
 
         <TabsContent value="analytics" className="mt-4">
-          {analytics ? <AnalyticsTab data={analytics} /> : <p className="text-sm text-muted-foreground">{t("loading")}</p>}
+          {analytics ? (
+            <AnalyticsTab data={analytics} />
+          ) : (
+            <p className="text-sm text-muted-foreground">{t("loading")}</p>
+          )}
         </TabsContent>
       </Tabs>
     </div>
@@ -393,7 +434,13 @@ function PosterPicker({
   );
 }
 
-function SubtitlesTab({ entry }: { entry: EntryDetail }) {
+function SubtitlesTab({
+  entry,
+  onChanged,
+}: {
+  entry: EntryDetail;
+  onChanged: () => void;
+}) {
   const t = useT();
   const { confirm } = useDialog();
   const toast = useToast();
@@ -409,7 +456,7 @@ function SubtitlesTab({ entry }: { entry: EntryDetail }) {
     try {
       await api(`/api/entries/${entry.id}/subtitles`, { method: "POST", body: form });
       toast.success(t("subtitleUploaded"));
-      window.location.reload();
+      onChanged();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t("error"));
     }
@@ -447,7 +494,7 @@ function SubtitlesTab({ entry }: { entry: EntryDetail }) {
                         onConfirm: async () => {
                           await api<void>(`/api/entries/${entry.id}/subtitles/${s.id}`, { method: "DELETE" });
                           toast.success(t("deleted"));
-                          window.location.reload();
+                          onChanged();
                         },
                       });
                     }}
@@ -473,7 +520,7 @@ function SubtitlesTab({ entry }: { entry: EntryDetail }) {
           </div>
           <div className="flex flex-col gap-2">
             <Label>{t("labelSubtitleLabel")}</Label>
-            <Input className="w-40"  value={label} onChange={(e) => setLabel(e.target.value)} />
+            <Input className="w-40" value={label} onChange={(e) => setLabel(e.target.value)} />
           </div>
           <input
             ref={fileRef}
@@ -494,8 +541,15 @@ function SubtitlesTab({ entry }: { entry: EntryDetail }) {
   );
 }
 
-function PlaybackTab({ entry }: { entry: EntryDetail }) {
+function PlaybackTab({
+  entry,
+  onChanged,
+}: {
+  entry: EntryDetail;
+  onChanged: () => void;
+}) {
   const t = useT();
+  const toast = useToast();
   const [policy, setPolicy] = React.useState(entry.embedPolicy);
   const [domains, setDomains] = React.useState(entry.embedDomains.join(", "));
   const [copied, setCopied] = React.useState(false);
@@ -504,14 +558,19 @@ function PlaybackTab({ entry }: { entry: EntryDetail }) {
   const snippet = `<iframe src="${embedUrl}" width="640" height="360" frameborder="0" allowfullscreen></iframe>`;
 
   async function save() {
-    await api(`/api/entries/${entry.id}/embed`, {
-      method: "PATCH",
-      body: JSON.stringify({
-        policy,
-        domains: domains.split(",").map((d) => d.trim()).filter(Boolean),
-      }),
-    });
-    window.location.reload();
+    try {
+      await api(`/api/entries/${entry.id}/embed`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          policy,
+          domains: domains.split(",").map((d) => d.trim()).filter(Boolean),
+        }),
+      });
+      toast.success(t("saved"));
+      onChanged();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("error"));
+    }
   }
 
   return (
@@ -534,7 +593,7 @@ function PlaybackTab({ entry }: { entry: EntryDetail }) {
         {policy === "allowlist" || policy === "default" ? (
           <div className="flex flex-col gap-2">
             <Label>{t("allowedDomains")}</Label>
-            <Input value={domains} onChange={(e) => setDomains(e.target.value)}  />
+            <Input value={domains} onChange={(e) => setDomains(e.target.value)} />
           </div>
         ) : null}
         <Button onClick={save}>

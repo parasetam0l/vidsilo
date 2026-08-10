@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import {
   ActivityIcon,
   ClapperboardIcon,
@@ -18,6 +17,7 @@ import { useT } from "@/lib/i18n";
 import { formatBytes, formatDuration, formatGb } from "@/lib/format";
 import { StatusBadge } from "@/components/status-badge";
 import { useUploadDialog } from "@/components/upload-dialog";
+import { useEntryDetailDialog } from "@/components/entry-detail-dialog";
 import { EmptyState } from "@/components/empty-state";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -100,6 +100,7 @@ export default function DashboardPage() {
   const t = useT();
   const toast = useToast();
   const openUpload = useUploadDialog();
+  const openEntryDetail = useEntryDetailDialog();
   const [data, setData] = React.useState<Dashboard | null>(null);
 
   const load = React.useCallback(() => {
@@ -110,7 +111,7 @@ export default function DashboardPage() {
 
   React.useEffect(load, [load]);
 
-  // Keep KPIs fresh: refetch on window focus and every 60s while visible.
+  // Keep KPIs fresh: refetch on focus and every 60s while visible.
   React.useEffect(() => {
     const onFocus = () => load();
     window.addEventListener("focus", onFocus);
@@ -290,12 +291,13 @@ export default function DashboardPage() {
                   {(data.recent ?? []).map((e: Entry) => (
                     <TableRow key={e.id}>
                       <TableCell>
-                        <Link
-                          href={`/entries?id=${e.id}`}
-                          className="hover:underline"
+                        <button
+                          type="button"
+                          className="max-w-full truncate text-left hover:underline"
+                          onClick={() => openEntryDetail(e.id)}
                         >
                           {e.title || t("untitled")}
-                        </Link>
+                        </button>
                       </TableCell>
                       <TableCell>
                         <StatusBadge status={e.status} />

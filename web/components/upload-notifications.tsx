@@ -16,8 +16,18 @@ export function UploadNotifications() {
   const router = useRouter();
   const jobs = useUploads();
   const doneIds = React.useRef<Set<string>>(new Set());
+  const seeded = React.useRef(false);
 
   React.useEffect(() => {
+    // First run: jobs already done (persisted across refreshes) are history,
+    // not news — only toast for completions that happen after mount.
+    if (!seeded.current) {
+      seeded.current = true;
+      for (const job of jobs) {
+        if (job.status === "done") doneIds.current.add(job.id);
+      }
+      return;
+    }
     for (const job of jobs) {
       if (job.status === "done" && !doneIds.current.has(job.id)) {
         doneIds.current.add(job.id);

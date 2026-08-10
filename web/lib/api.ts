@@ -205,6 +205,28 @@ export interface UploadConfig {
   allowedExtensions: string[];
 }
 
+export interface UploadActivity {
+  id: string;
+  entryId: number;
+  title: string;
+  uploader: string;
+  size: number;
+  offset: number;
+  progress: number;
+  createdAt: string;
+}
+
+export interface JobActivity {
+  id: number;
+  type: string;
+  entryId: number | null;
+  entryTitle: string;
+  status: "queued" | "running" | "done" | "failed";
+  attempts: number;
+  error?: string;
+  createdAt: string;
+}
+
 export interface SettingsResponse {
   settings: Record<string, unknown>;
   restartRequired: string[];

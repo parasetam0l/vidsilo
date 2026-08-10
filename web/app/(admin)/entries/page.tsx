@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import {
   ChevronLeft,
   ChevronRight,
@@ -19,7 +18,10 @@ import { useToast } from "@/hooks/use-toast";
 import { formatBytes, formatDate, formatDuration } from "@/lib/format";
 import { StatusBadge } from "@/components/status-badge";
 import { EmptyState } from "@/components/empty-state";
+import { EntryThumb } from "@/components/entry-thumb";
 import { useUploadDialog } from "@/components/upload-dialog";
+import { useEntryDetailDialog } from "@/components/entry-detail-dialog";
+import { useUploads } from "@/lib/upload-store";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -46,6 +48,7 @@ export default function EntriesPage() {
   const { confirm } = useDialog();
   const toast = useToast();
   const openUpload = useUploadDialog();
+  const openEntryDetail = useEntryDetailDialog();
   const [list, setList] = React.useState<EntryList | null>(null);
   const [q, setQ] = React.useState("");
   const [status, setStatus] = React.useState("");
@@ -70,6 +73,28 @@ export default function EntriesPage() {
   }, [q, status, category, page, limit, toast]);
 
   React.useEffect(load, [load]);
+
+  // Own uploads: refetch immediately when one completes.
+  const uploads = useUploads();
+  const doneIds = React.useRef<Set<string>>(new Set());
+  React.useEffect(() => {
+    let changed = false;
+    for (const u of uploads) {
+      if (u.status === "done" && !doneIds.current.has(u.id)) {
+        doneIds.current.add(u.id);
+        changed = true;
+      }
+    }
+    if (changed) load();
+  }, [uploads, load]);
+
+  // Other users' work: refetch while visible so the table stays in sync.
+  React.useEffect(() => {
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") load();
+    }, 30_000);
+    return () => window.clearInterval(timer);
+  }, [load]);
 
   const catName = (id: number | null) =>
     categories.find((c) => c.id === id)?.name ?? "—";
@@ -226,9 +251,16 @@ export default function EntriesPage() {
                     />
                   </TableCell>
                   <TableCell className="font-medium">
-                    <Link href={`/entries?id=${e.id}`} className="hover:underline">
-                      {e.title || t("untitled")}
-                    </Link>
+                    <div className="flex items-center gap-3">
+                      <EntryThumb posterKey={e.posterKey} />
+                      <button
+                        type="button"
+                        className="max-w-full truncate text-left hover:underline"
+                        onClick={() => openEntryDetail(e.id)}
+                      >
+                        {e.title || t("untitled")}
+                      </button>
+                    </div>
                   </TableCell>
                   <TableCell>
                     <StatusBadge status={e.status} />

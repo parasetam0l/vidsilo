@@ -38,6 +38,7 @@ type Server struct {
 	apiLimiter   *rateLimiter
 	loginLimiter *rateLimiter
 	denylist     *Denylist
+	spoolDir     string
 }
 
 type HealthCheck struct {
@@ -71,6 +72,7 @@ func NewServer(log *slog.Logger, uiFS fs.FS, pool *pgxpool.Pool, secret []byte, 
 	}
 	if ds != nil {
 		s.tusHandler = s.newTusHandler(ds)
+		s.spoolDir = ds.SpoolDir
 	}
 	s.health = func() []HealthCheck { return nil }
 	return s
@@ -97,6 +99,7 @@ func (s *Server) Handler() http.Handler {
 	s.registerFlavorRoutes(mux)
 	s.registerDashboardRoutes(mux)
 	s.registerUploadConfigRoute(mux)
+	s.registerActivityRoutes(mux)
 
 	// Exact admin page route: prevents ServeMux's /upload -> /upload/ redirect
 	// (the tus subtree owns /upload/).

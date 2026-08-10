@@ -4,6 +4,7 @@ import * as React from "react";
 import {
   CheckIcon,
   CircleAlertIcon,
+  CircleCheckIcon,
   PlusIcon,
   TimerIcon,
   Trash2Icon,
@@ -72,6 +73,7 @@ export function UploadDialogContent() {
     (j) => j.status === "uploading" || j.status === "queued" || j.status === "interrupted",
   ).length;
   const hasPending = jobs.some((j) => j.status !== "done");
+  const allDone = jobs.length > 0 && !hasPending;
 
   const pickFiles = () => inputRef.current?.click();
 
@@ -105,13 +107,19 @@ export function UploadDialogContent() {
       <div className="flex items-center justify-between gap-2 pr-8">
         <div>
           <h2 className="text-base font-semibold tracking-tight">{t("uploadDialogTitle")}</h2>
-          <p className="text-xs text-muted-foreground">
-            {jobs.length === 0
-              ? t("uploadOrClick", { max: formatBytes(maxSize) })
-              : t("uploadFilesSelected", { n: jobs.length })}
-          </p>
+          {allDone ? (
+            <p className="flex items-center gap-1 text-xs font-medium text-emerald-500">
+              <CircleCheckIcon className="size-3.5" /> {t("uploadAllComplete")}
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              {jobs.length === 0
+                ? t("uploadOrClick", { max: formatBytes(maxSize) })
+                : t("uploadFilesSelected", { n: jobs.length })}
+            </p>
+          )}
         </div>
-        {jobs.length > 0 ? (
+        {hasPending ? (
           <Button variant="outline" size="sm" onClick={pickFiles}>
             <PlusIcon className="size-4" /> {t("uploadAddMore")}
           </Button>
@@ -177,8 +185,6 @@ export function UploadDialogContent() {
           <UploadCloudIcon className="size-4" />
           {t("uploadStartN", { n: activeCount, s: activeCount > 1 ? "s" : "" })}
         </Button>
-      ) : jobs.length > 0 ? (
-        <p className="text-center text-sm text-muted-foreground">{t("uploadAllComplete")}</p>
       ) : null}
     </div>
   );

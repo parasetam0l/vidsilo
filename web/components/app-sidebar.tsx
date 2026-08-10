@@ -8,6 +8,7 @@ import {
   FilmIcon,
   FolderTreeIcon,
   LayoutDashboardIcon,
+  ListChecksIcon,
   LogOutIcon,
   MoonIcon,
   SettingsIcon,
@@ -66,6 +67,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       label: t("navAdministration"),
       items: [
         { title: t("navUsers"), url: "/users", icon: UsersIcon },
+        { title: t("navJobs"), url: "/jobs", icon: ListChecksIcon },
         { title: t("navFlavors"), url: "/flavors", icon: SlidersHorizontalIcon },
         { title: t("navSettings"), url: "/settings", icon: SettingsIcon },
       ],

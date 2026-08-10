@@ -28,6 +28,7 @@ export interface UploadJob {
   status: UploadStatus;
   error?: string;
   uploadUrl?: string;
+  finishedAt?: string;
 }
 
 const STORAGE_KEY = "vod-uploads";
@@ -43,12 +44,19 @@ function load(): UploadJob[] {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as UploadJob[];
-    // Anything in flight when the page reloaded is resumable, not lost.
-    return parsed.map((j) =>
-      j.status === "uploading" || j.status === "queued"
-        ? { ...j, status: "interrupted" }
-        : j,
-    );
+    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+    return parsed
+      // Anything in flight when the page reloaded is resumable, not lost.
+      .map((j): UploadJob =>
+        j.status === "uploading" || j.status === "queued"
+          ? { ...j, status: "interrupted" }
+          : j,
+      )
+      // Completed/failed history older than a day is dropped from the list.
+      .filter((j) => {
+        if (j.status !== "done" && j.status !== "failed") return true;
+        return !!j.finishedAt && Date.parse(j.finishedAt) >= cutoff;
+      });
   } catch {
     return [];
   }
@@ -206,12 +214,12 @@ export async function startJob(id: string): Promise<void> {
     onSuccess: () => {
       activeUploads.delete(id);
       void idbDelete(id);
-      updateJob(id, { progress: 100, status: "done" });
+      updateJob(id, { progress: 100, status: "done", finishedAt: new Date().toISOString() });
       resolveFinished();
     },
     onError: (err) => {
       activeUploads.delete(id);
-      updateJob(id, { status: "failed", error: err.message });
+      updateJob(id, { status: "failed", error: err.message, finishedAt: new Date().toISOString() });
       resolveFinished();
     },
   });
