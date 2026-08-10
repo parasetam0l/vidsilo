@@ -12,8 +12,10 @@ import (
 
 func (s *Server) registerEntryRoutes(mux *http.ServeMux, tusHandler http.Handler) {
 	// Uploads: authenticated users may create; tus protocol under /upload/.
-	mux.Handle("/upload/", s.requireRole(roleUploader, roleEditor, roleAdmin)(tusHandler))
-	mux.Handle("HEAD /upload/", s.requireRole(roleUploader, roleEditor, roleAdmin)(tusHandler))
+	// Rate-limited like the rest of the API (the tus routes are outside /api/*).
+	tus := s.rateLimit(s.apiLimiter, tusHandler)
+	mux.Handle("/upload/", s.requireRole(roleUploader, roleEditor, roleAdmin)(tus))
+	mux.Handle("HEAD /upload/", s.requireRole(roleUploader, roleEditor, roleAdmin)(tus))
 
 	// Catalog (any authenticated user). Entries are addressed by their public
 	// uuid everywhere in the API; the internal sequential id never leaks.
