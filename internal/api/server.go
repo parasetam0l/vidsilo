@@ -87,6 +87,10 @@ func (s *Server) Handler() http.Handler {
 	s.registerEntryRoutes(mux, s.tusHandler)
 	s.registerMediaRoutes(mux)
 	s.registerAnalyticsRoutes(mux)
+	s.registerUserRoutes(mux)
+	s.registerCategoryRoutes(mux)
+	s.registerFlavorRoutes(mux)
+	s.registerDashboardRoutes(mux)
 
 	mux.HandleFunc("GET /healthz", s.handleHealthz)
 	mux.HandleFunc("GET /api/", s.handleNotFound())

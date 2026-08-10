@@ -87,7 +87,7 @@ func ListEntries(ctx context.Context, pool *pgxpool.Pool, f EntryFilter) (EntryL
 		conds = append(conds, fmt.Sprintf(cond, len(args)))
 	}
 	if f.Q != "" {
-		add(`(e.title ILIKE '%%' || $%d || '%%' OR e.description ILIKE '%%' || $%d || '%%')`, f.Q)
+		add(`(e.title ILIKE '%%' || $%[1]d || '%%' OR e.description ILIKE '%%' || $%[1]d || '%%')`, f.Q)
 	}
 	if f.Status != "" {
 		add(`e.status = $%d`, f.Status)
