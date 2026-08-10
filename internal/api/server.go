@@ -28,6 +28,7 @@ type Server struct {
 	media    *media.Manager
 
 	uiHandler  http.Handler
+	uiFS       http.FileSystem
 	tusHandler http.Handler
 	health     func() []HealthCheck
 
@@ -56,6 +57,7 @@ func NewServer(log *slog.Logger, uiFS http.FileSystem, pool *pgxpool.Pool, secre
 		queue:        q,
 		media:        m,
 		uiHandler:    http.FileServer(uiFS),
+		uiFS:         uiFS,
 		apiLimiter:   newRateLimiter(apiRate, apiRate),
 		loginLimiter: newRateLimiter(loginRate, loginRate),
 	}
@@ -80,6 +82,7 @@ func (s *Server) Handler() http.Handler {
 	s.registerAuthRoutes(mux)
 	s.registerSettingsRoutes(mux)
 	s.registerEntryRoutes(mux, s.tusHandler)
+	s.registerMediaRoutes(mux)
 
 	mux.HandleFunc("GET /healthz", s.handleHealthz)
 	mux.HandleFunc("GET /api/", s.handleNotFound())
