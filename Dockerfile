@@ -1,5 +1,6 @@
 # ---- web: static export -----------------------------------------------------
 FROM node:24 AS web
+ENV NEXT_OUTPUT=export
 WORKDIR /app/web
 COPY web/package.json web/package-lock.json ./
 RUN npm ci

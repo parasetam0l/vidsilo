@@ -1,0 +1,19 @@
+# /etc/systemd/system/vod-app.service — server: API + UI + media
+[Unit]
+Description=VOD app server
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+User=vod
+Group=vod
+EnvironmentFile=/etc/vod-app/env
+ExecStart=/usr/local/bin/vod-app server
+Restart=on-failure
+RestartSec=2s
+StateDirectory=vod-app
+LogsDirectory=vod-app
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+
+[Install]
+WantedBy=multi-user.target
