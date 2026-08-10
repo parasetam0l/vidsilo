@@ -30,7 +30,7 @@ const entryColumns = `
 	e.title, e.description, e.status, e.duration_ms,
 	e.source_key, e.source_size, e.is_public,
 	e.embed_policy, e.embed_domains,
-	e.poster_key, e.sprite_key, e.sprite_frames, coalesce(e.error, ''),
+	coalesce(e.poster_key, ''), coalesce(e.sprite_key, ''), coalesce(e.sprite_frames, 0), coalesce(e.error, ''),
 	e.created_at, e.updated_at`
 
 func EntryByID(ctx context.Context, pool *pgxpool.Pool, id int64) (Entry, error) {

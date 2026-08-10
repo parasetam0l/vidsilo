@@ -23,6 +23,12 @@ func NewLocal(root string) (*Local, error) {
 	return &Local{root: root}, nil
 }
 
+// Root exposes the backing directory (used to write transcode output
+// directly into the store tree, avoiding a copy).
+func (l *Local) Root() string {
+	return l.root
+}
+
 // pathForKey resolves a key under the root, rejecting traversal.
 func (l *Local) pathForKey(key string) (string, error) {
 	if key == "" || strings.HasPrefix(key, "/") {

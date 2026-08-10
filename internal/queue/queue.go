@@ -47,7 +47,7 @@ func (q *Queue) Claim(ctx context.Context, n int) ([]db.Job, error) {
 	defer tx.Rollback(ctx)
 
 	rows, err := tx.Query(ctx, `
-		SELECT id, type, entry_id, payload, status, attempts, max_attempts, error, created_at
+		SELECT id, type, entry_id, payload, status, attempts, max_attempts, coalesce(error, ''), created_at
 		FROM jobs
 		WHERE status = 'queued' AND run_at <= now()
 		ORDER BY id
@@ -87,6 +87,17 @@ func (q *Queue) Claim(ctx context.Context, n int) ([]db.Job, error) {
 		return nil, err
 	}
 	return jobs, nil
+}
+
+// Get loads a single job row (for the runner).
+func (q *Queue) Get(ctx context.Context, id int64) (db.Job, error) {
+	var j db.Job
+	err := q.pool.QueryRow(ctx, `
+		SELECT id, type, entry_id, payload, status, attempts, max_attempts, coalesce(error, ''), created_at
+		FROM jobs WHERE id = $1`, id).
+		Scan(&j.ID, &j.Type, &j.EntryID, &j.Payload, &j.Status,
+			&j.Attempts, &j.MaxAttempts, &j.Error, &j.CreatedAt)
+	return j, err
 }
 
 // Done marks a job successful.
