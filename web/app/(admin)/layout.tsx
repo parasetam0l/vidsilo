@@ -91,7 +91,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <SidebarTrigger className="-ml-1" />
             <Separator
               orientation="vertical"
-              className="mx-2 data-[orientation=vertical]:h-4"
+              className="mx-2 h-4 self-center"
             />
             <h1 className="text-base font-medium">{pageTitle}</h1>
             {action ? (
