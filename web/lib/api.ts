@@ -163,6 +163,7 @@ export interface Dashboard {
   storageUsed: number;
   bandwidthTotalBytes: number;
   bandwidthTodayBytes: number;
+  analyticsEnabled: boolean;
   queueDepth: number;
   recent: Entry[];
 }

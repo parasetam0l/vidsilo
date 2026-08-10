@@ -23,7 +23,8 @@ type dashboardResponse struct {
 	// from the analytics totals/daily tables.
 	BandwidthTotalBytes int64 `json:"bandwidthTotalBytes"`
 	BandwidthTodayBytes int64 `json:"bandwidthTodayBytes"`
-	QueueDepth          int64 `json:"queueDepth"`
+	AnalyticsEnabled    bool   `json:"analyticsEnabled"`
+	QueueDepth          int64  `json:"queueDepth"`
 	Recent              []db.Entry `json:"recent"`
 }
 
@@ -73,6 +74,7 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 		s.internalError(w, r, "dashboard bandwidth today", err)
 		return
 	}
+	out.AnalyticsEnabled = s.settings.Bool("analytics.enabled", true)
 
 	list, err := db.ListEntries(r.Context(), s.pool, db.EntryFilter{Page: 1, Limit: 8})
 	if err != nil {

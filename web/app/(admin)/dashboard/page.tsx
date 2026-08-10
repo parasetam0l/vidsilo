@@ -7,6 +7,13 @@ import { api, type Dashboard } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import { formatBytes, formatDuration, formatGb } from "@/lib/format";
 import { StatusBadge } from "@/components/status-badge";
+import { TriangleAlertIcon } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -47,6 +54,7 @@ export default function DashboardPage() {
       title: t("dashBandwidth"),
       value: `${formatGb(data.bandwidthTotalBytes)} GB`,
       hint: t("dashBandwidthHint", { today: formatGb(data.bandwidthTodayBytes) }),
+      warning: !data.analyticsEnabled ? t("analyticsDisabled") : undefined,
     },
     { title: t("dashQueue"), value: String(data.queueDepth), hint: t("dashQueueHint") },
   ];
@@ -57,8 +65,22 @@ export default function DashboardPage() {
         {kpis.map((kpi) => (
           <Card key={kpi.title}>
             <CardHeader>
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+              <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
                 {kpi.title}
+                {kpi.warning ? (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger
+                        render={
+                          <span className="inline-flex cursor-help text-amber-500">
+                            <TriangleAlertIcon className="size-4" />
+                          </span>
+                        }
+                      />
+                      <TooltipContent>{kpi.warning}</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                ) : null}
               </CardTitle>
             </CardHeader>
             <CardContent>

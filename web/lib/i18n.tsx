@@ -55,6 +55,7 @@ const en = {
   dashQueueHint: "jobs waiting or running",
   dashBandwidth: "Bandwidth",
   dashBandwidthHint: "view traffic — {today} GB served today",
+  analyticsDisabled: "Analytics is disabled — bandwidth is not being counted.",
   dashByStatus: "Entries by status",
   dashNoEntries: "No entries yet — upload your first video.",
   dashRecent: "Recent uploads",
