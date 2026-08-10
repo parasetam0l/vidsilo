@@ -56,6 +56,12 @@ const en = {
   dashBandwidth: "Bandwidth",
   dashBandwidthHint: "view traffic — {today} GB served today",
   analyticsDisabled: "Analytics is disabled — bandwidth is not being counted.",
+  dashWelcomeTitle: "Welcome to VOD",
+  dashWelcomeDesc:
+    "Your library is empty — upload your first video to start building your catalog.",
+  dashUploadFirst: "Upload a video",
+  dashStatusEmpty: "Nothing to report yet — statuses will appear here.",
+  dashRecentEmpty: "No videos yet — uploads will show up here.",
   dashByStatus: "Entries by status",
   dashNoEntries: "No entries yet — upload your first video.",
   dashRecent: "Recent uploads",

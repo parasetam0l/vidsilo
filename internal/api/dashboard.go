@@ -15,17 +15,23 @@ func (s *Server) registerDashboardRoutes(mux *http.ServeMux) {
 	mux.Handle("GET /api/dashboard", s.requireAuth(http.HandlerFunc(s.handleDashboard)))
 }
 
+type bandwidthPoint struct {
+	Day   string `json:"day"`
+	Bytes int64  `json:"bytes"`
+}
+
 type dashboardResponse struct {
 	EntriesByStatus map[string]int64 `json:"entriesByStatus"`
 	TotalEntries    int64            `json:"totalEntries"`
 	StorageUsed     int64            `json:"storageUsed"`
 	// Bandwidth: server-measured bytes served to viewers (view traffic),
 	// from the analytics totals/daily tables.
-	BandwidthTotalBytes int64 `json:"bandwidthTotalBytes"`
-	BandwidthTodayBytes int64 `json:"bandwidthTodayBytes"`
-	AnalyticsEnabled    bool   `json:"analyticsEnabled"`
-	QueueDepth          int64  `json:"queueDepth"`
-	Recent              []db.Entry `json:"recent"`
+	BandwidthTotalBytes int64            `json:"bandwidthTotalBytes"`
+	BandwidthTodayBytes int64            `json:"bandwidthTodayBytes"`
+	BandwidthSeries     []bandwidthPoint `json:"bandwidthSeries"`
+	AnalyticsEnabled    bool             `json:"analyticsEnabled"`
+	QueueDepth          int64            `json:"queueDepth"`
+	Recent              []db.Entry       `json:"recent"`
 }
 
 func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
@@ -75,6 +81,30 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	out.AnalyticsEnabled = s.settings.Bool("analytics.enabled", true)
+
+	// Last 14 days of served bytes for the bandwidth sparkline.
+	seriesRows, err := s.pool.Query(r.Context(), `
+		SELECT day::text, SUM(bytes) FROM analytics_daily
+		WHERE day >= current_date - 13
+		GROUP BY day ORDER BY day`)
+	if err != nil {
+		s.internalError(w, r, "dashboard bandwidth series", err)
+		return
+	}
+	defer seriesRows.Close()
+	out.BandwidthSeries = []bandwidthPoint{}
+	for seriesRows.Next() {
+		var p bandwidthPoint
+		if err := seriesRows.Scan(&p.Day, &p.Bytes); err != nil {
+			s.internalError(w, r, "dashboard bandwidth series", err)
+			return
+		}
+		out.BandwidthSeries = append(out.BandwidthSeries, p)
+	}
+	if err := seriesRows.Err(); err != nil {
+		s.internalError(w, r, "dashboard bandwidth series", err)
+		return
+	}
 
 	list, err := db.ListEntries(r.Context(), s.pool, db.EntryFilter{Page: 1, Limit: 8})
 	if err != nil {
