@@ -17,6 +17,7 @@ import { useDialog } from "@/hooks/use-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { formatBytes, formatDate, formatDuration } from "@/lib/format";
 import { StatusBadge } from "@/components/status-badge";
+import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -245,11 +246,8 @@ export default function EntriesPage() {
               ))}
               {list && (list.items ?? []).length === 0 ? (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={7} className="py-10">
-                    <div className="flex flex-col items-center gap-2 text-center">
-                      <FilmIcon className="size-6 text-muted-foreground/50" />
-                      <p className="text-sm text-muted-foreground">{t("entriesEmpty")}</p>
-                    </div>
+                  <TableCell colSpan={7}>
+                    <EmptyState icon={FilmIcon} description={t("entriesEmpty")} />
                   </TableCell>
                 </TableRow>
               ) : null}

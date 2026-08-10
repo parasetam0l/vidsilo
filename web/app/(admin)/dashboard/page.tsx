@@ -18,6 +18,7 @@ import { useT } from "@/lib/i18n";
 import { formatBytes, formatDuration, formatGb } from "@/lib/format";
 import { StatusBadge } from "@/components/status-badge";
 import { useUploadDialog } from "@/components/upload-dialog";
+import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -264,10 +265,7 @@ export default function DashboardPage() {
                 ))}
               </div>
             ) : (
-              <div className="flex flex-col items-center gap-2 py-8 text-center">
-                <FilmIcon className="size-6 text-muted-foreground/50" />
-                <p className="text-sm text-muted-foreground">{t("dashStatusEmpty")}</p>
-              </div>
+              <EmptyState icon={FilmIcon} description={t("dashStatusEmpty")} />
             )}
           </CardContent>
         </Card>
@@ -308,13 +306,15 @@ export default function DashboardPage() {
                 </TableBody>
               </Table>
             ) : (
-              <div className="flex flex-col items-center gap-2 py-8 text-center">
-                <ClapperboardIcon className="size-6 text-muted-foreground/50" />
-                <p className="text-sm text-muted-foreground">{t("dashRecentEmpty")}</p>
-                <Button variant="link" size="sm" onClick={openUpload}>
-                  {t("dashUploadFirst")}
-                </Button>
-              </div>
+              <EmptyState
+                icon={ClapperboardIcon}
+                description={t("dashRecentEmpty")}
+                action={
+                  <Button variant="link" size="sm" onClick={openUpload}>
+                    {t("dashUploadFirst")}
+                  </Button>
+                }
+              />
             )}
           </CardContent>
         </Card>
