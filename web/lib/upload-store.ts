@@ -35,6 +35,7 @@ const listeners = new Set<() => void>();
 
 let jobs: UploadJob[] = load();
 const files = new Map<string, File>(); // id -> File (memory only)
+const activeUploads = new Map<string, tus.Upload>(); // id -> in-flight tus upload
 
 function load(): UploadJob[] {
   if (typeof window === "undefined") return [];
@@ -147,7 +148,13 @@ export function updateJob(id: string, patch: Partial<UploadJob>) {
   persist();
 }
 
+// removeJob drops the job. An in-flight upload is aborted first: the
+// transfer stops and the partially uploaded file is discarded — the server
+// entry stays 'uploading' (no source media) and can be deleted from the
+// entries list.
 export function removeJob(id: string) {
+  activeUploads.get(id)?.abort();
+  activeUploads.delete(id);
   jobs = jobs.filter((j) => j.id !== id);
   files.delete(id);
   void idbDelete(id);
@@ -197,15 +204,18 @@ export async function startJob(id: string): Promise<void> {
       if (upload.url) updateJob(id, { uploadUrl: upload.url });
     },
     onSuccess: () => {
+      activeUploads.delete(id);
       void idbDelete(id);
       updateJob(id, { progress: 100, status: "done" });
       resolveFinished();
     },
     onError: (err) => {
+      activeUploads.delete(id);
       updateJob(id, { status: "failed", error: err.message });
       resolveFinished();
     },
   });
+  activeUploads.set(id, upload);
   upload.start();
   await finished;
 }

@@ -55,6 +55,7 @@ export function useUploadDialog() {
 export function UploadDialogContent() {
   const t = useT();
   const toast = useToast();
+  const { confirm } = useDialog();
   const jobs = useUploads();
   const [categories, setCategories] = React.useState<Category[]>([]);
   const [uploadConfig, setUploadConfig] = React.useState<UploadConfig | null>(null);
@@ -82,12 +83,29 @@ export function UploadDialogContent() {
     }
   };
 
+  // Removing an in-flight upload stops the transfer (destructive);
+  // queued/paused files are discarded immediately.
+  const askRemove = (job: UploadJob) => {
+    if (job.status === "uploading") {
+      confirm({
+        title: t("uploadStopTitle"),
+        description: t("uploadStopDesc"),
+        variant: "destructive",
+        confirmLabel: t("uploadStop"),
+        cancelLabel: t("cancel"),
+        onConfirm: () => removeJob(job.id),
+      });
+    } else {
+      removeJob(job.id);
+    }
+  };
+
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-2">
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-2 pr-8">
         <div>
-          <h2 className="text-lg font-semibold tracking-tight">{t("uploadDialogTitle")}</h2>
-          <p className="text-sm text-muted-foreground">
+          <h2 className="text-base font-semibold tracking-tight">{t("uploadDialogTitle")}</h2>
+          <p className="text-xs text-muted-foreground">
             {jobs.length === 0
               ? t("uploadOrClick", { max: formatBytes(maxSize) })
               : t("uploadFilesSelected", { n: jobs.length })}
@@ -102,7 +120,7 @@ export function UploadDialogContent() {
 
       {jobs.length === 0 ? (
         <div
-          className={`flex min-h-56 cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-8 text-center shadow-sm transition-colors ${
+          className={`flex min-h-44 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-6 text-center shadow-sm transition-colors ${
             dragOver ? "border-primary bg-muted/40" : "border-muted"
           }`}
           onDragOver={(e) => {
@@ -117,8 +135,8 @@ export function UploadDialogContent() {
           }}
           onClick={pickFiles}
         >
-          <div className="flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-sm">
-            <UploadCloudIcon className="size-7" />
+          <div className="flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-sm">
+            <UploadCloudIcon className="size-6" />
           </div>
           <div>
             <p className="font-medium">{t("uploadDragDrop")}</p>
@@ -142,9 +160,14 @@ export function UploadDialogContent() {
       />
 
       {jobs.length > 0 ? (
-        <div className="flex max-h-80 flex-col gap-3 overflow-y-auto pr-1">
+        <div className="flex max-h-72 flex-col gap-2 overflow-y-auto p-1 pr-2">
           {jobs.map((job) => (
-            <UploadJobCard key={job.id} job={job} categories={categories} />
+            <UploadJobCard
+              key={job.id}
+              job={job}
+              categories={categories}
+              onRemove={() => askRemove(job)}
+            />
           ))}
         </div>
       ) : null}
@@ -164,9 +187,11 @@ export function UploadDialogContent() {
 function UploadJobCard({
   job,
   categories,
+  onRemove,
 }: {
   job: UploadJob;
   categories: Category[];
+  onRemove: () => void;
 }) {
   const t = useT();
 
@@ -200,10 +225,10 @@ function UploadJobCard({
 
   return (
     <Card className="overflow-hidden py-0 shadow-sm">
-      <CardContent className="flex flex-col gap-3 p-4">
+      <CardContent className="flex flex-col gap-2.5 p-3">
         <div className="flex items-center gap-3">
           <div
-            className={`flex size-9 shrink-0 items-center justify-center rounded-lg shadow-sm ${status.tile}`}
+            className={`flex size-8 shrink-0 items-center justify-center rounded-lg shadow-sm ${status.tile}`}
           >
             {status.icon}
           </div>
@@ -215,7 +240,12 @@ function UploadJobCard({
             </p>
           </div>
           {job.status !== "done" ? (
-            <Button variant="ghost" size="icon" onClick={() => removeJob(job.id)}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+              onClick={onRemove}
+            >
               <X className="size-4" />
             </Button>
           ) : null}
@@ -223,23 +253,23 @@ function UploadJobCard({
 
         {job.status !== "done" ? (
           <>
-            <div className="flex flex-col gap-1.5">
-              <Label>{t("labelTitle")}</Label>
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs">{t("labelTitle")}</Label>
               <Input
-                className="w-full"
+                className="h-8 w-full text-sm"
                 value={job.title}
                 disabled={job.status === "uploading"}
                 onChange={(e) => updateJob(job.id, { title: e.target.value })}
               />
             </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>{t("labelCategory")}</Label>
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs">{t("labelCategory")}</Label>
               <Select
                 value={job.category}
                 disabled={job.status === "uploading"}
                 onValueChange={(v) => updateJob(job.id, { category: v ?? "" })}
               >
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="h-8 w-full">
                   <SelectValue placeholder={t("none")} />
                 </SelectTrigger>
                 <SelectContent>
@@ -251,19 +281,19 @@ function UploadJobCard({
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>{t("labelDescription")}</Label>
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs">{t("labelDescription")}</Label>
               <Textarea
                 rows={2}
-                className="w-full"
+                className="h-14 w-full text-sm"
                 value={job.description}
                 disabled={job.status === "uploading"}
                 onChange={(e) => updateJob(job.id, { description: e.target.value })}
               />
             </div>
             <div className="flex items-center gap-3">
-              <Progress value={job.progress} className="flex-1" />
-              <span className="w-10 text-right text-xs text-muted-foreground tabular-nums">
+              <Progress value={job.progress} className="h-1.5 flex-1" />
+              <span className="w-9 text-right text-xs text-muted-foreground tabular-nums">
                 {job.progress}%
               </span>
             </div>
