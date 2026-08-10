@@ -34,9 +34,6 @@ func Load() (*Config, error) {
 		S3Region:      getenv("S3_REGION", "us-east-1"),
 		Port:          getenvInt("PORT", 8080),
 	}
-	if c.DatabaseURL == "" {
-		return nil, fmt.Errorf("DATABASE_URL is required")
-	}
 	if c.StorageDriver != "local" && c.StorageDriver != "s3" {
 		return nil, fmt.Errorf("STORAGE_DRIVER must be 'local' or 's3', got %q", c.StorageDriver)
 	}
@@ -46,6 +43,14 @@ func Load() (*Config, error) {
 		}
 	}
 	return c, nil
+}
+
+// CheckServer validates that everything the server/worker modes need is set.
+func (c *Config) CheckServer() error {
+	if c.DatabaseURL == "" {
+		return fmt.Errorf("DATABASE_URL is required")
+	}
+	return nil
 }
 
 func getenv(key, def string) string {
