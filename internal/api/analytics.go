@@ -9,8 +9,8 @@ import (
 // registerAnalyticsRoutes: public beacons (rate-limited generously) and the
 // per-entry analytics dashboard endpoint.
 func (s *Server) registerAnalyticsRoutes(mux *http.ServeMux) {
-	mux.Handle("POST /api/analytics/play", s.rateLimit(s.apiLimiter, http.HandlerFunc(s.handleAnalyticsPlay)))
-	mux.Handle("POST /api/analytics/watch", s.rateLimit(s.apiLimiter, http.HandlerFunc(s.handleAnalyticsWatch)))
+	mux.HandleFunc("POST /api/analytics/play", s.handleAnalyticsPlay)
+	mux.HandleFunc("POST /api/analytics/watch", s.handleAnalyticsWatch)
 	mux.Handle("GET /api/entries/{id}/analytics", s.requireRole(roleEditor, roleAdmin)(http.HandlerFunc(s.handleEntryAnalytics)))
 }
 

@@ -13,7 +13,7 @@ func TestServeUICleanURLs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := NewServer(nil, http.FS(fs), nil, nil, nil, nil, nil, nil, nil, nil)
+	s := NewServer(nil, fs, nil, nil, nil, nil, nil, nil, nil, nil)
 	for _, path := range []string{"/login", "/dashboard", "/upload", "/entries"} {
 		req := httptest.NewRequest("GET", path, nil)
 		rec := httptest.NewRecorder()

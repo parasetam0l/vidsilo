@@ -3,6 +3,7 @@ package api
 import (
 	"compress/gzip"
 	"encoding/json"
+	"io/fs"
 	"log/slog"
 	"net/http"
 	"path"
@@ -30,7 +31,7 @@ type Server struct {
 	media     *media.Manager
 	analytics *analytics.Accumulator
 
-	uiFS       http.FileSystem
+	uiFS       fs.FS
 	tusHandler http.Handler
 	health     func() []HealthCheck
 
@@ -49,7 +50,7 @@ const (
 	loginRate = 5.0   // tight on auth endpoints
 )
 
-func NewServer(log *slog.Logger, uiFS http.FileSystem, pool *pgxpool.Pool, secret []byte, st store.Store, svc *settings.Service, q *queue.Queue, m *media.Manager, ds *upload.DataStore, acc *analytics.Accumulator) *Server {
+func NewServer(log *slog.Logger, uiFS fs.FS, pool *pgxpool.Pool, secret []byte, st store.Store, svc *settings.Service, q *queue.Queue, m *media.Manager, ds *upload.DataStore, acc *analytics.Accumulator) *Server {
 	if log == nil {
 		log = slog.Default()
 	}
@@ -103,11 +104,32 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/", s.serveUI)
 
 	var h http.Handler = mux
+	h = s.rateLimitAPI(h) // token buckets: tight on /api/auth, generous elsewhere
 	h = s.originCheck(h)
+	h = s.securityHeaders(h)
 	h = s.recoverPanic(h)
 	h = s.accessLog(h)
 	h = gzipMiddleware(h)
 	return h
+}
+
+// rateLimitAPI applies token buckets to every /api/* route: the tight login
+// limiter on /api/auth/*, the generous general limiter everywhere else.
+func (s *Server) rateLimitAPI(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/api/") {
+			l := s.apiLimiter
+			if strings.HasPrefix(r.URL.Path, "/api/auth/") {
+				l = s.loginLimiter
+			}
+			if !l.allow(clientIP(r)) {
+				w.Header().Set("Retry-After", "1")
+				writeError(w, http.StatusTooManyRequests, "rate_limited", "too many requests")
+				return
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func (s *Server) handleHealthz(w http.ResponseWriter, r *http.Request) {
@@ -147,7 +169,7 @@ func (s *Server) serveUI(w http.ResponseWriter, r *http.Request) {
 		p = "index.html"
 	}
 	if strings.HasPrefix(p, "_next/") {
-		http.FileServer(s.uiFS).ServeHTTP(w, r)
+		http.FileServer(http.FS(s.uiFS)).ServeHTTP(w, r)
 		return
 	}
 	// Extensionless paths resolve to their .html file (Next static export).
@@ -157,11 +179,11 @@ func (s *Server) serveUI(w http.ResponseWriter, r *http.Request) {
 			f.Close()
 			r2 := r.Clone(r.Context())
 			r2.URL.Path = "/" + candidate
-			http.FileServer(s.uiFS).ServeHTTP(w, r2)
+			http.FileServer(http.FS(s.uiFS)).ServeHTTP(w, r2)
 			return
 		}
 	}
-	http.FileServer(s.uiFS).ServeHTTP(w, r)
+	http.FileServer(http.FS(s.uiFS)).ServeHTTP(w, r)
 }
 func gzipMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

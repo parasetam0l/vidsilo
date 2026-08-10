@@ -26,9 +26,11 @@ const (
 type ctxKey string
 
 func (s *Server) registerAuthRoutes(mux *http.ServeMux) {
-	mux.Handle("POST /api/auth/login", s.rateLimit(s.loginLimiter, http.HandlerFunc(s.handleLogin)))
-	mux.Handle("POST /api/auth/refresh", s.rateLimit(s.loginLimiter, http.HandlerFunc(s.handleRefresh)))
-	mux.Handle("POST /api/auth/logout", s.rateLimit(s.loginLimiter, http.HandlerFunc(s.handleLogout)))
+	// All /api routes are token-bucket limited by rateLimitAPI (tighter on
+	// /api/auth/*); individual handlers stay plain.
+	mux.HandleFunc("POST /api/auth/login", s.handleLogin)
+	mux.HandleFunc("POST /api/auth/refresh", s.handleRefresh)
+	mux.HandleFunc("POST /api/auth/logout", s.handleLogout)
 	mux.Handle("GET /api/auth/me", s.requireAuth(http.HandlerFunc(s.handleMe)))
 }
 

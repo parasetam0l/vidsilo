@@ -34,6 +34,9 @@ func testServer(t *testing.T) (*Server, *pgxpool.Pool, string) {
 		t.Fatal(err)
 	}
 	s := NewServer(nil, nil, pool, secret, nil, svc, nil, nil, nil, nil)
+	// Tests run from a single IP; give the token buckets headroom.
+	s.apiLimiter = newRateLimiter(1e6, 1e6)
+	s.loginLimiter = newRateLimiter(1e5, 1e5)
 	ts := httptest.NewServer(s.Handler())
 	t.Cleanup(ts.Close)
 	return s, pool, ts.URL
