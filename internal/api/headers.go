@@ -1,63 +1,22 @@
 package api
 
 import (
-	"bytes"
-	"crypto/sha256"
-	"encoding/hex"
-	"io/fs"
 	"net/http"
-	"path/filepath"
-	"regexp"
 	"strings"
 )
 
-// Hardening headers per README: nosniff, Referrer-Policy, CSP with
-// sha256-hashed inline scripts (no unsafe-inline), X-Frame-Options on admin,
-// HSTS when TLS is enabled.
-
-var inlineScriptRe = regexp.MustCompile(`(?s)<script([^>]*)>(.*?)</script>`)
-
-// collectInlineScriptHashes scans every exported HTML page for inline scripts
-// and returns their sha256 hashes, so the CSP can allow exactly the scripts
-// the static export emits (theme init, RSC payloads) without unsafe-inline.
-func collectInlineScriptHashes(uiFS fs.FS) []string {
-	if uiFS == nil {
-		return nil
-	}
-	seen := map[string]bool{}
-	var hashes []string
-	_ = fs.WalkDir(uiFS, ".", func(p string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() || filepath.Ext(p) != ".html" {
-			return nil
-		}
-		raw, err := fs.ReadFile(uiFS, p)
-		if err != nil {
-			return nil
-		}
-		for _, m := range inlineScriptRe.FindAllSubmatch(raw, -1) {
-			if bytes.Contains(m[1], []byte("src=")) {
-				continue // external script tag, no hash needed
-			}
-			sum := sha256.Sum256(m[2])
-			h := hex.EncodeToString(sum[:])
-			if !seen[h] {
-				seen[h] = true
-				hashes = append(hashes, h)
-			}
-		}
-		return nil
-	})
-	return hashes
-}
-
+// Hardening headers per README: nosniff, Referrer-Policy, CSP, X-Frame-Options
+// on admin, HSTS when TLS is enabled.
+//
+// CSP note: the Next.js static export inlines its theme-init script and RSC
+// payloads, and those inline scripts change on every web rebuild — the
+// sha256-hash approach proved brittle across rebuilds/deployments (browsers
+// kept blocking legit inline scripts after cache/rebuild mismatches). For a
+// self-hosted single-origin admin we allow inline scripts ('unsafe-inline')
+// while keeping every other source restricted to 'self' (external scripts,
+// styles, images, media, connections, fonts). External resources from other
+// origins remain blocked, and admin pages are still frame-protected.
 func (s *Server) securityHeaders(next http.Handler) http.Handler {
-	hashes := collectInlineScriptHashes(s.uiFS)
-	var scriptSrc strings.Builder
-	scriptSrc.WriteString("'self'")
-	for _, h := range hashes {
-		scriptSrc.WriteString(" 'sha256-" + h + "'")
-	}
-
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
 		h.Set("X-Content-Type-Options", "nosniff")
@@ -68,7 +27,7 @@ func (s *Server) securityHeaders(next http.Handler) http.Handler {
 
 		isEmbed := strings.HasPrefix(r.URL.Path, "/embed")
 		csp := "default-src 'self'; " +
-			"script-src " + scriptSrc.String() + "; " +
+			"script-src 'self' 'unsafe-inline'; " +
 			"style-src 'self' 'unsafe-inline'; " +
 			"img-src 'self' data:; " +
 			"media-src 'self' blob:; " +
