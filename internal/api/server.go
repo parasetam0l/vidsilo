@@ -10,15 +10,17 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/parasetam0l/vod-app/internal/settings"
 	"github.com/parasetam0l/vod-app/internal/store"
 )
 
 // Server wires the HTTP surface: API routes, embedded UI, middleware.
 type Server struct {
-	Log    *slog.Logger
-	pool   *pgxpool.Pool
-	secret []byte
-	store  store.Store
+	Log      *slog.Logger
+	pool     *pgxpool.Pool
+	secret   []byte
+	store    store.Store
+	settings *settings.Service
 
 	uiHandler http.Handler
 	health    func() []HealthCheck
@@ -38,12 +40,13 @@ const (
 	loginRate = 5.0   // tight on auth endpoints
 )
 
-func NewServer(log *slog.Logger, uiFS http.FileSystem, pool *pgxpool.Pool, secret []byte, st store.Store) *Server {
+func NewServer(log *slog.Logger, uiFS http.FileSystem, pool *pgxpool.Pool, secret []byte, st store.Store, svc *settings.Service) *Server {
 	s := &Server{
 		Log:          log,
 		pool:         pool,
 		secret:       secret,
 		store:        st,
+		settings:     svc,
 		uiHandler:    http.FileServer(uiFS),
 		apiLimiter:   newRateLimiter(apiRate, apiRate),
 		loginLimiter: newRateLimiter(loginRate, loginRate),
@@ -64,6 +67,7 @@ func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 
 	s.registerAuthRoutes(mux)
+	s.registerSettingsRoutes(mux)
 
 	mux.HandleFunc("GET /healthz", s.handleHealthz)
 	mux.HandleFunc("GET /api/", s.handleNotFound())
