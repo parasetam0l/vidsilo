@@ -2,7 +2,14 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, FilmIcon, Search, Trash2 } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  FilmIcon,
+  RotateCcw,
+  Search,
+  Trash2,
+} from "lucide-react";
 
 import { api, type Category, type Entry, type EntryList } from "@/lib/api";
 import { useT } from "@/lib/i18n";
@@ -40,6 +47,7 @@ export default function EntriesPage() {
   const [status, setStatus] = React.useState("");
   const [category, setCategory] = React.useState("");
   const [page, setPage] = React.useState(1);
+  const [limit, setLimit] = React.useState(20);
   const [categories, setCategories] = React.useState<Category[]>([]);
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
 
@@ -48,14 +56,14 @@ export default function EntriesPage() {
   }, []);
 
   const load = React.useCallback(() => {
-    const params = new URLSearchParams({ page: String(page), limit: "20" });
+    const params = new URLSearchParams({ page: String(page), limit: String(limit) });
     if (q) params.set("q", q);
     if (status) params.set("status", status);
     if (category) params.set("category", category);
     api<EntryList>(`/api/entries?${params}`)
       .then(setList)
       .catch((e) => toast.error(e.message));
-  }, [q, status, category, page, toast]);
+  }, [q, status, category, page, limit, toast]);
 
   React.useEffect(load, [load]);
 
@@ -91,6 +99,27 @@ export default function EntriesPage() {
       confirmLabel: t("delete"),
       cancelLabel: t("cancel"),
       onConfirm: bulkDelete,
+    });
+  }
+
+  async function bulkReprocess() {
+    const ids = [...selected];
+    await api<{ queued: number }>("/api/entries/reprocess", {
+      method: "POST",
+      body: JSON.stringify({ publicIds: ids }),
+    }).catch((e) => toast.error(e.message));
+    setSelected(new Set());
+    toast.success(t("entriesReprocessed", { n: ids.length }));
+    load();
+  }
+
+  function askReprocess() {
+    confirm({
+      title: t("entriesReprocessTitle", { n: selected.size }),
+      description: t("entriesReprocessDesc"),
+      confirmLabel: t("entryReprocess"),
+      cancelLabel: t("cancel"),
+      onConfirm: bulkReprocess,
     });
   }
 
@@ -136,9 +165,14 @@ export default function EntriesPage() {
           </SelectContent>
         </Select>
         {selected.size > 0 ? (
-          <Button variant="destructive" onClick={askDelete}>
-            <Trash2 className="size-4" /> {t("entriesDeleteN", { n: selected.size })}
-          </Button>
+          <>
+            <Button variant="outline" onClick={askReprocess}>
+              <RotateCcw className="size-4" /> {t("entriesReprocessN", { n: selected.size })}
+            </Button>
+            <Button variant="destructive" onClick={askDelete}>
+              <Trash2 className="size-4" /> {t("entriesDeleteN", { n: selected.size })}
+            </Button>
+          </>
         ) : null}
       </div>
 
@@ -233,7 +267,25 @@ export default function EntriesPage() {
               pages: Math.max(1, Math.ceil(list.total / list.limit)),
             })}
           </span>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            <Select
+              value={String(limit)}
+              onValueChange={(v) => {
+                setLimit(Number(v ?? 20));
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="h-7 w-20 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[10, 20, 50].map((n) => (
+                  <SelectItem key={n} value={String(n)}>
+                    {n}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Button
               variant="outline"
               size="sm"

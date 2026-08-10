@@ -27,6 +27,7 @@ func (s *Server) registerEntryRoutes(mux *http.ServeMux, tusHandler http.Handler
 	mux.Handle("DELETE /api/entries/{publicId}", s.requireRole(roleEditor, roleAdmin)(http.HandlerFunc(s.handleEntryDelete)))
 
 	mux.Handle("POST /api/entries/{publicId}/reprocess", s.requireRole(roleEditor, roleAdmin)(http.HandlerFunc(s.handleEntryReprocess)))
+	mux.Handle("POST /api/entries/reprocess", s.requireRole(roleEditor, roleAdmin)(http.HandlerFunc(s.handleEntriesReprocess)))
 	mux.Handle("POST /api/entries/{publicId}/flavors", s.requireRole(roleEditor, roleAdmin)(http.HandlerFunc(s.handleEntryFlavors)))
 	mux.Handle("GET /api/entries/{publicId}/embed", s.requireRole(roleEditor, roleAdmin)(http.HandlerFunc(s.handleEntryEmbedGet)))
 	mux.Handle("PATCH /api/entries/{publicId}/embed", s.requireRole(roleEditor, roleAdmin)(http.HandlerFunc(s.handleEntryEmbedPatch)))
@@ -172,6 +173,35 @@ func (s *Server) handleEntryReprocess(w http.ResponseWriter, r *http.Request) {
 	_, _ = s.pool.Exec(r.Context(), `
 		UPDATE entries SET status = 'probing', error = NULL, updated_at = now() WHERE id = $1`, e.ID)
 	w.WriteHeader(http.StatusAccepted)
+}
+
+// handleEntriesReprocess re-queues a batch of entries (bulk action).
+func (s *Server) handleEntriesReprocess(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		PublicIDs []string `json:"publicIds"`
+	}
+	if err := decodeJSON(r, &body); err != nil {
+		writeError(w, http.StatusBadRequest, "bad_request", "invalid JSON body")
+		return
+	}
+	if len(body.PublicIDs) == 0 || len(body.PublicIDs) > 100 {
+		writeError(w, http.StatusBadRequest, "bad_request", "provide 1-100 publicIds")
+		return
+	}
+	queued := 0
+	for _, publicID := range body.PublicIDs {
+		e, err := db.EntryByPublicID(r.Context(), s.pool, publicID)
+		if err != nil || e.SourceKey == "" {
+			continue // unknown or not yet uploaded
+		}
+		if _, err := s.queue.Enqueue(r.Context(), "probe", e.ID, map[string]any{}, 3); err != nil {
+			continue
+		}
+		_, _ = s.pool.Exec(r.Context(), `
+			UPDATE entries SET status = 'probing', error = NULL, updated_at = now() WHERE id = $1`, e.ID)
+		queued++
+	}
+	writeJSON(w, http.StatusAccepted, map[string]any{"queued": queued})
 }
 
 func (s *Server) handleEntryFlavors(w http.ResponseWriter, r *http.Request) {
