@@ -197,7 +197,9 @@ export async function startAll() {
 }
 
 export function useUploads() {
-  return React.useSyncExternalStore(subscribeUploads, getUploads);
+  // Server snapshot: nothing to render during prerender (the store is
+  // client-only; listeners hydrate from localStorage on the client).
+  return React.useSyncExternalStore(subscribeUploads, getUploads, () => []);
 }
 
 // Test helper: clears the in-memory store (localStorage untouched).
