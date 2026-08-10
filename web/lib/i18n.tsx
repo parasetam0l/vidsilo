@@ -191,6 +191,10 @@ const en = {
   uploadDialogTitle: "Upload videos",
   uploadInterrupted: "paused — pick this file again to continue",
   uploadStartN: "Upload {n} file{s}",
+  uploadAddMore: "Add more",
+  uploadFilesSelected: "{n} file{s} selected",
+  uploadInProgress: "Uploading…",
+  uploadAllComplete: "All uploads complete.",
 
   // users
   usersTitle: "Users",
