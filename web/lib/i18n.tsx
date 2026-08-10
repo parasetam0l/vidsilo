@@ -36,6 +36,7 @@ const en = {
   navSignIn: "Sign in",
   langLabel: "Language",
   langEnglish: "English",
+  signOut: "Sign out",
 
   // login
   loginTitle: "Sign in to VOD",

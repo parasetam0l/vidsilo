@@ -1,20 +1,22 @@
 "use client"
 
 import {
+  ClapperboardIcon,
   FilmIcon,
   FolderTreeIcon,
   LayoutDashboardIcon,
+  LogOutIcon,
   SettingsIcon,
   SlidersHorizontalIcon,
   UploadIcon,
   UsersIcon,
-  ClapperboardIcon,
 } from "lucide-react"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupLabel,
   SidebarHeader,
@@ -22,13 +24,22 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Button } from "@/components/ui/button"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+import { useAuth } from "@/components/auth-provider"
 import { useT } from "@/lib/i18n"
-
-
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
+  const router = useRouter()
   const t = useT()
+  const { user, logout } = useAuth()
+
   const navGroups = [
     {
       label: t("navMedia"),
@@ -48,6 +59,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       ],
     },
   ]
+
+  async function handleLogout() {
+    await logout()
+    router.push("/login")
+  }
+
   return (
     <Sidebar variant="floating" {...props}>
       <SidebarHeader>
@@ -85,6 +102,39 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </SidebarGroup>
         ))}
       </SidebarContent>
+      {user ? (
+        <SidebarFooter>
+          <div className="flex items-center gap-2 rounded-lg px-2 py-1.5">
+            <Avatar className="size-8">
+              <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground text-xs">
+                {user.username.slice(0, 2).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex min-w-0 flex-1 flex-col leading-tight">
+              <span className="truncate text-sm font-medium">{user.username}</span>
+              <span className="truncate text-xs text-muted-foreground capitalize">
+                {user.role}
+              </span>
+            </div>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-muted-foreground hover:text-foreground"
+                    aria-label={t("signOut")}
+                    onClick={handleLogout}
+                  >
+                    <LogOutIcon className="size-4" />
+                  </Button>
+                }
+              />
+              <TooltipContent side="right">{t("signOut")}</TooltipContent>
+            </Tooltip>
+          </div>
+        </SidebarFooter>
+      ) : null}
     </Sidebar>
   )
 }
