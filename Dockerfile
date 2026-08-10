@@ -24,7 +24,7 @@ RUN apt-get update \
     && ffmpeg -encoders 2>/dev/null | grep -q libx264 \
     && ffmpeg -encoders 2>/dev/null | grep -q libx265 \
     || { echo "libx264/libx265 encoders missing"; exit 1; }
-RUN useradd --system --create-home --uid 1000 vod
+RUN useradd --system --create-home vod || useradd --system --create-home --uid 2000 vod
 USER vod
 WORKDIR /data
 VOLUME /data
