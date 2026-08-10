@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { PencilIcon, Plus, Save, SlidersHorizontalIcon, Trash2 } from "lucide-react";
+import { PencilIcon, Save, SlidersHorizontalIcon, Trash2 } from "lucide-react";
 
 import { api, type Flavor } from "@/lib/api";
 import { useT } from "@/lib/i18n";
@@ -44,9 +44,32 @@ const blank = (): Flavor => ({
   position: 0,
 });
 
+// App-bar action: opens the create-flavor dialog (wired by the admin layout).
+export function useCreateFlavorAction() {
+  const { open } = useDialog();
+  return React.useCallback(() => {
+    open({
+      content: (close) => <FlavorFormContent onClose={close} initial={blank()} />,
+      size: "md",
+      dismissible: false,
+      showCloseButton: false,
+    });
+  }, [open]);
+}
+
+function openFlavorForm(open: (o: Parameters<ReturnType<typeof useDialog>["open"]>[0]) => string, initial?: Flavor) {
+  open({
+    content: (close) => <FlavorFormContent onClose={close} initial={initial ?? blank()} />,
+    size: "md",
+    dismissible: false,
+    showCloseButton: false,
+  });
+}
+
 export default function FlavorsPage() {
   const t = useT();
   const { open, confirm } = useDialog();
+  const openEdit = (f: Flavor) => openFlavorForm(open, f);
   const toast = useToast();
   const [flavors, setFlavors] = React.useState<Flavor[]>([]);
 
@@ -56,17 +79,6 @@ export default function FlavorsPage() {
       .catch((e) => toast.error(e.message));
   }, [toast]);
   React.useEffect(load, [load]);
-
-  function openForm(initial?: Flavor) {
-    open({
-      content: (close) => (
-        <FlavorFormContent onClose={close} initial={initial ?? blank()} />
-      ),
-      size: "md",
-      dismissible: false,
-      showCloseButton: false,
-    });
-  }
 
   async function toggle(f: Flavor) {
     try {
@@ -102,15 +114,6 @@ export default function FlavorsPage() {
 
   return (
     <div className="flex flex-1 flex-col gap-4 p-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t("flavorsTitle")}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{t("flavorsSubtitle")}</p>
-        </div>
-        <Button onClick={() => openForm()}>
-          <Plus className="size-4" /> {t("flavorsNew")}
-        </Button>
-      </div>
       <Card className="overflow-hidden py-0 shadow-sm">
         <CardContent className="p-0">
           <Table>
@@ -141,7 +144,7 @@ export default function FlavorsPage() {
                   </TableCell>
                   <TableCell className="text-muted-foreground">{f.audioBitrate}k</TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" onClick={() => openForm(f)}>
+                    <Button variant="ghost" size="icon" onClick={() => openEdit(f)}>
                       <PencilIcon className="size-4" />
                     </Button>
                     <Button variant="ghost" size="icon" onClick={() => askRemove(f)}>

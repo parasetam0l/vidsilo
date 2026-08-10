@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { PencilIcon, Plus, Trash2, UsersIcon } from "lucide-react";
+import { PencilIcon, Trash2, UsersIcon } from "lucide-react";
 
 import { api, ApiError, type Role, type User } from "@/lib/api";
 import { useT } from "@/lib/i18n";
@@ -33,6 +33,19 @@ import {
 
 const roles: Role[] = ["admin", "editor", "uploader", "viewer"];
 
+// App-bar action: opens the create-user dialog (wired by the admin layout).
+export function useCreateUserAction() {
+  const { open } = useDialog();
+  return React.useCallback(() => {
+    open({
+      content: (close) => <UserFormContent onClose={close} />,
+      size: "sm",
+      dismissible: false,
+      showCloseButton: false,
+    });
+  }, [open]);
+}
+
 export default function UsersPage() {
   const t = useT();
   const { open, confirm } = useDialog();
@@ -45,15 +58,6 @@ export default function UsersPage() {
       .catch((e) => toast.error(e.message));
   }, [toast]);
   React.useEffect(load, [load]);
-
-  function openCreate() {
-    open({
-      content: (close) => <UserFormContent onClose={close} />,
-      size: "sm",
-      dismissible: false,
-      showCloseButton: false,
-    });
-  }
 
   function openEdit(u: User) {
     open({
@@ -86,15 +90,6 @@ export default function UsersPage() {
 
   return (
     <div className="flex flex-1 flex-col gap-4 p-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t("usersTitle")}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{t("usersSubtitle")}</p>
-        </div>
-        <Button onClick={openCreate}>
-          <Plus className="size-4" /> {t("usersNew")}
-        </Button>
-      </div>
       <Card className="overflow-hidden py-0 shadow-sm">
         <CardContent className="p-0">
           <Table>

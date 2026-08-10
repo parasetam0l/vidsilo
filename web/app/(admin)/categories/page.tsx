@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { FolderTreeIcon, PencilIcon, Plus, Trash2 } from "lucide-react";
+import { FolderTreeIcon, PencilIcon, Trash2 } from "lucide-react";
 
 import { api, type Category } from "@/lib/api";
 import { useT } from "@/lib/i18n";
@@ -27,6 +27,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+
+// App-bar action: opens the create-category dialog (wired by the admin layout).
+export function useCreateCategoryAction() {
+  const { open } = useDialog();
+  return React.useCallback(() => {
+    open({
+      content: (close) => <CategoryFormContent onClose={close} />,
+      size: "sm",
+      dismissible: false,
+      showCloseButton: false,
+    });
+  }, [open]);
+}
 
 export default function CategoriesPage() {
   const t = useT();
@@ -63,19 +76,10 @@ export default function CategoriesPage() {
     return d;
   };
 
-  function openCreate() {
-    open({
-      content: (close) => <CategoryFormContent onClose={close} categories={flat} />,
-      size: "sm",
-      dismissible: false,
-      showCloseButton: false,
-    });
-  }
-
   function openEdit(c: Category) {
     open({
       content: (close) => (
-        <CategoryFormContent onClose={close} categories={flat} initial={c} />
+        <CategoryFormContent onClose={close} initial={c} />
       ),
       size: "sm",
       dismissible: false,
@@ -105,15 +109,6 @@ export default function CategoriesPage() {
 
   return (
     <div className="flex flex-1 flex-col gap-4 p-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t("categoriesTitle")}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{t("categoriesSubtitle")}</p>
-        </div>
-        <Button onClick={openCreate}>
-          <Plus className="size-4" /> {t("newCategory")}
-        </Button>
-      </div>
       <Card className="overflow-hidden py-0 shadow-sm">
         <CardContent className="p-0">
           <Table>
@@ -171,15 +166,17 @@ export default function CategoriesPage() {
 
 function CategoryFormContent({
   onClose,
-  categories,
   initial,
 }: {
   onClose: () => void;
-  categories: Category[];
   initial?: Category;
 }) {
   const t = useT();
   const toast = useToast();
+  const [categories, setCategories] = React.useState<Category[]>([]);
+  React.useEffect(() => {
+    api<Category[]>("/api/categories").then(setCategories).catch(() => {});
+  }, []);
   const editing = !!initial;
   const [name, setName] = React.useState(initial?.name ?? "");
   const [parent, setParent] = React.useState(

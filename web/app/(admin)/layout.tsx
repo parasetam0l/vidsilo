@@ -5,8 +5,11 @@ import { usePathname, useRouter } from "next/navigation";
 
 import { AppSidebar } from "@/components/app-sidebar";
 import { useUploadDialog } from "@/components/upload-dialog";
+import { useCreateUserAction } from "@/app/(admin)/users/page";
+import { useCreateCategoryAction } from "@/app/(admin)/categories/page";
+import { useCreateFlavorAction } from "@/app/(admin)/flavors/page";
 import { useAuth } from "@/components/auth-provider";
-import { UploadCloudIcon } from "lucide-react";
+import { PlusIcon, UploadCloudIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 import { Separator } from "@/components/ui/separator";
@@ -25,6 +28,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const t = useT();
   const { user, loading } = useAuth();
   const openUpload = useUploadDialog();
+  const createUser = useCreateUserAction();
+  const createCategory = useCreateCategoryAction();
+  const createFlavor = useCreateFlavorAction();
+
+  // Per-page app-bar action (page title lives in this header already).
+  const action =
+    pathname === "/entries"
+      ? { label: t("navUpload"), icon: <UploadCloudIcon className="size-4" />, onClick: openUpload }
+      : pathname === "/users"
+        ? { label: t("usersNew"), icon: <PlusIcon className="size-4" />, onClick: createUser }
+        : pathname === "/categories"
+          ? { label: t("newCategory"), icon: <PlusIcon className="size-4" />, onClick: createCategory }
+          : pathname === "/flavors"
+            ? { label: t("flavorsNew"), icon: <PlusIcon className="size-4" />, onClick: createFlavor }
+            : null;
   const pageTitles: Record<string, string> = {
     "/dashboard": t("navDashboard"),
     "/entries": t("navEntries"),
@@ -76,9 +94,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               className="mx-2 data-[orientation=vertical]:h-4"
             />
             <h1 className="text-base font-medium">{pageTitle}</h1>
-            {pathname === "/entries" ? (
-              <Button className="ml-auto" onClick={openUpload}>
-                <UploadCloudIcon className="size-4" /> {t("navUpload")}
+            {action ? (
+              <Button className="ml-auto" onClick={action.onClick}>
+                {action.icon} {action.label}
               </Button>
             ) : null}
           </div>
