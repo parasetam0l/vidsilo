@@ -1,0 +1,26 @@
+# Go
+*.exe
+*.test
+*.out
+coverage.txt
+vod-app
+bin/
+
+# Next.js / web
+web/node_modules/
+web/.next/
+web/out/
+web/tsconfig.tsbuildinfo
+web/.env*.local
+web/next-env.d.ts
+
+# Runtime data / secrets
+data/
+*.key
+!deploy/
+.certs/
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
