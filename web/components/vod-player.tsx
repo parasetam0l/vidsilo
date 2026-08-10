@@ -43,9 +43,20 @@ export function VODPlayer({
   const [playing, setPlaying] = React.useState(false);
   const [current, setCurrent] = React.useState(0);
   const [duration, setDuration] = React.useState(info.durationMs ?? 0);
-  const [volume, setVolume] = React.useState(1);
-  const [mutedState, setMutedState] = React.useState(!!muted);
-  const [rate, setRate] = React.useState(1);
+  const [volume, setVolume] = React.useState(() => {
+    if (typeof window === "undefined") return 1;
+    const v = Number(localStorage.getItem("vod-volume"));
+    return v >= 0 && v <= 1 ? v : 1;
+  });
+  const [mutedState, setMutedState] = React.useState(() => {
+    if (typeof window === "undefined") return !!muted;
+    return localStorage.getItem("vod-muted") === "1" || !!muted;
+  });
+  const [rate, setRate] = React.useState(() => {
+    if (typeof window === "undefined") return 1;
+    const r = Number(localStorage.getItem("vod-rate"));
+    return [0.5, 0.75, 1, 1.25, 1.5, 2].includes(r) ? r : 1;
+  });
   const [levels, setLevels] = React.useState<{ index: number; height: number }[]>([]);
   const [level, setLevel] = React.useState(-1);
   const [subtitle, setSubtitle] = React.useState<string>("");
@@ -85,6 +96,26 @@ export function VODPlayer({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [info.master]);
+
+  React.useEffect(() => {
+    const video = videoRef.current;
+    if (video) {
+      video.volume = volume;
+      video.muted = mutedState;
+      video.playbackRate = rate;
+    }
+    // Initial application only — later changes flow through the setters.
+  }, [muted, volume, mutedState, rate]);
+
+  React.useEffect(() => {
+    localStorage.setItem("vod-volume", String(volume));
+  }, [volume]);
+  React.useEffect(() => {
+    localStorage.setItem("vod-muted", mutedState ? "1" : "0");
+  }, [mutedState]);
+  React.useEffect(() => {
+    localStorage.setItem("vod-rate", String(rate));
+  }, [rate]);
 
   React.useEffect(() => {
     applySubtitleTrack(videoRef.current, subtitle);
@@ -195,6 +226,60 @@ export function VODPlayer({
     if (document.fullscreenElement) document.exitFullscreen();
     else container.requestFullscreen();
   }
+
+  function togglePictureInPicture() {
+    const video = videoRef.current;
+    if (!video) return;
+    if (document.pictureInPictureElement) {
+      document.exitPictureInPicture().catch(() => {});
+    } else {
+      video.requestPictureInPicture?.().catch(() => {});
+    }
+  }
+
+  React.useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
+      const video = videoRef.current;
+      if (!video) return;
+      switch (e.key) {
+        case " ":
+          e.preventDefault();
+          if (video.paused) video.play().catch(() => {});
+          else video.pause();
+          break;
+        case "ArrowRight":
+          video.currentTime = Math.min(video.duration, video.currentTime + 10);
+          break;
+        case "ArrowLeft":
+          video.currentTime = Math.max(0, video.currentTime - 10);
+          break;
+        case "ArrowUp":
+          e.preventDefault();
+          video.volume = Math.min(1, video.volume + 0.1);
+          break;
+        case "ArrowDown":
+          e.preventDefault();
+          video.volume = Math.max(0, video.volume - 0.1);
+          break;
+        case "f":
+        case "F":
+          toggleFullscreen();
+          break;
+        case "m":
+        case "M":
+          video.muted = !video.muted;
+          break;
+        case "p":
+        case "P":
+          togglePictureInPicture();
+          break;
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   const progress = duration > 0 ? (current / duration) * 100 : 0;
   const scrubAt = scrub != null ? Math.min(100, Math.max(0, scrub)) : null;
@@ -356,6 +441,13 @@ export function VODPlayer({
                 </option>
               ))}
             </select>
+            {typeof document !== "undefined" && "pictureInPictureEnabled" in document && document.pictureInPictureEnabled ? (
+              <button onClick={togglePictureInPicture} aria-label={t("playerPictureInPicture")} className="opacity-80 hover:opacity-100">
+                <svg viewBox="0 0 24 24" className="size-5 fill-current">
+                  <path d="M10 8h11v9h-11V8zm2 2v5h7v-5h-7zM3 5h13v2H5v11h11v-2h2v4H3V5z" />
+                </svg>
+              </button>
+            ) : null}
             <button onClick={toggleFullscreen} aria-label={fullscreen ? t("playerExitFullscreen") : t("playerFullscreen")} className="opacity-80 hover:opacity-100">
               {fullscreen ? (
                 <svg viewBox="0 0 24 24" className="size-5 fill-current"><path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z" /></svg>

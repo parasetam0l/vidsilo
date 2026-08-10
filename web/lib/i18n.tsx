@@ -233,6 +233,7 @@ const en = {
   playerFullscreen: "Fullscreen",
   playerExitFullscreen: "Exit fullscreen",
   playerSpeed: "Speed",
+  playerPictureInPicture: "Picture in picture",
   playerAuto: "Auto",
   playerOff: "Off",
   playerVideoStatus: "Video is {status}",
