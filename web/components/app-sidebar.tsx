@@ -41,6 +41,7 @@ import {
 import { useAuth } from "@/components/auth-provider"
 import { useChangePasswordDialog } from "@/components/change-password-dialog"
 import { useTheme } from "@/components/theme-provider"
+import { displayName } from "@/lib/api"
 import { locales, useI18n, useT } from "@/lib/i18n"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
@@ -58,13 +59,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       items: [
         { title: t("navDashboard"), url: "/dashboard", icon: LayoutDashboardIcon },
         { title: t("navEntries"), url: "/entries", icon: FilmIcon },
+        { title: t("navCategories"), url: "/categories", icon: FolderTreeIcon },
       ],
     },
     {
       label: t("navAdministration"),
       items: [
         { title: t("navUsers"), url: "/users", icon: UsersIcon },
-        { title: t("navCategories"), url: "/categories", icon: FolderTreeIcon },
         { title: t("navFlavors"), url: "/flavors", icon: SlidersHorizontalIcon },
         { title: t("navSettings"), url: "/settings", icon: SettingsIcon },
       ],
@@ -75,6 +76,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     await logout()
     router.push("/login")
   }
+
+  const initials = user
+    ? (displayName(user).slice(0, 2) || user.email.slice(0, 2)).toUpperCase()
+    : ""
 
   return (
     <Sidebar variant="floating" {...props}>
@@ -124,11 +129,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 >
                   <Avatar className="size-8">
                     <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground rounded-lg text-xs">
-                      {user.username.slice(0, 2).toUpperCase()}
+                      {initials}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex min-w-0 flex-1 flex-col leading-tight">
-                    <span className="truncate text-sm font-medium">{user.username}</span>
+                    <span className="truncate text-sm font-medium">{displayName(user)}</span>
                     <span className="truncate text-xs text-muted-foreground capitalize">
                       {user.role}
                     </span>
@@ -142,15 +147,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 <DropdownMenuLabel className="flex items-center gap-2 font-normal">
                   <Avatar className="size-8">
                     <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground rounded-lg text-xs">
-                      {user.username.slice(0, 2).toUpperCase()}
+                      {initials}
                     </AvatarFallback>
                   </Avatar>
                   <span className="flex min-w-0 flex-col leading-tight">
-                    <span className="truncate text-sm font-medium capitalize">
-                      {user.username}
-                    </span>
-                    <span className="truncate text-xs text-muted-foreground capitalize">
-                      {user.role}
+                    <span className="truncate text-sm font-medium">{displayName(user)}</span>
+                    <span className="truncate text-xs text-muted-foreground">
+                      {user.email} · {user.role}
                     </span>
                   </span>
                 </DropdownMenuLabel>

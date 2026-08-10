@@ -11,7 +11,7 @@ docker compose up -d --build
 ```
 
 - App: http://localhost:8080
-- First-run admin credentials are logged once: `docker compose logs app | grep password`
+- First-run admin credentials are logged once: `docker compose logs app | grep password` (sign in with the email, default `admin@localhost`)
 - Worker runs probe/transcode jobs; watch it: `docker compose logs -f worker`
 
 Optional S3/MinIO storage:
@@ -43,7 +43,7 @@ Horizontal scale: `DATABASE_URL` + shared storage (local: NFS — install warns;
 | Entries | Search (ILIKE), status/category filters, pagination, bulk delete |
 | Entry detail | Metadata, sprite poster picker, subtitle upload, flavor ticks, playback ACL + embed snippet, analytics (SVG charts) |
 | Upload | Drag & drop, tus resumable, title/description/category — opens in a dialog from anywhere (sidebar, dashboard); uploads survive page changes and refreshes (resumable via IndexedDB + tus URLs) |
-| Users / Categories / Flavors / Settings | Admin CRUD + grouped settings (transcoding, storage, analytics, embed policy, TLS) |
+| Users / Categories / Flavors / Settings | Admin CRUD (email + name/surname) + grouped settings (transcoding, storage, analytics, embed policy, TLS) |
 
 ## Player
 

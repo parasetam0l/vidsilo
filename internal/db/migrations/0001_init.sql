@@ -2,13 +2,15 @@
 
 CREATE TABLE users (
     id            bigserial PRIMARY KEY,
-    username      text NOT NULL,
+    email         text NOT NULL,
+    name          text NOT NULL DEFAULT '',
+    surname       text NOT NULL DEFAULT '',
     password_hash text NOT NULL,
     role          text NOT NULL CHECK (role IN ('admin', 'editor', 'uploader', 'viewer')) DEFAULT 'viewer',
     disabled      boolean NOT NULL DEFAULT false,
     created_at    timestamptz NOT NULL DEFAULT now()
 );
-CREATE UNIQUE INDEX users_username_lower ON users (lower(username));
+CREATE UNIQUE INDEX users_email_lower ON users (lower(email));
 
 CREATE TABLE categories (
     id         bigserial PRIMARY KEY,

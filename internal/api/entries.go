@@ -109,7 +109,7 @@ func (s *Server) handleEntryGet(w http.ResponseWriter, r *http.Request) {
 	detail := entryDetail{Entry: e, Flavors: flavors, Subtitles: subs}
 	if e.UploadedBy != nil {
 		if u, err := db.UserByID(r.Context(), s.pool, *e.UploadedBy); err == nil {
-			detail.UploaderName = u.Username
+			detail.UploaderName = u.DisplayName()
 		}
 	}
 	writeJSON(w, http.StatusOK, detail)

@@ -1,6 +1,9 @@
 package db
 
-import "time"
+import (
+	"strings"
+	"time"
+)
 
 type Role string
 
@@ -13,11 +16,21 @@ const (
 
 type User struct {
 	ID           int64     `json:"id"`
-	Username     string    `json:"username"`
+	Email        string    `json:"email"`
+	Name         string    `json:"name"`
+	Surname      string    `json:"surname"`
 	PasswordHash string    `json:"-"`
 	Role         Role      `json:"role"`
 	Disabled     bool      `json:"disabled"`
 	CreatedAt    time.Time `json:"createdAt"`
+}
+
+// DisplayName returns "Name Surname" (falling back to the email).
+func (u User) DisplayName() string {
+	if u.Name == "" && u.Surname == "" {
+		return u.Email
+	}
+	return strings.TrimSpace(u.Name + " " + u.Surname)
 }
 
 type Category struct {

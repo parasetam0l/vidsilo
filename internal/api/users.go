@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/parasetam0l/vod-app/internal/db"
 	"github.com/parasetam0l/vod-app/internal/password"
@@ -28,7 +29,9 @@ func (s *Server) handleUsersList(w http.ResponseWriter, r *http.Request) {
 }
 
 type userBody struct {
-	Username string   `json:"username"`
+	Email    string   `json:"email"`
+	Name     string   `json:"name"`
+	Surname  string   `json:"surname"`
 	Password string   `json:"password"`
 	Role     db.Role  `json:"role"`
 	Disabled *bool    `json:"disabled"`
@@ -48,8 +51,9 @@ func (s *Server) handleUsersCreate(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "bad_request", "invalid JSON body")
 		return
 	}
-	if body.Username == "" || body.Password == "" {
-		writeError(w, http.StatusBadRequest, "bad_request", "username and password are required")
+	body.Email = strings.TrimSpace(body.Email)
+	if body.Email == "" || body.Password == "" {
+		writeError(w, http.StatusBadRequest, "bad_request", "email and password are required")
 		return
 	}
 	if !validRole(body.Role) {
@@ -61,9 +65,9 @@ func (s *Server) handleUsersCreate(w http.ResponseWriter, r *http.Request) {
 		s.internalError(w, r, "hash password", err)
 		return
 	}
-	u, err := db.CreateUser(r.Context(), s.pool, body.Username, hash, body.Role)
-	if errors.Is(err, db.ErrUsernameTaken) {
-		writeError(w, http.StatusConflict, "conflict", "username already taken")
+	u, err := db.CreateUser(r.Context(), s.pool, body.Email, body.Name, body.Surname, hash, body.Role)
+	if errors.Is(err, db.ErrEmailTaken) {
+		writeError(w, http.StatusConflict, "conflict", "email already taken")
 		return
 	}
 	if err != nil {
@@ -93,6 +97,15 @@ func (s *Server) handleUsersPatch(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "bad_request", "invalid role")
 		return
 	}
+	current, err := db.UserByID(r.Context(), s.pool, id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "not_found", "user not found")
+		return
+	}
+	email := strings.TrimSpace(body.Email)
+	if email == "" {
+		email = current.Email
+	}
 	if body.Password != "" {
 		hash, err := password.Hash(body.Password)
 		if err != nil {
@@ -104,11 +117,15 @@ func (s *Server) handleUsersPatch(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	disabled := false
+	disabled := current.Disabled
 	if body.Disabled != nil {
 		disabled = *body.Disabled
 	}
-	if err := db.UpdateUser(r.Context(), s.pool, id, body.Role, disabled); err != nil {
+	if err := db.UpdateUser(r.Context(), s.pool, id, email, body.Name, body.Surname, body.Role, disabled); err != nil {
+		if errors.Is(err, db.ErrEmailTaken) {
+			writeError(w, http.StatusConflict, "conflict", "email already taken")
+			return
+		}
 		s.internalError(w, r, "update user", err)
 		return
 	}

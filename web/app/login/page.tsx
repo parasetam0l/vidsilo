@@ -38,7 +38,7 @@ function LoginForm() {
   // Same-origin return path only (no open redirect).
   const rawNext = params.get("next");
   const next = rawNext && rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/dashboard";
-  const [username, setUsername] = React.useState("");
+  const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState(false);
@@ -53,7 +53,7 @@ function LoginForm() {
     setBusy(true);
     setError(null);
     try {
-      await login(username, password);
+      await login(email, password);
       router.replace(next);
     } catch (err) {
       setError(
@@ -91,12 +91,13 @@ function LoginForm() {
               </Alert>
             ) : null}
             <div className="flex flex-col gap-2">
-              <Label htmlFor="username">{t("loginUsername")}</Label>
+              <Label htmlFor="email">{t("loginEmail")}</Label>
               <Input
-                id="username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                autoComplete="username"
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
                 required
               />
             </div>

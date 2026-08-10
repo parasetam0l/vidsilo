@@ -36,7 +36,7 @@ func (s *Server) registerAuthRoutes(mux *http.ServeMux) {
 }
 
 type loginRequest struct {
-	Username string `json:"username"`
+	Email    string `json:"email"`
 	Password string `json:"password"`
 }
 
@@ -46,13 +46,13 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "bad_request", "invalid JSON body")
 		return
 	}
-	req.Username = strings.TrimSpace(req.Username)
-	if req.Username == "" || req.Password == "" {
-		writeError(w, http.StatusBadRequest, "bad_request", "username and password are required")
+	req.Email = strings.TrimSpace(req.Email)
+	if req.Email == "" || req.Password == "" {
+		writeError(w, http.StatusBadRequest, "bad_request", "email and password are required")
 		return
 	}
 
-	u, err := db.UserByUsername(r.Context(), s.pool, req.Username)
+	u, err := db.UserByEmail(r.Context(), s.pool, req.Email)
 	if errors.Is(err, pgx.ErrNoRows) {
 		// Constant-ish time: burn a verify against a dummy hash.
 		password.Verify(req.Password, "$argon2id$v=19,m=65536,t=1,p=4$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")

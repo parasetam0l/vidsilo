@@ -102,11 +102,11 @@ func seedAdmin(ctx context.Context, conn *pgxpool.Conn, log *slog.Logger) error 
 		return err
 	}
 	if _, err := conn.Exec(ctx,
-		`INSERT INTO users (username, password_hash, role) VALUES ($1, $2, 'admin')`,
-		"admin", hash); err != nil {
+		`INSERT INTO users (email, name, password_hash, role) VALUES ($1, $2, $3, 'admin')`,
+		"admin@localhost", "Admin", hash); err != nil {
 		return err
 	}
-	log.Info("First-run admin created", "username", "admin", "password", pw)
+	log.Info("First-run admin created", "email", "admin@localhost", "password", pw)
 	return nil
 }
 

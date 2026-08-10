@@ -70,10 +70,17 @@ export type Role = "admin" | "editor" | "uploader" | "viewer";
 
 export interface User {
   id: number;
-  username: string;
+  email: string;
+  name: string;
+  surname: string;
   role: Role;
   disabled: boolean;
   createdAt: string;
+}
+
+export function displayName(u: Pick<User, "name" | "surname" | "email">): string {
+  const full = [u.name, u.surname].filter(Boolean).join(" ").trim();
+  return full || u.email;
 }
 
 export type EntryStatus =

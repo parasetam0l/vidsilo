@@ -59,6 +59,7 @@ const en = {
   // login
   loginTitle: "Sign in to VOD",
   loginPrompt: "Please sign in to continue.",
+  loginEmail: "Email",
   loginUsername: "Username",
   loginPassword: "Password",
   loginButton: "Sign in",
@@ -91,6 +92,8 @@ const en = {
   colSize: "Size",
   colUploaded: "Uploaded",
   colName: "Name",
+  colSurname: "Surname",
+  colEmail: "Email",
   colSlug: "Slug",
   colParent: "Parent",
   colRole: "Role",
@@ -193,7 +196,7 @@ const en = {
   newUserTitle: "New user",
   userCreated: "User created",
   deleteUserTitle: "Delete user?",
-  deleteUserDesc: "This permanently removes the account for {username}.",
+  deleteUserDesc: "This permanently removes the account for {email}.",
 
   // categories
   categoriesTitle: "Categories",

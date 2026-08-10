@@ -50,7 +50,7 @@ func TestAuthFlow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	u, err := db.CreateUser(ctx, pool, "apitest", hash, db.RoleEditor)
+	u, err := db.CreateUser(ctx, pool, "apitest@example.com", "Api", "Test", hash, db.RoleEditor)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,7 +60,7 @@ func TestAuthFlow(t *testing.T) {
 
 	// Wrong password.
 	resp, err := client.Post(base+"/api/auth/login", "application/json",
-		strings.NewReader(`{"username":"apitest","password":"nope"}`))
+		strings.NewReader(`{"email":"apitest@example.com","password":"nope"}`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,7 +71,7 @@ func TestAuthFlow(t *testing.T) {
 
 	// Login.
 	resp, err = client.Post(base+"/api/auth/login", "application/json",
-		strings.NewReader(`{"username":"apitest","password":"testpass"}`))
+		strings.NewReader(`{"email":"apitest@example.com","password":"testpass"}`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,7 +98,7 @@ func TestAuthFlow(t *testing.T) {
 		t.Fatal(err)
 	}
 	resp.Body.Close()
-	if me.Username != "apitest" || me.Role != db.RoleEditor {
+	if me.Email != "apitest@example.com" || me.Role != db.RoleEditor {
 		t.Fatalf("me = %+v", me)
 	}
 
@@ -152,7 +152,7 @@ func TestRoleEnforcement(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	viewer, err := db.CreateUser(ctx, pool, "viewer_test", hash, db.RoleViewer)
+	viewer, err := db.CreateUser(ctx, pool, "viewer@example.com", "Viewer", "Test", hash, db.RoleViewer)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -160,7 +160,7 @@ func TestRoleEnforcement(t *testing.T) {
 
 	client := &http.Client{}
 	resp, err := client.Post(base+"/api/auth/login", "application/json",
-		strings.NewReader(`{"username":"viewer_test","password":"pw12345"}`))
+		strings.NewReader(`{"email":"viewer@example.com","password":"pw12345"}`))
 	if err != nil {
 		t.Fatal(err)
 	}

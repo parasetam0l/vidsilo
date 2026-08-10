@@ -3,7 +3,7 @@
 import * as React from "react";
 import { PencilIcon, Trash2, UsersIcon } from "lucide-react";
 
-import { api, ApiError, type Role, type User } from "@/lib/api";
+import { api, ApiError, displayName, type Role, type User } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import { useDialog } from "@/hooks/use-dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -71,7 +71,7 @@ export default function UsersPage() {
   function askRemove(u: User) {
     confirm({
       title: t("deleteUserTitle"),
-      description: t("deleteUserDesc", { username: u.username }),
+      description: t("deleteUserDesc", { email: u.email }),
       variant: "destructive",
       confirmLabel: t("delete"),
       cancelLabel: t("cancel"),
@@ -95,7 +95,8 @@ export default function UsersPage() {
           <Table>
             <TableHeader className="bg-muted/50">
               <TableRow className="hover:bg-transparent">
-                <TableHead>{t("loginUsername")}</TableHead>
+                <TableHead>{t("colEmail")}</TableHead>
+                <TableHead>{t("colName")}</TableHead>
                 <TableHead>{t("colRole")}</TableHead>
                 <TableHead>{t("colStatus")}</TableHead>
                 <TableHead>{t("colCreated")}</TableHead>
@@ -105,7 +106,8 @@ export default function UsersPage() {
             <TableBody>
               {users.map((u) => (
                 <TableRow key={u.id}>
-                  <TableCell className="font-medium">{u.username}</TableCell>
+                  <TableCell className="font-medium">{u.email}</TableCell>
+                  <TableCell>{displayName(u)}</TableCell>
                   <TableCell>
                     <Badge variant="outline" className="capitalize">
                       {u.role}
@@ -154,7 +156,9 @@ function UserFormContent({
   const t = useT();
   const toast = useToast();
   const editing = !!initial;
-  const [username, setUsername] = React.useState(initial?.username ?? "");
+  const [email, setEmail] = React.useState(initial?.email ?? "");
+  const [name, setName] = React.useState(initial?.name ?? "");
+  const [surname, setSurname] = React.useState(initial?.surname ?? "");
   const [password, setPassword] = React.useState("");
   const [role, setRole] = React.useState<Role>(initial?.role ?? "viewer");
   const [disabled, setDisabled] = React.useState(initial?.disabled ?? false);
@@ -169,13 +173,13 @@ function UserFormContent({
       if (editing) {
         await api<User>(`/api/users/${initial.id}`, {
           method: "PATCH",
-          body: JSON.stringify({ role, disabled, ...(password ? { password } : {}) }),
+          body: JSON.stringify({ email, name, surname, role, disabled, ...(password ? { password } : {}) }),
         });
         toast.success(t("userUpdated"));
       } else {
         await api<User>("/api/users", {
           method: "POST",
-          body: JSON.stringify({ username, password, role }),
+          body: JSON.stringify({ email, name, surname, password, role }),
         });
         toast.success(t("userCreated"));
       }
@@ -196,13 +200,23 @@ function UserFormContent({
       </div>
       {error ? <p className="text-sm text-red-500">{error}</p> : null}
       <div className="flex flex-col gap-1.5">
-        <Label>{t("loginUsername")}</Label>
+        <Label>{t("loginEmail")}</Label>
         <Input
-          value={username}
-          disabled={editing}
-          onChange={(e) => setUsername(e.target.value)}
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
           required
         />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col gap-1.5">
+          <Label>{t("colName")}</Label>
+          <Input value={name} onChange={(e) => setName(e.target.value)} />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label>{t("colSurname")}</Label>
+          <Input value={surname} onChange={(e) => setSurname(e.target.value)} />
+        </div>
       </div>
       <div className="flex flex-col gap-1.5">
         <Label>{t("loginPassword")}</Label>
