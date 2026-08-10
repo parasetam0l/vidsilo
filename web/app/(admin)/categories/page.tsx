@@ -224,7 +224,7 @@ function CategoryFormContent({
   }
 
   return (
-    <form className="flex flex-col gap-4" onSubmit={submit}>
+    <form className="flex flex-col gap-4" onSubmit={submit} noValidate>
       <h2 className="text-lg font-semibold tracking-tight">
         {editing ? t("editCategoryTitle") : t("newCategory")}
       </h2>

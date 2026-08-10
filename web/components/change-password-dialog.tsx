@@ -60,7 +60,7 @@ function ChangePasswordContent() {
   }
 
   return (
-    <form className="flex flex-col gap-4" onSubmit={submit}>
+    <form className="flex flex-col gap-4" onSubmit={submit} noValidate>
       <div>
         <h2 className="text-lg font-semibold tracking-tight">
           {t("changePasswordTitle")}

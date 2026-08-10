@@ -88,7 +88,7 @@ function LoginForm() {
           <CardDescription>{t("loginPrompt")}</CardDescription>
         </CardHeader>
         <CardContent>
-          <form className="flex flex-col gap-4" onSubmit={onSubmit}>
+          <form className="flex flex-col gap-4" onSubmit={onSubmit} noValidate>
             <div className="flex flex-col gap-2">
               <Label htmlFor="email">{t("loginEmail")}</Label>
               <Input
