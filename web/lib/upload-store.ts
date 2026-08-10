@@ -8,6 +8,8 @@
 import * as React from "react";
 import * as tus from "tus-js-client";
 
+import { idbDelete, idbGet, idbPut } from "@/lib/idb";
+
 export type UploadStatus =
   | "queued"
   | "uploading"
@@ -90,6 +92,7 @@ export function addFiles(newFiles: File[]) {
     );
     if (resumable) {
       files.set(resumable.id, f);
+      void idbPut(resumable.id, f);
       jobs = jobs.map((j) =>
         j.id === resumable.id ? { ...j, status: "queued" } : j,
       );
@@ -119,6 +122,7 @@ export function addFiles(newFiles: File[]) {
       status: "queued",
     };
     files.set(job.id, f);
+    void idbPut(job.id, f);
     jobs = [...jobs, job];
   }
   emit();
@@ -134,15 +138,23 @@ export function updateJob(id: string, patch: Partial<UploadJob>) {
 export function removeJob(id: string) {
   jobs = jobs.filter((j) => j.id !== id);
   files.delete(id);
+  void idbDelete(id);
   emit();
   persist();
 }
 
-export function startJob(id: string) {
+export async function startJob(id: string) {
   const job = jobs.find((j) => j.id === id);
-  const file = files.get(id);
-  if (!job || !file || job.status === "uploading" || job.status === "done") {
+  if (!job || job.status === "uploading" || job.status === "done") {
     return;
+  }
+  let file = files.get(id);
+  if (!file) {
+    // After a hard refresh the File is gone from memory — restore from
+    // IndexedDB so interrupted uploads resume without re-selecting.
+    file = (await idbGet(id)) ?? undefined;
+    if (!file) return;
+    files.set(id, file);
   }
   updateJob(id, { status: "uploading", error: undefined });
 
@@ -166,6 +178,7 @@ export function startJob(id: string) {
       if (upload.url) updateJob(id, { uploadUrl: upload.url });
     },
     onSuccess: () => {
+      void idbDelete(id);
       updateJob(id, { progress: 100, status: "done" });
     },
     onError: (err) => {
@@ -175,12 +188,12 @@ export function startJob(id: string) {
   upload.start();
 }
 
-export function startAll() {
-  for (const job of jobs) {
-    if (job.status === "queued" || job.status === "interrupted") {
-      startJob(job.id);
-    }
-  }
+export async function startAll() {
+  await Promise.all(
+    jobs
+      .filter((j) => j.status === "queued" || j.status === "interrupted")
+      .map((j) => startJob(j.id)),
+  );
 }
 
 export function useUploads() {
