@@ -5,6 +5,8 @@ import { Plus, Save, Trash2 } from "lucide-react";
 
 import { api, type Flavor } from "@/lib/api";
 import { useT } from "@/lib/i18n";
+import { useDialog } from "@/hooks/use-dialog";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -49,6 +51,8 @@ const blank = (): Flavor => ({
 
 export default function FlavorsPage() {
   const t = useT();
+  const { confirm } = useDialog();
+  const toast = useToast();
   const [flavors, setFlavors] = React.useState<Flavor[]>([]);
   const [editing, setEditing] = React.useState<Flavor | null>(null);
 
@@ -75,7 +79,19 @@ export default function FlavorsPage() {
 
   async function remove(f: Flavor) {
     await api<void>(`/api/flavors/${f.id}`, { method: "DELETE" });
+    toast.success(t("deleted"));
     load();
+  }
+
+  function askRemove(f: Flavor) {
+    confirm({
+      title: t("deleteFlavorTitle"),
+      description: t("deleteFlavorDesc"),
+      variant: "destructive",
+      confirmLabel: t("delete"),
+      cancelLabel: t("cancel"),
+      onConfirm: () => remove(f),
+    });
   }
 
   async function toggle(f: Flavor) {
@@ -130,7 +146,7 @@ export default function FlavorsPage() {
                     <Button variant="ghost" size="icon" onClick={() => setEditing({ ...f })}>
                       <Save className="size-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={() => remove(f)}>
+                    <Button variant="ghost" size="icon" onClick={() => askRemove(f)}>
                       <Trash2 className="size-4" />
                     </Button>
                   </TableCell>

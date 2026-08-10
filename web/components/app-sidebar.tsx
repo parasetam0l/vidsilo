@@ -24,6 +24,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { LanguageSelect } from "@/components/language-select"
 import { useT } from "@/lib/i18n"
 
 
@@ -88,14 +89,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         ))}
       </SidebarContent>
       <SidebarFooter>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              className="justify-center"
-              render={<ThemeToggle />}
-            />
-          </SidebarMenuItem>
-        </SidebarMenu>
+        <div className="flex items-center justify-center gap-2">
+          <LanguageSelect />
+          <ThemeToggle />
+        </div>
       </SidebarFooter>
     </Sidebar>
   )

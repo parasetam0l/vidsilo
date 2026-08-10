@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useT } from "@/lib/i18n";
 
 import { ThemeToggle } from "@/components/theme-toggle";
+import { LanguageSelect } from "@/components/language-select";
 import { useAuth } from "@/components/auth-provider";
 import { Button } from "@/components/ui/button";
 import {
@@ -64,7 +65,8 @@ function LoginForm() {
 
   return (
     <div className="relative flex min-h-full flex-1 flex-col items-center justify-center gap-6 p-4">
-      <div className="absolute top-4 right-4">
+      <div className="absolute top-4 right-4 flex items-center gap-2">
+        <LanguageSelect />
         <ThemeToggle />
       </div>
       <div className="flex items-center gap-3">

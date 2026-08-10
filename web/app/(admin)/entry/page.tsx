@@ -3,6 +3,8 @@
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useT } from "@/lib/i18n";
+import { useDialog } from "@/hooks/use-dialog";
+import { useToast } from "@/hooks/use-toast";
 import {
   Copy,
   Play,
@@ -46,19 +48,11 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { SvgChart } from "@/components/svg-chart";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 
 export default function EntryPage() {
   const t = useT();
+  const { confirm } = useDialog();
+  const toast = useToast();
   const params = useSearchParams();
   const router = useRouter();
   const id = params.get("id");
@@ -66,8 +60,7 @@ export default function EntryPage() {
   const [flavors, setFlavors] = React.useState<Flavor[]>([]);
   const [categories, setCategories] = React.useState<Category[]>([]);
   const [error, setError] = React.useState<string | null>(null);
-  const [saved, setSaved] = React.useState(false);
-  const [confirmDelete, setConfirmDelete] = React.useState(false);
+
   const [ticked, setTicked] = React.useState<Set<number>>(new Set());
   const [analytics, setAnalytics] = React.useState<AnalyticsResponse | null>(null);
 
@@ -104,8 +97,7 @@ export default function EntryPage() {
         }),
       });
       setEntry(updated);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
+      toast.success(t("saved"));
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "save failed");
     }
@@ -126,7 +118,19 @@ export default function EntryPage() {
 
   const deleteEntry = async () => {
     await api<void>(`/api/entries/${entry.id}`, { method: "DELETE" });
+    toast.success(t("deleted"));
     router.push("/entries");
+  }
+
+  const askDelete = () => {
+    confirm({
+      title: t("entryDeleteTitle"),
+      description: t("entryDeleteDesc"),
+      variant: "destructive",
+      confirmLabel: t("delete"),
+      cancelLabel: t("cancel"),
+      onConfirm: deleteEntry,
+    });
   }
 
   return (
@@ -159,7 +163,7 @@ export default function EntryPage() {
           <Button variant="outline" render={<a href={`/play/${entry.id}`} target="_blank" rel="noreferrer" />}>
             <Play className="size-4" /> {t("entryWatch")}
           </Button>
-          <Button variant="destructive" onClick={() => setConfirmDelete(true)}>
+          <Button variant="destructive" onClick={askDelete}>
             <Trash2 className="size-4" /> {t("delete")}
           </Button>
         </div>
@@ -235,7 +239,7 @@ export default function EntryPage() {
                 <Label>{t("labelPublic")}</Label>
               </div>
               <Button onClick={saveMetadata}>
-                <Save className="size-4" /> {saved ? t("saved") : t("save")}
+                <Save className="size-4" /> {t("save")}
               </Button>
             </CardContent>
           </Card>
@@ -317,19 +321,6 @@ export default function EntryPage() {
           {analytics ? <AnalyticsTab data={analytics} /> : <p className="text-sm text-muted-foreground">{t("loading")}</p>}
         </TabsContent>
       </Tabs>
-
-      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("entryDeleteTitle")}</AlertDialogTitle>
-            <AlertDialogDescription>{t("entryDeleteDesc")}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
-            <AlertDialogAction onClick={deleteEntry}>{t("delete")}</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }
@@ -342,6 +333,7 @@ function PosterPicker({
   onPicked: () => void;
 }) {
   const t = useT();
+  const toast = useToast();
   const [frame, setFrame] = React.useState(0);
   if (!entry.spriteKey || entry.spriteFrames === 0) {
     return (
@@ -382,6 +374,7 @@ function PosterPicker({
                 method: "POST",
                 body: JSON.stringify({ frame }),
               });
+              toast.success(t("posterSaved"));
               onPicked();
             }}
           >
@@ -395,6 +388,8 @@ function PosterPicker({
 
 function SubtitlesTab({ entry }: { entry: EntryDetail }) {
   const t = useT();
+  const { confirm } = useDialog();
+  const toast = useToast();
   const [lang, setLang] = React.useState("en");
   const [label, setLabel] = React.useState("");
   const fileRef = React.useRef<HTMLInputElement>(null);
@@ -404,8 +399,13 @@ function SubtitlesTab({ entry }: { entry: EntryDetail }) {
     form.append("file", file);
     form.append("lang", lang);
     form.append("label", label || lang);
-    await api(`/api/entries/${entry.id}/subtitles`, { method: "POST", body: form }).catch((e) => alert(e.message));
-    window.location.reload();
+    try {
+      await api(`/api/entries/${entry.id}/subtitles`, { method: "POST", body: form });
+      toast.success(t("subtitleUploaded"));
+      window.location.reload();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("error"));
+    }
   }
 
   return (
@@ -430,9 +430,19 @@ function SubtitlesTab({ entry }: { entry: EntryDetail }) {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={async () => {
-                      await api<void>(`/api/entries/${entry.id}/subtitles/${s.id}`, { method: "DELETE" });
-                      window.location.reload();
+                    onClick={() => {
+                      confirm({
+                        title: t("deleteSubtitleTitle"),
+                        description: t("deleteSubtitleDesc"),
+                        variant: "destructive",
+                        confirmLabel: t("delete"),
+                        cancelLabel: t("cancel"),
+                        onConfirm: async () => {
+                          await api<void>(`/api/entries/${entry.id}/subtitles/${s.id}`, { method: "DELETE" });
+                          toast.success(t("deleted"));
+                          window.location.reload();
+                        },
+                      });
                     }}
                   >
                     <Trash2 className="size-4" />

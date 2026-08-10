@@ -10,6 +10,8 @@ export type Locale = (typeof locales)[number];
 const en = {
   // app
   appName: "VOD",
+  error: "Something went wrong",
+  deleted: "Deleted",
   appVersion: "v0.1.0",
   loading: "Loading…",
   save: "Save",
@@ -32,6 +34,8 @@ const en = {
   navFlavors: "Flavors",
   navSettings: "Settings",
   navSignIn: "Sign in",
+  langLabel: "Language",
+  langEnglish: "English",
 
   // login
   loginTitle: "Sign in to VOD",
@@ -85,6 +89,7 @@ const en = {
   entriesPrev: "Prev",
   entriesNext: "Next",
   entriesDeleteTitle: "Delete {n} entries?",
+  entriesDeleted: "Deleted {n} entries",
   entriesDeleteDesc:
     "This permanently removes the entries and their media from storage. This cannot be undone.",
 
@@ -112,8 +117,12 @@ const en = {
   notTicked: "not ticked",
   noSprite: "No sprite sheet yet — the probe job generates one. Reprocess the entry if it is ready and this is still empty.",
   useAsPoster: "Use as poster",
+  posterSaved: "Poster updated",
   noSubtitles: "No subtitles",
   uploadVtt: "Upload .vtt",
+  subtitleUploaded: "Subtitle uploaded",
+  deleteSubtitleTitle: "Delete subtitle?",
+  deleteSubtitleDesc: "This removes the subtitle track from the entry.",
   labelEmbedPolicy: "Embed policy",
   embedDefault: "Default (global)",
   embedAnywhere: "Anywhere",
@@ -154,12 +163,17 @@ const en = {
   statusActive: "active",
   statusDisabled: "disabled",
   newUserTitle: "New user",
+  userCreated: "User created",
+  deleteUserTitle: "Delete user?",
+  deleteUserDesc: "This permanently removes the account for {username}.",
 
   // categories
   categoriesTitle: "Categories",
   categoriesSubtitle: "Tree structure for organizing entries",
   newCategory: "New category",
   parentNone: "Parent (none)",
+  deleteCategoryTitle: "Delete category?",
+  deleteCategoryDesc: "Entries in this category will become uncategorized.",
 
   // flavors
   flavorsTitle: "Flavors",
@@ -178,6 +192,8 @@ const en = {
   labelAudioBitrate: "Audio bitrate (kbps)",
   labelPreset: "Preset",
   saveFlavor: "Save flavor",
+  deleteFlavorTitle: "Delete flavor?",
+  deleteFlavorDesc: "This removes the flavor definition. Existing renditions remain on disk.",
 
   // settings
   settingsRestart: "Restart required",
@@ -220,15 +236,17 @@ const messages: Record<Locale, Record<MessageKey, string>> = { en };
 interface I18nState {
   locale: Locale;
   t: (key: MessageKey, vars?: Record<string, string | number>) => string;
+  setLocale: (locale: Locale) => void;
 }
 
 const I18nContext = React.createContext<I18nState>({
   locale: "en",
   t: (key) => messages.en[key],
+  setLocale: () => {},
 });
 
 export function I18nProvider({ children }: { children: React.ReactNode }) {
-  const [locale] = React.useState<Locale>(() => {
+  const [locale, setLocaleState] = React.useState<Locale>(() => {
     if (typeof window === "undefined") return "en";
     const stored = localStorage.getItem("lang");
     return (locales as readonly string[]).includes(stored ?? "") ? (stored as Locale) : "en";
@@ -247,11 +265,22 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     [locale],
   );
 
+  const setLocale = React.useCallback((next: Locale) => {
+    localStorage.setItem("lang", next);
+    setLocaleState(next);
+  }, []);
+
   return (
-    <I18nContext.Provider value={{ locale, t }}>{children}</I18nContext.Provider>
+    <I18nContext.Provider value={{ locale, t, setLocale }}>
+      {children}
+    </I18nContext.Provider>
   );
 }
 
 export function useT() {
   return React.useContext(I18nContext).t;
+}
+
+export function useI18n() {
+  return React.useContext(I18nContext);
 }

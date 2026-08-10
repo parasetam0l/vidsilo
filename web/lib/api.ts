@@ -39,7 +39,13 @@ export async function api<T>(
     ...init,
   });
 
-  if (res.status === 401 && !path.includes("/auth/") && !retried) {
+  // Silent session renewal on 401: refresh the access token and retry once.
+  // Only the login/refresh endpoints themselves are exempt (a 401 there
+  // means bad credentials / a revoked session, not an expired token).
+  const noRefresh =
+    path.includes("/api/auth/login") || path.includes("/api/auth/refresh");
+
+  if (res.status === 401 && !noRefresh && !retried) {
     if (await tryRefresh()) {
       return api<T>(path, init, true);
     }

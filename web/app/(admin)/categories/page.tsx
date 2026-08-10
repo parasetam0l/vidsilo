@@ -5,6 +5,8 @@ import { FolderTree, Plus, Trash2 } from "lucide-react";
 
 import { api, type Category } from "@/lib/api";
 import { useT } from "@/lib/i18n";
+import { useDialog } from "@/hooks/use-dialog";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -26,6 +28,8 @@ import {
 
 export default function CategoriesPage() {
   const t = useT();
+  const { confirm } = useDialog();
+  const toast = useToast();
   const [tree, setTree] = React.useState<Category[]>([]);
   const [name, setName] = React.useState("");
   const [parent, setParent] = React.useState("");
@@ -66,7 +70,19 @@ export default function CategoriesPage() {
 
   async function remove(c: Category) {
     await api<void>(`/api/categories/${c.id}`, { method: "DELETE" });
+    toast.success(t("deleted"));
     load();
+  }
+
+  function askRemove(c: Category) {
+    confirm({
+      title: t("deleteCategoryTitle"),
+      description: t("deleteCategoryDesc"),
+      variant: "destructive",
+      confirmLabel: t("delete"),
+      cancelLabel: t("cancel"),
+      onConfirm: () => remove(c),
+    });
   }
 
   const depthOf = (id: number) => {
@@ -135,7 +151,7 @@ export default function CategoriesPage() {
                     </Select>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" onClick={() => remove(c)}>
+                    <Button variant="ghost" size="icon" onClick={() => askRemove(c)}>
                       <Trash2 className="size-4" />
                     </Button>
                   </TableCell>

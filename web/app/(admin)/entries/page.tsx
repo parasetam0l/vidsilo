@@ -6,6 +6,8 @@ import { ChevronLeft, ChevronRight, Search, Trash2 } from "lucide-react";
 
 import { api, type Category, type Entry, type EntryList } from "@/lib/api";
 import { useT } from "@/lib/i18n";
+import { useDialog } from "@/hooks/use-dialog";
+import { useToast } from "@/hooks/use-toast";
 import { formatBytes, formatDate, formatDuration } from "@/lib/format";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
@@ -27,19 +29,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 
 export default function EntriesPage() {
   const t = useT();
+  const { confirm } = useDialog();
+  const toast = useToast();
   const [list, setList] = React.useState<EntryList | null>(null);
   const [q, setQ] = React.useState("");
   const [status, setStatus] = React.useState("");
@@ -47,8 +41,6 @@ export default function EntriesPage() {
   const [page, setPage] = React.useState(1);
   const [categories, setCategories] = React.useState<Category[]>([]);
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
-  const [confirmDelete, setConfirmDelete] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     api<Category[]>("/api/categories").then(setCategories).catch(() => {});
@@ -61,8 +53,8 @@ export default function EntriesPage() {
     if (category) params.set("category", category);
     api<EntryList>(`/api/entries?${params}`)
       .then(setList)
-      .catch((e) => setError(e.message));
-  }, [q, status, category, page]);
+      .catch((e) => toast.error(e.message));
+  }, [q, status, category, page, toast]);
 
   React.useEffect(load, [load]);
 
@@ -84,9 +76,21 @@ export default function EntriesPage() {
         api<void>(`/api/entries/${id}`, { method: "DELETE" }).catch(() => {}),
       ),
     );
+    const count = selected.size;
     setSelected(new Set());
-    setConfirmDelete(false);
+    toast.success(t("entriesDeleted", { n: count }));
     load();
+  }
+
+  function askDelete() {
+    confirm({
+      title: t("entriesDeleteTitle", { n: selected.size }),
+      description: t("entriesDeleteDesc"),
+      variant: "destructive",
+      confirmLabel: t("delete"),
+      cancelLabel: t("cancel"),
+      onConfirm: bulkDelete,
+    });
   }
 
   return (
@@ -131,16 +135,11 @@ export default function EntriesPage() {
           </SelectContent>
         </Select>
         {selected.size > 0 ? (
-          <Button
-            variant="destructive"
-            onClick={() => setConfirmDelete(true)}
-          >
+          <Button variant="destructive" onClick={askDelete}>
             <Trash2 className="size-4" /> {t("entriesDeleteN", { n: selected.size })}
           </Button>
         ) : null}
       </div>
-
-      {error ? <p className="text-sm text-red-500">{error}</p> : null}
 
       <Card>
         <CardContent className="p-0">
@@ -246,19 +245,6 @@ export default function EntriesPage() {
           </div>
         </div>
       ) : null}
-
-      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("entriesDeleteTitle", { n: selected.size })}</AlertDialogTitle>
-            <AlertDialogDescription>{t("entriesDeleteDesc")}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
-            <AlertDialogAction onClick={bulkDelete}>{t("delete")}</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

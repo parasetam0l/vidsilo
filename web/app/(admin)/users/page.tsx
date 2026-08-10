@@ -5,6 +5,8 @@ import { Plus, Save, Trash2 } from "lucide-react";
 
 import { api, ApiError, type Role, type User } from "@/lib/api";
 import { useT } from "@/lib/i18n";
+import { useDialog } from "@/hooks/use-dialog";
+import { useToast } from "@/hooks/use-toast";
 import { formatDate } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -38,6 +40,8 @@ const roles: Role[] = ["admin", "editor", "uploader", "viewer"];
 
 export default function UsersPage() {
   const t = useT();
+  const { confirm } = useDialog();
+  const toast = useToast();
   const [users, setUsers] = React.useState<User[]>([]);
   const [error, setError] = React.useState<string | null>(null);
   const [creating, setCreating] = React.useState(false);
@@ -60,6 +64,7 @@ export default function UsersPage() {
       setCreating(false);
       setUsername("");
       setPassword("");
+      toast.success(t("userCreated"));
       load();
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "create failed");
@@ -67,16 +72,36 @@ export default function UsersPage() {
   }
 
   async function update(u: User, patch: { role?: Role; disabled?: boolean }) {
-    await api<User>(`/api/users/${u.id}`, {
-      method: "PATCH",
-      body: JSON.stringify({ role: patch.role ?? u.role, disabled: patch.disabled ?? u.disabled }),
-    }).catch((e) => setError(e.message));
-    load();
+    try {
+      await api<User>(`/api/users/${u.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ role: patch.role ?? u.role, disabled: patch.disabled ?? u.disabled }),
+      });
+      load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("error"));
+    }
   }
 
   async function remove(u: User) {
-    await api<void>(`/api/users/${u.id}`, { method: "DELETE" }).catch((e) => setError(e.message));
-    load();
+    try {
+      await api<void>(`/api/users/${u.id}`, { method: "DELETE" });
+      toast.success(t("deleted"));
+      load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("error"));
+    }
+  }
+
+  function askRemove(u: User) {
+    confirm({
+      title: t("deleteUserTitle"),
+      description: t("deleteUserDesc", { username: u.username }),
+      variant: "destructive",
+      confirmLabel: t("delete"),
+      cancelLabel: t("cancel"),
+      onConfirm: () => remove(u),
+    });
   }
 
   return (
@@ -136,7 +161,7 @@ export default function UsersPage() {
                     {formatDate(u.createdAt)}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" onClick={() => remove(u)}>
+                    <Button variant="ghost" size="icon" onClick={() => askRemove(u)}>
                       <Trash2 className="size-4" />
                     </Button>
                   </TableCell>

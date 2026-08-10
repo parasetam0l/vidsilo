@@ -5,6 +5,7 @@ import { Save } from "lucide-react";
 
 import { api, type SettingsResponse } from "@/lib/api";
 import { useT } from "@/lib/i18n";
+import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -49,6 +50,7 @@ const labels: Record<string, string> = {
 
 export default function SettingsPage() {
   const t = useT();
+  const toast = useToast();
   const groups: GroupDef[] = [
     { title: t("gGeneral"), description: t("gGeneralDesc"), keys: ["site_name", "default_lang", "upload.max_size_bytes", "upload.allowed_extensions"] },
     { title: t("gStorage"), description: t("gStorageDesc"), keys: ["cache.enabled", "cache.max_bytes"] },
@@ -58,15 +60,14 @@ export default function SettingsPage() {
     { title: t("gTls"), description: t("gTlsDesc"), keys: ["tls.mode", "tls.acme_domains", "tls.cert_dir"] },
   ];
   const [data, setData] = React.useState<SettingsResponse | null>(null);
-  const [saved, setSaved] = React.useState<string | null>(null);
-  const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    api<SettingsResponse>("/api/settings").then(setData).catch((e) => setError(e.message));
-  }, []);
+    api<SettingsResponse>("/api/settings")
+      .then(setData)
+      .catch((e) => toast.error(e.message));
+  }, [toast]);
 
-  if (error) return <p className="p-4 text-sm text-red-500">{error}</p>;
-  if (!data) return <p className="p-4 text-sm text-muted-foreground">{t("loading")}</p>;
+    if (!data) return <p className="p-4 text-sm text-muted-foreground">{t("loading")}</p>;
 
   const s = data.settings;
   const str = (k: string) => (typeof s[k] === "string" ? (s[k] as string) : Array.isArray(s[k]) ? (s[k] as string[]).join(", ") : String(s[k] ?? ""));
@@ -74,7 +75,6 @@ export default function SettingsPage() {
   const bool = (k: string) => s[k] === true;
 
   async function saveGroup(keys: string[]) {
-    setError(null);
     const patch: Record<string, unknown> = {};
     for (const k of keys) {
       const raw = s[k];
@@ -91,17 +91,20 @@ export default function SettingsPage() {
       });
       const fresh = await api<SettingsResponse>("/api/settings");
       setData(fresh);
-      setSaved(t("settingsSaved", { keys: Object.keys(patch).join(", ") }));
-      setTimeout(() => setSaved(null), 2500);
+      toast.success(t("settingsSaved", { keys: Object.keys(patch).join(", ") }));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "save failed");
+      toast.error(e instanceof Error ? e.message : t("error"));
     }
   }
 
   async function setBool(key: string, value: boolean) {
-    await api("/api/settings", { method: "PATCH", body: JSON.stringify({ [key]: value }) });
-    const fresh = await api<SettingsResponse>("/api/settings");
-    setData(fresh);
+    try {
+      await api("/api/settings", { method: "PATCH", body: JSON.stringify({ [key]: value }) });
+      const fresh = await api<SettingsResponse>("/api/settings");
+      setData(fresh);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("error"));
+    }
   }
 
   return (
@@ -114,17 +117,6 @@ export default function SettingsPage() {
           </AlertDescription>
         </Alert>
       ) : null}
-      {saved ? (
-        <Alert>
-          <AlertDescription>{saved}</AlertDescription>
-        </Alert>
-      ) : null}
-      {error ? (
-        <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      ) : null}
-
       {groups.map((g) => (
         <Card key={g.title}>
           <CardHeader>
