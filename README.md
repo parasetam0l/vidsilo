@@ -57,6 +57,11 @@ Everything is admin-editable in the panel; only `DATABASE_URL` is required as en
 
 ## Operations
 
+- **Known advisories**: `govulncheck` reports GO-2026-5932 on the
+  `golang.org/x/crypto/openpgp` package (unmaintained-by-design; no fixed
+  version exists). It is a transitive dependency we never call — verified 0
+  vulnerabilities in imported packages. If a patched x/crypto release
+  appears, `go get golang.org/x/crypto@latest` clears it.
 - **Health**: `GET /healthz` (db + storage reachability), docker HEALTHCHECK built in.
 - **Logging**: JSON logs go to stdout **and** a size-rotating file at `DATA_DIR/logs/vod-app.log` (10 MB × 5 files, in-process rotation — same behavior on Docker and bare metal). Docker compose additionally rotates the container stdout via `json-file` (10 MB × 5); bare-metal systemd journal captures stdout too and rotates natively.
 - **Admin password recovery**: `vod-app reset-admin` (or `docker compose exec app vod-app reset-admin`) rotates the admin password and prints it once. It requires host access to the data dir, so it is safe as an operator-only escape hatch. First-run password is still logged once at seed.
