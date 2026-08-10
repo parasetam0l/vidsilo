@@ -189,7 +189,7 @@ const en = {
   uploadFailed: "Upload failed: {error}",
   uploadStart: "Start upload",
   uploadDialogTitle: "Upload videos",
-  uploadInterrupted: "paused — pick this file again to continue",
+  uploadInterrupted: "paused — continues automatically when you start the upload",
   uploadStartN: "Upload {n} file{s}",
   uploadAddMore: "Add more",
   uploadFilesSelected: "{n} file{s} selected",

@@ -6,8 +6,8 @@ import {
   CircleAlertIcon,
   PlusIcon,
   TimerIcon,
+  Trash2Icon,
   UploadCloudIcon,
-  X,
 } from "lucide-react";
 
 import { api, type Category, type UploadConfig } from "@/lib/api";
@@ -246,7 +246,7 @@ function UploadJobCard({
               className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
               onClick={onRemove}
             >
-              <X className="size-4" />
+              <Trash2Icon className="size-4" />
             </Button>
           ) : null}
         </div>
