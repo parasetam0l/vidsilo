@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -62,21 +63,22 @@ function LoginForm() {
   }
 
   return (
-    <div className="relative flex min-h-full flex-1 items-center justify-center p-4">
+    <div className="relative flex min-h-full flex-1 flex-col items-center justify-center gap-6 p-4">
       <div className="absolute top-4 right-4">
         <ThemeToggle />
       </div>
+      <div className="flex items-center gap-3">
+        <div className="flex aspect-square size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+          <ClapperboardIcon className="size-5" />
+        </div>
+        <span className="text-2xl font-semibold tracking-tight">
+          {t("appName")}
+        </span>
+      </div>
       <Card className="w-full max-w-sm">
         <CardHeader className="items-center text-center">
-          <div className="mb-1 flex items-center gap-3">
-            <div className="flex aspect-square size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <ClapperboardIcon className="size-5" />
-            </div>
-            <span className="text-xl font-semibold tracking-tight">
-              {t("appName")}
-            </span>
-          </div>
           <CardTitle className="text-xl">{t("loginTitle")}</CardTitle>
+          <CardDescription>{t("loginPrompt")}</CardDescription>
         </CardHeader>
         <CardContent>
           <form className="flex flex-col gap-4" onSubmit={onSubmit}>

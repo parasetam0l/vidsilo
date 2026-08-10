@@ -35,6 +35,7 @@ const en = {
 
   // login
   loginTitle: "Sign in to VOD",
+  loginPrompt: "Please sign in to continue.",
   loginUsername: "Username",
   loginPassword: "Password",
   loginButton: "Sign in",
