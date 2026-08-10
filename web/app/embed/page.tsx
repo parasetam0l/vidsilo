@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import { api, type PlayInfo } from "@/lib/api";
+import { useT } from "@/lib/i18n";
 import { VODPlayer } from "@/components/vod-player";
 
 function uuidFromPath(): string {
@@ -12,9 +13,19 @@ function uuidFromPath(): string {
 }
 
 export default function EmbedPage() {
+  const t = useT();
   const [uuid] = React.useState(uuidFromPath);
   const [info, setInfo] = React.useState<PlayInfo | null>(null);
   const [error, setError] = React.useState<string | null>(null);
+  const [opts] = React.useState(() => {
+    if (typeof window === "undefined") return { autoplay: false, muted: false, loop: false };
+    const p = new URLSearchParams(window.location.search);
+    return {
+      autoplay: p.get("autoplay") === "1",
+      muted: p.get("muted") === "1",
+      loop: p.get("loop") === "1",
+    };
+  });
 
   React.useEffect(() => {
     if (!uuid) return;
@@ -23,18 +34,18 @@ export default function EmbedPage() {
       .catch((e) => setError(e.message));
   }, [uuid]);
 
-  if (!uuid) return <div className="grid h-full min-h-[100px] place-items-center text-xs text-muted-foreground">Missing entry id in URL</div>;
+  if (!uuid) return <div className="grid h-full min-h-[100px] place-items-center text-xs text-muted-foreground">{t("playerMissingId")}</div>;
   if (error) return <div className="grid h-full min-h-[100px] place-items-center text-xs text-red-500">{error}</div>;
-  if (!info) return <div className="grid h-full min-h-[100px] place-items-center text-xs text-muted-foreground">Loading…</div>;
+  if (!info) return <div className="grid h-full min-h-[100px] place-items-center text-xs text-muted-foreground">{t("loading")}</div>;
 
   return (
     <div className="h-full w-full bg-black">
       {info.status !== "ready" ? (
         <div className="grid h-full place-items-center text-xs text-muted-foreground">
-          Video is {info.status}
+          {t("playerVideoStatus", { status: info.status })}
         </div>
       ) : (
-        <VODPlayer info={info} publicId={uuid} />
+        <VODPlayer info={info} publicId={uuid} autoplay={opts.autoplay} muted={opts.muted} loop={opts.loop} />
       )}
     </div>
   );

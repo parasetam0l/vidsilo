@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 
 import { api, type Dashboard } from "@/lib/api";
+import { useT } from "@/lib/i18n";
 import { formatBytes, formatDuration } from "@/lib/format";
 import { StatusBadge } from "@/components/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +19,7 @@ import {
 } from "@/components/ui/table";
 
 export default function DashboardPage() {
+  const t = useT();
   const [data, setData] = React.useState<Dashboard | null>(null);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -39,26 +41,10 @@ export default function DashboardPage() {
   }
 
   const kpis = [
-    {
-      title: "Entries",
-      value: String(data.totalEntries),
-      hint: "total in catalog",
-    },
-    {
-      title: "Storage used",
-      value: formatBytes(data.storageUsed),
-      hint: "media across all entries",
-    },
-    {
-      title: "Queue depth",
-      value: String(data.queueDepth),
-      hint: "jobs waiting or running",
-    },
-    {
-      title: "Ready",
-      value: String(data.entriesByStatus.ready ?? 0),
-      hint: "playable entries",
-    },
+    { title: t("dashEntries"), value: String(data.totalEntries), hint: t("dashEntriesHint") },
+    { title: t("dashStorage"), value: formatBytes(data.storageUsed), hint: t("dashStorageHint") },
+    { title: t("dashQueue"), value: String(data.queueDepth), hint: t("dashQueueHint") },
+    { title: t("dashReady"), value: String(data.entriesByStatus.ready ?? 0), hint: t("dashReadyHint") },
   ];
 
   return (
@@ -83,7 +69,7 @@ export default function DashboardPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Entries by status</CardTitle>
+            <CardTitle>{t("dashByStatus")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">
@@ -97,24 +83,22 @@ export default function DashboardPage() {
                 </div>
               ))}
               {Object.keys(data.entriesByStatus).length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No entries yet — upload your first video.
-                </p>
+                <p className="text-sm text-muted-foreground">{t("dashNoEntries")}</p>
               ) : null}
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Recent uploads</CardTitle>
+            <CardTitle>{t("dashRecent")}</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Title</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Duration</TableHead>
+                  <TableHead>{t("colTitle")}</TableHead>
+                  <TableHead>{t("colStatus")}</TableHead>
+                  <TableHead>{t("colDuration")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -125,7 +109,7 @@ export default function DashboardPage() {
                         href={`/entries?id=${e.id}`}
                         className="hover:underline"
                       >
-                        {e.title || "(untitled)"}
+                        {e.title || t("untitled")}
                       </Link>
                     </TableCell>
                     <TableCell>
@@ -142,7 +126,7 @@ export default function DashboardPage() {
                       colSpan={3}
                       className="text-center text-muted-foreground"
                     >
-                      Nothing here yet
+                      {t("dashEmpty")}
                     </TableCell>
                   </TableRow>
                 ) : null}

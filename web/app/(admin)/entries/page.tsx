@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ChevronLeft, ChevronRight, Search, Trash2 } from "lucide-react";
 
 import { api, type Category, type Entry, type EntryList } from "@/lib/api";
+import { useT } from "@/lib/i18n";
 import { formatBytes, formatDate, formatDuration } from "@/lib/format";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export default function EntriesPage() {
+  const t = useT();
   const [list, setList] = React.useState<EntryList | null>(null);
   const [q, setQ] = React.useState("");
   const [status, setStatus] = React.useState("");
@@ -94,7 +96,7 @@ export default function EntriesPage() {
           <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             className="pl-9"
-            placeholder="Search title or description…"
+            placeholder={t("entriesSearch")}
             value={q}
             onChange={(e) => {
               setQ(e.target.value);
@@ -104,10 +106,10 @@ export default function EntriesPage() {
         </div>
         <Select value={status} onValueChange={(v) => { setStatus(v ?? ""); setPage(1); }}>
           <SelectTrigger className="w-40">
-            <SelectValue placeholder="All statuses" />
+            <SelectValue placeholder={t("entriesAllStatuses")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All statuses</SelectItem>
+            <SelectItem value="">{t("entriesAllStatuses")}</SelectItem>
             <SelectItem value="uploading">uploading</SelectItem>
             <SelectItem value="probing">probing</SelectItem>
             <SelectItem value="transcoding">transcoding</SelectItem>
@@ -117,10 +119,10 @@ export default function EntriesPage() {
         </Select>
         <Select value={category} onValueChange={(v) => { setCategory(v ?? ""); setPage(1); }}>
           <SelectTrigger className="w-40">
-            <SelectValue placeholder="All categories" />
+            <SelectValue placeholder={t("entriesAllCategories")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All categories</SelectItem>
+            <SelectItem value="">{t("entriesAllCategories")}</SelectItem>
             {categories.map((c) => (
               <SelectItem key={c.id} value={String(c.id)}>
                 {c.name}
@@ -133,7 +135,7 @@ export default function EntriesPage() {
             variant="destructive"
             onClick={() => setConfirmDelete(true)}
           >
-            <Trash2 className="size-4" /> Delete ({selected.size})
+            <Trash2 className="size-4" /> {t("entriesDeleteN", { n: selected.size })}
           </Button>
         ) : null}
       </div>
@@ -157,19 +159,19 @@ export default function EntriesPage() {
                     }}
                   />
                 </TableHead>
-                <TableHead>Title</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Duration</TableHead>
-                <TableHead>Size</TableHead>
-                <TableHead className="text-right">Uploaded</TableHead>
+                <TableHead>{t("colTitle")}</TableHead>
+                <TableHead>{t("colStatus")}</TableHead>
+                <TableHead>{t("colCategory")}</TableHead>
+                <TableHead>{t("colDuration")}</TableHead>
+                <TableHead>{t("colSize")}</TableHead>
+                <TableHead className="text-right">{t("colUploaded")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {!list ? (
                 <TableRow>
                   <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
-                    Loading…
+                    {t("loading")}
                   </TableCell>
                 </TableRow>
               ) : null}
@@ -183,7 +185,7 @@ export default function EntriesPage() {
                   </TableCell>
                   <TableCell>
                     <Link href={`/entries?id=${e.id}`} className="hover:underline">
-                      {e.title || "(untitled)"}
+                      {e.title || t("untitled")}
                     </Link>
                   </TableCell>
                   <TableCell>
@@ -206,7 +208,7 @@ export default function EntriesPage() {
               {list && list.items.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
-                    No entries match
+                    {t("entriesEmpty")}
                   </TableCell>
                 </TableRow>
               ) : null}
@@ -218,8 +220,11 @@ export default function EntriesPage() {
       {list ? (
         <div className="flex items-center justify-between text-sm text-muted-foreground">
           <span>
-            {list.total} entries · page {list.page} of{" "}
-            {Math.max(1, Math.ceil(list.total / list.limit))}
+            {t("entriesCount", {
+              total: list.total,
+              page: list.page,
+              pages: Math.max(1, Math.ceil(list.total / list.limit)),
+            })}
           </span>
           <div className="flex gap-2">
             <Button
@@ -228,7 +233,7 @@ export default function EntriesPage() {
               disabled={page <= 1}
               onClick={() => setPage((p) => p - 1)}
             >
-              <ChevronLeft className="size-4" /> Prev
+              <ChevronLeft className="size-4" /> {t("entriesPrev")}
             </Button>
             <Button
               variant="outline"
@@ -236,7 +241,7 @@ export default function EntriesPage() {
               disabled={page * list.limit >= list.total}
               onClick={() => setPage((p) => p + 1)}
             >
-              Next <ChevronRight className="size-4" />
+              {t("entriesNext")} <ChevronRight className="size-4" />
             </Button>
           </div>
         </div>
@@ -245,15 +250,12 @@ export default function EntriesPage() {
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete {selected.size} entries?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This permanently removes the entries and their media from
-              storage. This cannot be undone.
-            </AlertDialogDescription>
+            <AlertDialogTitle>{t("entriesDeleteTitle", { n: selected.size })}</AlertDialogTitle>
+            <AlertDialogDescription>{t("entriesDeleteDesc")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={bulkDelete}>Delete</AlertDialogAction>
+            <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={bulkDelete}>{t("delete")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

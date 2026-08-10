@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
 import { AuthProvider } from "@/components/auth-provider";
+import { I18nProvider } from "@/lib/i18n";
 import { ThemeProvider } from "@/components/theme-provider";
 
 const geistSans = Geist({
@@ -36,7 +37,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="min-h-full flex flex-col">
         <ThemeProvider>
-          <AuthProvider>{children}</AuthProvider>
+          <I18nProvider>
+            <AuthProvider>{children}</AuthProvider>
+          </I18nProvider>
         </ThemeProvider>
       </body>
     </html>

@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useRouter } from "next/navigation";
+import { useT } from "@/lib/i18n";
 
 interface PendingUpload {
   file: File;
@@ -33,6 +34,7 @@ interface PendingUpload {
 }
 
 export default function UploadPage() {
+  const t = useT();
   const router = useRouter();
   const [categories, setCategories] = React.useState<Category[]>([]);
   const [pending, setPending] = React.useState<PendingUpload[]>([]);
@@ -125,10 +127,8 @@ export default function UploadPage() {
       >
         <UploadCloud className="size-10 text-muted-foreground" />
         <div>
-          <p className="font-medium">Drag & drop videos here</p>
-          <p className="text-sm text-muted-foreground">
-            or click to browse — resumable via tus, up to 8 GiB
-          </p>
+          <p className="font-medium">{t("uploadDragDrop")}</p>
+          <p className="text-sm text-muted-foreground">{t("uploadOrClick")}</p>
         </div>
         <input
           ref={inputRef}
@@ -154,9 +154,9 @@ export default function UploadPage() {
                     <p className="text-xs text-muted-foreground">
                       {formatBytes(p.file.size)}
                       {p.status === "done"
-                        ? " — done, opening entries…"
+                        ? t("uploadDone")
                         : p.status === "failed"
-                          ? ` — failed: ${p.error}`
+                          ? t("uploadFailed", { error: p.error ?? "" })
                           : ""}
                     </p>
                   </div>
@@ -170,7 +170,7 @@ export default function UploadPage() {
                   <>
                     <div className="grid gap-3 md:grid-cols-2">
                       <div className="flex flex-col gap-1.5">
-                        <Label>Title</Label>
+                        <Label>{t("labelTitle")}</Label>
                         <Input
                           value={p.title}
                           disabled={p.status === "uploading"}
@@ -178,14 +178,14 @@ export default function UploadPage() {
                         />
                       </div>
                       <div className="flex flex-col gap-1.5">
-                        <Label>Category</Label>
+                        <Label>{t("labelCategory")}</Label>
                         <Select
                           value={p.category}
                           disabled={p.status === "uploading"}
                           onValueChange={(v) => updateAt(i, { category: v ?? "" })}
                         >
                           <SelectTrigger>
-                            <SelectValue placeholder="None" />
+                            <SelectValue placeholder={t("none")} />
                           </SelectTrigger>
                           <SelectContent>
                             {categories.map((c) => (
@@ -198,7 +198,7 @@ export default function UploadPage() {
                       </div>
                     </div>
                     <div className="flex flex-col gap-1.5">
-                      <Label>Description</Label>
+                      <Label>{t("labelDescription")}</Label>
                       <Textarea
                         rows={2}
                         value={p.description}
@@ -215,25 +215,20 @@ export default function UploadPage() {
           ))}
           {activeCount > 0 ? (
             <Button className="w-full" onClick={startAll} disabled={activeCount === 0}>
-              <UploadCloud className="size-4" /> Upload {activeCount} file{activeCount > 1 ? "s" : ""}
+              <UploadCloud className="size-4" />{" "}
+              {t("uploadStartN", { n: activeCount, s: activeCount > 1 ? "s" : "" })}
             </Button>
           ) : (
             <Button className="w-full" onClick={startAll}>
-              <UploadCloud className="size-4" /> Start upload
+              <UploadCloud className="size-4" /> {t("uploadStart")}
             </Button>
           )}
         </div>
       ) : (
         <Card>
           <CardHeader>
-            <CardTitle>How it works</CardTitle>
-            <CardDescription>
-              Files upload straight to media storage with the tus resumable
-              protocol — safe to close and reopen the browser mid-upload.
-              After completion, the probe job inspects the source, generates a
-              poster + sprite sheet, and the transcode job builds adaptive
-              HLS renditions.
-            </CardDescription>
+            <CardTitle>{t("uploadHowTitle")}</CardTitle>
+            <CardDescription>{t("uploadHowDesc")}</CardDescription>
           </CardHeader>
         </Card>
       )}

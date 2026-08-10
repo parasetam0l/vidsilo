@@ -4,6 +4,7 @@ import * as React from "react";
 import { Plus, Save, Trash2 } from "lucide-react";
 
 import { api, ApiError, type Role, type User } from "@/lib/api";
+import { useT } from "@/lib/i18n";
 import { formatDate } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -36,6 +37,7 @@ import {
 const roles: Role[] = ["admin", "editor", "uploader", "viewer"];
 
 export default function UsersPage() {
+  const t = useT();
   const [users, setUsers] = React.useState<User[]>([]);
   const [error, setError] = React.useState<string | null>(null);
   const [creating, setCreating] = React.useState(false);
@@ -81,13 +83,11 @@ export default function UsersPage() {
     <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Users</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Roles: admin, editor, uploader, viewer
-          </p>
+          <h1 className="text-2xl font-semibold tracking-tight">{t("usersTitle")}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{t("usersSubtitle")}</p>
         </div>
         <Button onClick={() => setCreating(true)}>
-          <Plus className="size-4" /> New user
+          <Plus className="size-4" /> {t("usersNew")}
         </Button>
       </div>
       {error ? <p className="text-sm text-red-500">{error}</p> : null}
@@ -96,11 +96,11 @@ export default function UsersPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Username</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>{t("loginUsername")}</TableHead>
+                <TableHead>{t("colRole")}</TableHead>
+                <TableHead>{t("colStatus")}</TableHead>
+                <TableHead>{t("colCreated")}</TableHead>
+                <TableHead className="text-right">{t("colActions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -128,7 +128,7 @@ export default function UsersPage() {
                         onCheckedChange={(v) => update(u, { disabled: !v })}
                       />
                       <Badge variant={u.disabled ? "destructive" : "outline"}>
-                        {u.disabled ? "disabled" : "active"}
+                        {u.disabled ? t("statusDisabled") : t("statusActive")}
                       </Badge>
                     </div>
                   </TableCell>
@@ -150,15 +150,15 @@ export default function UsersPage() {
       <Dialog open={creating} onOpenChange={setCreating}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>New user</DialogTitle>
+            <DialogTitle>{t("newUserTitle")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <div className="flex flex-col gap-1.5">
-              <Label>Username</Label>
+              <Label>{t("loginUsername")}</Label>
               <Input value={username} onChange={(e) => setUsername(e.target.value)} />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label>Password</Label>
+              <Label>{t("loginPassword")}</Label>
               <Input
                 type="password"
                 value={password}
@@ -166,7 +166,7 @@ export default function UsersPage() {
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label>Role</Label>
+              <Label>{t("colRole")}</Label>
               <Select value={role} onValueChange={(v) => setRole(v as Role)}>
                 <SelectTrigger>
                   <SelectValue />
@@ -181,7 +181,7 @@ export default function UsersPage() {
               </Select>
             </div>
             <Button className="w-full" onClick={create}>
-              <Save className="size-4" /> Create
+              <Save className="size-4" /> {t("create")}
             </Button>
           </div>
         </DialogContent>

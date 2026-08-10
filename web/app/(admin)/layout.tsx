@@ -14,31 +14,34 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Separator } from "@/components/ui/separator";
+import { useT } from "@/lib/i18n";
 import {
   SidebarInset,
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 
-const pageTitles: Record<string, string> = {
-  "/dashboard": "Dashboard",
-  "/entries": "Entries",
-  "/upload": "Upload",
-  "/users": "Users",
-  "/categories": "Categories",
-  "/flavors": "Flavors",
-  "/settings": "Settings",
-};
+
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const t = useT();
   const { user, loading } = useAuth();
+  const pageTitles: Record<string, string> = {
+    "/dashboard": t("navDashboard"),
+    "/entries": t("navEntries"),
+    "/upload": t("navUpload"),
+    "/users": t("navUsers"),
+    "/categories": t("navCategories"),
+    "/flavors": t("navFlavors"),
+    "/settings": t("navSettings"),
+  };
   const pageTitle = pageTitles[pathname] ?? "VOD Admin";
 
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">
-        Loading…
+        {t("loading")}
       </div>
     );
   }
@@ -46,7 +49,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return (
       <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">
         <a href="/login" className="underline">
-          Sign in
+          {t("navSignIn")}
         </a>
       </div>
     );
@@ -71,7 +74,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem className="hidden md:block">
-                <BreadcrumbLink href="/dashboard">VOD</BreadcrumbLink>
+                <BreadcrumbLink href="/dashboard">{t("appName")}</BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator className="hidden md:block" />
               <BreadcrumbItem>

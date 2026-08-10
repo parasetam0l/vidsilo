@@ -4,6 +4,7 @@ import * as React from "react";
 import Hls from "hls.js";
 
 import type { PlayInfo } from "@/lib/api";
+import { useT } from "@/lib/i18n";
 import { viewerId } from "@/lib/format";
 
 // Analytics beacon helpers (throttled).
@@ -52,6 +53,7 @@ export function VODPlayer({
   const [scrub, setScrub] = React.useState<number | null>(null);
   const [error, setError] = React.useState<string | null>(null);
 
+  const t = useT();
   const viewId = React.useMemo(() => viewerId(), []);
   const watchedRef = React.useRef(0);
   const lastBeaconRef = React.useRef(0);
@@ -229,7 +231,7 @@ export function VODPlayer({
         playsInline
         muted={mutedState}
         loop={loop}
-        onError={() => setError("Playback error — check server logs")}
+        onError={() => setError(t("playerError"))}
       />
 
       {info.subtitles.map((s) => (
@@ -246,7 +248,7 @@ export function VODPlayer({
         <button
           className="absolute inset-0 grid place-items-center bg-black/30 transition-opacity"
           onClick={togglePlay}
-          aria-label="Play"
+          aria-label={t("playerPlay")}
         >
           <div className="grid size-20 place-items-center rounded-full bg-white/90 text-black">
             <svg viewBox="0 0 24 24" className="ml-1 size-10 fill-current">
@@ -278,14 +280,14 @@ export function VODPlayer({
           <div className="absolute h-full rounded-full bg-white" style={{ width: `${scrubAt ?? progress}%` }} />
         </div>
         <div className="mt-2 flex items-center gap-3 text-xs text-white">
-          <button onClick={togglePlay} aria-label="play/pause" className="opacity-80 hover:opacity-100">
+          <button onClick={togglePlay} aria-label={playing ? t("playerPause") : t("playerPlay")} className="opacity-80 hover:opacity-100">
             {playing ? (
               <svg viewBox="0 0 24 24" className="size-5 fill-current"><path d="M6 4h4v16H6zM14 4h4v16h-4z" /></svg>
             ) : (
               <svg viewBox="0 0 24 24" className="size-5 fill-current"><path d="M8 5v14l11-7z" /></svg>
             )}
           </button>
-          <button onClick={toggleMute} aria-label="mute" className="opacity-80 hover:opacity-100">
+          <button onClick={toggleMute} aria-label={mutedState || volume === 0 ? t("playerUnmute") : t("playerMute")} className="opacity-80 hover:opacity-100">
             {mutedState || volume === 0 ? (
               <svg viewBox="0 0 24 24" className="size-5 fill-current"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4z" /></svg>
             ) : (
@@ -317,9 +319,9 @@ export function VODPlayer({
                 value={level}
                 onChange={(e) => setQuality(Number(e.target.value))}
                 className="rounded bg-black/40 px-1 py-0.5"
-                aria-label="quality"
+                aria-label={t("colCodec")}
               >
-                <option value={-1}>Auto</option>
+                <option value={-1}>{t("playerAuto")}</option>
                 {levels.map((l) => (
                   <option key={l.index} value={l.index}>
                     {l.height}p
@@ -332,9 +334,9 @@ export function VODPlayer({
                 value={subtitle}
                 onChange={(e) => setSubtitle(e.target.value)}
                 className="rounded bg-black/40 px-1 py-0.5"
-                aria-label="subtitles"
+                aria-label={t("tabSubtitles")}
               >
-                <option value="">Off</option>
+                <option value="">{t("playerOff")}</option>
                 {info.subtitles.map((s) => (
                   <option key={s.lang} value={s.lang}>
                     {s.label || s.lang}
@@ -346,7 +348,7 @@ export function VODPlayer({
               value={rate}
               onChange={(e) => setPlaybackRate(Number(e.target.value))}
               className="rounded bg-black/40 px-1 py-0.5"
-              aria-label="speed"
+              aria-label={t("playerSpeed")}
             >
               {[0.5, 0.75, 1, 1.25, 1.5, 2].map((r) => (
                 <option key={r} value={r}>
@@ -354,7 +356,7 @@ export function VODPlayer({
                 </option>
               ))}
             </select>
-            <button onClick={toggleFullscreen} aria-label="fullscreen" className="opacity-80 hover:opacity-100">
+            <button onClick={toggleFullscreen} aria-label={fullscreen ? t("playerExitFullscreen") : t("playerFullscreen")} className="opacity-80 hover:opacity-100">
               {fullscreen ? (
                 <svg viewBox="0 0 24 24" className="size-5 fill-current"><path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z" /></svg>
               ) : (

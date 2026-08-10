@@ -4,6 +4,7 @@ import * as React from "react";
 import { Save } from "lucide-react";
 
 import { api, type SettingsResponse } from "@/lib/api";
+import { useT } from "@/lib/i18n";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,38 +24,7 @@ interface GroupDef {
   keys: string[];
 }
 
-const groups: GroupDef[] = [
-  {
-    title: "General",
-    description: "Site identity and upload rules",
-    keys: ["site_name", "default_lang", "upload.max_size_bytes", "upload.allowed_extensions"],
-  },
-  {
-    title: "Storage",
-    description: "S3 read-through cache settings",
-    keys: ["cache.enabled", "cache.max_bytes"],
-  },
-  {
-    title: "Transcoding",
-    description: "Pipeline tuning — applies to newly processed entries",
-    keys: ["transcode.concurrency", "transcode.segment_seconds", "transcode.gop_seconds", "transcode.preset"],
-  },
-  {
-    title: "Analytics",
-    description: "Beacon collection and retention",
-    keys: ["analytics.enabled", "analytics.retention_days", "analytics.flush_interval_s"],
-  },
-  {
-    title: "Playback",
-    description: "Global default embed policy",
-    keys: ["embed.default_policy", "embed.default_allowlist"],
-  },
-  {
-    title: "TLS",
-    description: "Auto-HTTPS via Let's Encrypt — restart required",
-    keys: ["tls.mode", "tls.acme_domains", "tls.cert_dir"],
-  },
-];
+
 
 const labels: Record<string, string> = {
   site_name: "Site name",
@@ -78,6 +48,15 @@ const labels: Record<string, string> = {
 };
 
 export default function SettingsPage() {
+  const t = useT();
+  const groups: GroupDef[] = [
+    { title: t("gGeneral"), description: t("gGeneralDesc"), keys: ["site_name", "default_lang", "upload.max_size_bytes", "upload.allowed_extensions"] },
+    { title: t("gStorage"), description: t("gStorageDesc"), keys: ["cache.enabled", "cache.max_bytes"] },
+    { title: t("gTranscoding"), description: t("gTranscodingDesc"), keys: ["transcode.concurrency", "transcode.segment_seconds", "transcode.gop_seconds", "transcode.preset"] },
+    { title: t("gAnalytics"), description: t("gAnalyticsDesc"), keys: ["analytics.enabled", "analytics.retention_days", "analytics.flush_interval_s"] },
+    { title: t("gPlayback"), description: t("gPlaybackDesc"), keys: ["embed.default_policy", "embed.default_allowlist"] },
+    { title: t("gTls"), description: t("gTlsDesc"), keys: ["tls.mode", "tls.acme_domains", "tls.cert_dir"] },
+  ];
   const [data, setData] = React.useState<SettingsResponse | null>(null);
   const [saved, setSaved] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
@@ -87,7 +66,7 @@ export default function SettingsPage() {
   }, []);
 
   if (error) return <p className="p-4 text-sm text-red-500">{error}</p>;
-  if (!data) return <p className="p-4 text-sm text-muted-foreground">Loading…</p>;
+  if (!data) return <p className="p-4 text-sm text-muted-foreground">{t("loading")}</p>;
 
   const s = data.settings;
   const str = (k: string) => (typeof s[k] === "string" ? (s[k] as string) : Array.isArray(s[k]) ? (s[k] as string[]).join(", ") : String(s[k] ?? ""));
@@ -112,7 +91,7 @@ export default function SettingsPage() {
       });
       const fresh = await api<SettingsResponse>("/api/settings");
       setData(fresh);
-      setSaved(`Saved ${Object.keys(patch).join(", ")}`);
+      setSaved(t("settingsSaved", { keys: Object.keys(patch).join(", ") }));
       setTimeout(() => setSaved(null), 2500);
     } catch (e) {
       setError(e instanceof Error ? e.message : "save failed");
@@ -129,10 +108,9 @@ export default function SettingsPage() {
     <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
       {data.restartRequired.length > 0 ? (
         <Alert>
-          <AlertTitle>Restart required</AlertTitle>
+          <AlertTitle>{t("settingsRestart")}</AlertTitle>
           <AlertDescription>
-            Changes to {data.restartRequired.join(", ")} take effect after the
-            server restarts (Docker: <code>docker compose restart app</code>).
+            {t("settingsRestartDesc", { keys: data.restartRequired.join(", ") })}
           </AlertDescription>
         </Alert>
       ) : null}
@@ -198,7 +176,7 @@ export default function SettingsPage() {
             })}
             <div className="md:col-span-2">
               <Button onClick={() => saveGroup(g.keys)}>
-                <Save className="size-4" /> Save {g.title}
+                <Save className="size-4" /> {t("settingsSave", { group: g.title })}
               </Button>
             </div>
           </CardContent>

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useT } from "@/lib/i18n";
 import {
   Copy,
   Play,
@@ -57,6 +58,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export default function EntryPage() {
+  const t = useT();
   const params = useSearchParams();
   const router = useRouter();
   const id = params.get("id");
@@ -84,9 +86,9 @@ export default function EntryPage() {
     api<AnalyticsResponse>(`/api/entries/${id}/analytics`).then(setAnalytics).catch(() => {});
   }, [id]);
 
-  if (!id) return <div className="p-4 text-sm text-muted-foreground">No entry selected.</div>;
+  if (!id) return <div className="p-4 text-sm text-muted-foreground">{t("entryNotFound")}</div>;
   if (error) return <div className="p-4 text-sm text-red-500">{error}</div>;
-  if (!entry) return <div className="p-4 text-sm text-muted-foreground">Loading…</div>;
+  if (!entry) return <div className="p-4 text-sm text-muted-foreground">{t("loading")}</div>;
 
     const catName = categories.find((c) => c.id === entry.categoryId)?.name ?? "—";
 
@@ -133,14 +135,18 @@ export default function EntryPage() {
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-semibold tracking-tight">
-              {entry.title || "(untitled)"}
+              {entry.title || t("untitled")}
             </h1>
             <StatusBadge status={entry.status} />
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            {catName} · {formatDuration(entry.durationMs)} ·{" "}
-            {formatBytes(entry.sourceSize)} · uploaded {formatDate(entry.createdAt)}
-            {entry.uploaderName ? ` by ${entry.uploaderName}` : ""}
+            {t("entryMetaLine", {
+              category: catName,
+              duration: formatDuration(entry.durationMs),
+              size: formatBytes(entry.sourceSize),
+              date: formatDate(entry.createdAt),
+              by: entry.uploaderName ? ` by ${entry.uploaderName}` : "",
+            })}
           </p>
           {entry.error ? (
             <p className="mt-2 max-w-xl text-sm text-red-500">{entry.error}</p>
@@ -148,13 +154,13 @@ export default function EntryPage() {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={reprocess}>
-            <RotateCcw className="size-4" /> Reprocess
+            <RotateCcw className="size-4" /> {t("entryReprocess")}
           </Button>
           <Button variant="outline" render={<a href={`/play/${entry.id}`} target="_blank" rel="noreferrer" />}>
-            <Play className="size-4" /> Watch
+            <Play className="size-4" /> {t("entryWatch")}
           </Button>
           <Button variant="destructive" onClick={() => setConfirmDelete(true)}>
-            <Trash2 className="size-4" /> Delete
+            <Trash2 className="size-4" /> {t("delete")}
           </Button>
         </div>
       </div>
@@ -170,12 +176,12 @@ export default function EntryPage() {
 
       <Tabs defaultValue="metadata">
         <TabsList>
-          <TabsTrigger value="metadata">Metadata</TabsTrigger>
-          <TabsTrigger value="flavors">Flavors</TabsTrigger>
-          <TabsTrigger value="poster">Poster</TabsTrigger>
-          <TabsTrigger value="subtitles">Subtitles</TabsTrigger>
-          <TabsTrigger value="playback">Playback</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          <TabsTrigger value="metadata">{t("tabMetadata")}</TabsTrigger>
+          <TabsTrigger value="flavors">{t("tabFlavors")}</TabsTrigger>
+          <TabsTrigger value="poster">{t("tabPoster")}</TabsTrigger>
+          <TabsTrigger value="subtitles">{t("tabSubtitles")}</TabsTrigger>
+          <TabsTrigger value="playback">{t("tabPlayback")}</TabsTrigger>
+          <TabsTrigger value="analytics">{t("tabAnalytics")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="metadata" className="mt-4 space-y-4">
@@ -183,14 +189,14 @@ export default function EntryPage() {
             <CardContent className="space-y-4 pt-6">
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="flex flex-col gap-2">
-                  <Label>Title</Label>
+                  <Label>{t("labelTitle")}</Label>
                   <Input
                     value={entry.title}
                     onChange={(e) => setEntry({ ...entry, title: e.target.value })}
                   />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <Label>Category</Label>
+                  <Label>{t("labelCategory")}</Label>
                   <Select
                     value={entry.categoryId ? String(entry.categoryId) : "none"}
                     onValueChange={(v) =>
@@ -201,7 +207,7 @@ export default function EntryPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">None</SelectItem>
+                      <SelectItem value="none">{t("none")}</SelectItem>
                       {categories.map((c) => (
                         <SelectItem key={c.id} value={String(c.id)}>
                           {c.name}
@@ -212,7 +218,7 @@ export default function EntryPage() {
                 </div>
               </div>
               <div className="flex flex-col gap-2">
-                <Label>Description</Label>
+                <Label>{t("labelDescription")}</Label>
                 <Textarea
                   rows={4}
                   value={entry.description}
@@ -226,10 +232,10 @@ export default function EntryPage() {
                   checked={entry.isPublic}
                   onCheckedChange={(v) => setEntry({ ...entry, isPublic: v })}
                 />
-                <Label>Public (browseable without sign-in)</Label>
+                <Label>{t("labelPublic")}</Label>
               </div>
               <Button onClick={saveMetadata}>
-                <Save className="size-4" /> {saved ? "Saved" : "Save"}
+                <Save className="size-4" /> {saved ? t("saved") : t("save")}
               </Button>
             </CardContent>
           </Card>
@@ -238,18 +244,18 @@ export default function EntryPage() {
         <TabsContent value="flavors" className="mt-4 space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Renditions</CardTitle>
+              <CardTitle>{t("tabFlavors")}</CardTitle>
             </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Tick</TableHead>
-                    <TableHead>Flavor</TableHead>
-                    <TableHead>Codec</TableHead>
-                    <TableHead>Height</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Note</TableHead>
+                    <TableHead>{t("labelTick")}</TableHead>
+                    <TableHead>{t("colFlavor")}</TableHead>
+                    <TableHead>{t("colCodec")}</TableHead>
+                    <TableHead>{t("colHeight")}</TableHead>
+                    <TableHead>{t("colStatus")}</TableHead>
+                    <TableHead>{t("colNote")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -277,7 +283,7 @@ export default function EntryPage() {
                           {ef ? (
                             <Badge variant="outline">{ef.status}</Badge>
                           ) : (
-                            <span className="text-muted-foreground">not ticked</span>
+                            <span className="text-muted-foreground">{t("notTicked")}</span>
                           )}
                         </TableCell>
                         <TableCell className="text-muted-foreground">
@@ -289,7 +295,7 @@ export default function EntryPage() {
                 </TableBody>
               </Table>
               <Button className="mt-4" onClick={applyFlavors}>
-                Save flavors & reprocess
+                {t("saveFlavorsReprocess")}
               </Button>
             </CardContent>
           </Card>
@@ -308,22 +314,19 @@ export default function EntryPage() {
         </TabsContent>
 
         <TabsContent value="analytics" className="mt-4">
-          {analytics ? <AnalyticsTab data={analytics} /> : <p className="text-sm text-muted-foreground">Loading…</p>}
+          {analytics ? <AnalyticsTab data={analytics} /> : <p className="text-sm text-muted-foreground">{t("loading")}</p>}
         </TabsContent>
       </Tabs>
 
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this entry?</AlertDialogTitle>
-            <AlertDialogDescription>
-              The entry and all its media (original, renditions, posters,
-              analytics) will be permanently removed.
-            </AlertDialogDescription>
+            <AlertDialogTitle>{t("entryDeleteTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("entryDeleteDesc")}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={deleteEntry}>Delete</AlertDialogAction>
+            <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={deleteEntry}>{t("delete")}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -338,13 +341,13 @@ function PosterPicker({
   entry: EntryDetail;
   onPicked: () => void;
 }) {
+  const t = useT();
   const [frame, setFrame] = React.useState(0);
   if (!entry.spriteKey || entry.spriteFrames === 0) {
     return (
       <Card>
         <CardContent className="pt-6 text-sm text-muted-foreground">
-          No sprite sheet yet — the probe job generates one. Reprocess the
-          entry if it is ready and this is still empty.
+          {t("noSprite")}
         </CardContent>
       </Card>
     );
@@ -364,7 +367,7 @@ function PosterPicker({
           }}
         />
         <div className="flex flex-wrap items-center gap-3">
-          <Label>Frame {frame}</Label>
+          <Label>{t("labelFrame", { n: frame })}</Label>
           <Input
             type="range"
             min={0}
@@ -382,7 +385,7 @@ function PosterPicker({
               onPicked();
             }}
           >
-            Use as poster
+            {t("useAsPoster")}
           </Button>
         </div>
       </CardContent>
@@ -391,6 +394,7 @@ function PosterPicker({
 }
 
 function SubtitlesTab({ entry }: { entry: EntryDetail }) {
+  const t = useT();
   const [lang, setLang] = React.useState("en");
   const [label, setLabel] = React.useState("");
   const fileRef = React.useRef<HTMLInputElement>(null);
@@ -439,7 +443,7 @@ function SubtitlesTab({ entry }: { entry: EntryDetail }) {
             {entry.subtitles.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={4} className="text-center text-muted-foreground">
-                  No subtitles
+                  {t("noSubtitles")}
                 </TableCell>
               </TableRow>
             ) : null}
@@ -447,12 +451,12 @@ function SubtitlesTab({ entry }: { entry: EntryDetail }) {
         </Table>
         <div className="flex flex-wrap items-end gap-3">
           <div className="flex flex-col gap-2">
-            <Label>Lang</Label>
+            <Label>{t("labelLang")}</Label>
             <Input className="w-24" value={lang} onChange={(e) => setLang(e.target.value)} />
           </div>
           <div className="flex flex-col gap-2">
-            <Label>Label</Label>
-            <Input className="w-40" placeholder="English" value={label} onChange={(e) => setLabel(e.target.value)} />
+            <Label>{t("labelSubtitleLabel")}</Label>
+            <Input className="w-40"  value={label} onChange={(e) => setLabel(e.target.value)} />
           </div>
           <input
             ref={fileRef}
@@ -465,7 +469,7 @@ function SubtitlesTab({ entry }: { entry: EntryDetail }) {
             }}
           />
           <Button onClick={() => fileRef.current?.click()}>
-            <Upload className="size-4" /> Upload .vtt
+            <Upload className="size-4" /> {t("uploadVtt")}
           </Button>
         </div>
       </CardContent>
@@ -474,6 +478,7 @@ function SubtitlesTab({ entry }: { entry: EntryDetail }) {
 }
 
 function PlaybackTab({ entry }: { entry: EntryDetail }) {
+  const t = useT();
   const [policy, setPolicy] = React.useState(entry.embedPolicy);
   const [domains, setDomains] = React.useState(entry.embedDomains.join(", "));
   const [copied, setCopied] = React.useState(false);
@@ -496,30 +501,30 @@ function PlaybackTab({ entry }: { entry: EntryDetail }) {
     <Card>
       <CardContent className="space-y-4 pt-6">
         <div className="flex flex-col gap-2">
-          <Label>Embed policy</Label>
+          <Label>{t("labelEmbedPolicy")}</Label>
           <Select value={policy} onValueChange={(v) => v && setPolicy(v)}>
             <SelectTrigger className="w-64">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="default">Default (global)</SelectItem>
-              <SelectItem value="*">Anywhere</SelectItem>
-              <SelectItem value="same-origin">Same origin</SelectItem>
-              <SelectItem value="allowlist">Allowlist</SelectItem>
+              <SelectItem value="default">{t("embedDefault")}</SelectItem>
+              <SelectItem value="*">{t("embedAnywhere")}</SelectItem>
+              <SelectItem value="same-origin">{t("embedSameOrigin")}</SelectItem>
+              <SelectItem value="allowlist">{t("embedAllowlist")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
         {policy === "allowlist" || policy === "default" ? (
           <div className="flex flex-col gap-2">
-            <Label>Allowed domains (comma separated, subdomains match)</Label>
-            <Input value={domains} onChange={(e) => setDomains(e.target.value)} placeholder="example.com, other.org" />
+            <Label>{t("allowedDomains")}</Label>
+            <Input value={domains} onChange={(e) => setDomains(e.target.value)}  />
           </div>
         ) : null}
         <Button onClick={save}>
-          <Save className="size-4" /> Save policy
+          <Save className="size-4" /> {t("savePolicy")}
         </Button>
         <div className="flex flex-col gap-2">
-          <Label>Embed snippet</Label>
+          <Label>{t("embedSnippet")}</Label>
           <pre className="overflow-x-auto rounded-lg border bg-muted/40 p-3 text-xs">
             {snippet}
           </pre>
@@ -533,7 +538,7 @@ function PlaybackTab({ entry }: { entry: EntryDetail }) {
                 setTimeout(() => setCopied(false), 1500);
               }}
             >
-              <Copy className="size-4" /> {copied ? "Copied" : "Copy"}
+              <Copy className="size-4" /> {copied ? t("copied") : t("copy")}
             </Button>
           </div>
         </div>
@@ -543,6 +548,7 @@ function PlaybackTab({ entry }: { entry: EntryDetail }) {
 }
 
 function AnalyticsTab({ data }: { data: AnalyticsResponse }) {
+  const t = useT();
   const plays = data.series.map((d) => ({ label: d.day, value: d.plays }));
   const watch = data.series.map((d) => ({
     label: d.day,
@@ -553,10 +559,10 @@ function AnalyticsTab({ data }: { data: AnalyticsResponse }) {
     value: Number(formatGb(d.bytes)),
   }));
   const cards = [
-    { title: "Plays", value: String(data.totals.plays) },
-    { title: "Unique viewers", value: String(data.series.reduce((s, d) => s + d.uniqueViewers, 0)) },
-    { title: "Watch time", value: `${formatWatchHours(data.totals.watchSeconds)} h` },
-    { title: "Bandwidth", value: `${formatGb(data.totals.bytes)} GB` },
+    { title: t("statPlays"), value: String(data.totals.plays) },
+    { title: t("statViewers"), value: String(data.series.reduce((s, d) => s + d.uniqueViewers, 0)) },
+    { title: t("statWatchTime"), value: `${formatWatchHours(data.totals.watchSeconds)} h` },
+    { title: t("statBandwidth"), value: `${formatGb(data.totals.bytes)} GB` },
   ];
   return (
     <div className="space-y-4">
@@ -576,7 +582,7 @@ function AnalyticsTab({ data }: { data: AnalyticsResponse }) {
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>Plays per day</CardTitle>
+          <CardTitle>{t("chartPlays")}</CardTitle>
         </CardHeader>
         <CardContent>
           <SvgChart points={plays} />
@@ -584,7 +590,7 @@ function AnalyticsTab({ data }: { data: AnalyticsResponse }) {
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle>Watch minutes per day</CardTitle>
+          <CardTitle>{t("chartWatch")}</CardTitle>
         </CardHeader>
         <CardContent>
           <SvgChart points={watch} />
@@ -592,7 +598,7 @@ function AnalyticsTab({ data }: { data: AnalyticsResponse }) {
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle>Bandwidth (GB) per day</CardTitle>
+          <CardTitle>{t("chartBandwidth")}</CardTitle>
         </CardHeader>
         <CardContent>
           <SvgChart points={bytes} />

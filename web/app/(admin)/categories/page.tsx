@@ -4,6 +4,7 @@ import * as React from "react";
 import { FolderTree, Plus, Trash2 } from "lucide-react";
 
 import { api, type Category } from "@/lib/api";
+import { useT } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -24,6 +25,7 @@ import {
 } from "@/components/ui/select";
 
 export default function CategoriesPage() {
+  const t = useT();
   const [tree, setTree] = React.useState<Category[]>([]);
   const [name, setName] = React.useState("");
   const [parent, setParent] = React.useState("");
@@ -81,10 +83,8 @@ export default function CategoriesPage() {
     <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Categories</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Tree structure for organizing entries
-          </p>
+          <h1 className="text-2xl font-semibold tracking-tight">{t("categoriesTitle")}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{t("categoriesSubtitle")}</p>
         </div>
       </div>
       <Card>
@@ -92,10 +92,10 @@ export default function CategoriesPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Slug</TableHead>
-                <TableHead>Parent</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>{t("colName")}</TableHead>
+                <TableHead>{t("colSlug")}</TableHead>
+                <TableHead>{t("colParent")}</TableHead>
+                <TableHead className="text-right">{t("colActions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -123,7 +123,7 @@ export default function CategoriesPage() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none">None</SelectItem>
+                        <SelectItem value="none">{t("none")}</SelectItem>
                         {flat
                           .filter((x) => x.id !== c.id)
                           .map((x) => (
@@ -147,7 +147,7 @@ export default function CategoriesPage() {
       </Card>
       <div className="flex items-end gap-3">
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium">New category</label>
+          <label className="text-sm font-medium">{t("newCategory")}</label>
           <Input
             className="w-56"
             placeholder="Name"
@@ -158,7 +158,7 @@ export default function CategoriesPage() {
         </div>
         <Select value={parent} onValueChange={(v) => setParent(v ?? "")}>
           <SelectTrigger className="w-40">
-            <SelectValue placeholder="Parent (none)" />
+            <SelectValue placeholder={t("parentNone")} />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="">None</SelectItem>

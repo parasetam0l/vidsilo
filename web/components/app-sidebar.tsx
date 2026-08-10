@@ -24,29 +24,32 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { useT } from "@/lib/i18n"
 
-const navGroups = [
-  {
-    label: "Media",
-    items: [
-      { title: "Dashboard", url: "/dashboard", icon: LayoutDashboardIcon },
-      { title: "Entries", url: "/entries", icon: FilmIcon },
-      { title: "Upload", url: "/upload", icon: UploadIcon },
-    ],
-  },
-  {
-    label: "Administration",
-    items: [
-      { title: "Users", url: "/users", icon: UsersIcon },
-      { title: "Categories", url: "/categories", icon: FolderTreeIcon },
-      { title: "Flavors", url: "/flavors", icon: SlidersHorizontalIcon },
-      { title: "Settings", url: "/settings", icon: SettingsIcon },
-    ],
-  },
-]
+
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
+  const t = useT()
+  const navGroups = [
+    {
+      label: t("navMedia"),
+      items: [
+        { title: t("navDashboard"), url: "/dashboard", icon: LayoutDashboardIcon },
+        { title: t("navEntries"), url: "/entries", icon: FilmIcon },
+        { title: t("navUpload"), url: "/upload", icon: UploadIcon },
+      ],
+    },
+    {
+      label: t("navAdministration"),
+      items: [
+        { title: t("navUsers"), url: "/users", icon: UsersIcon },
+        { title: t("navCategories"), url: "/categories", icon: FolderTreeIcon },
+        { title: t("navFlavors"), url: "/flavors", icon: SlidersHorizontalIcon },
+        { title: t("navSettings"), url: "/settings", icon: SettingsIcon },
+      ],
+    },
+  ]
   return (
     <Sidebar variant="floating" {...props}>
       <SidebarHeader>
@@ -57,8 +60,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 <ClapperboardIcon className="size-4" />
               </div>
               <div className="flex flex-col gap-0.5 leading-none">
-                <span className="font-medium">VOD</span>
-                <span className="text-muted-foreground">v0.1.0</span>
+                <span className="font-medium">{t("appName")}</span>
+                <span className="text-muted-foreground">{t("appVersion")}</span>
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>
