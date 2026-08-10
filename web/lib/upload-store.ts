@@ -199,3 +199,10 @@ export async function startAll() {
 export function useUploads() {
   return React.useSyncExternalStore(subscribeUploads, getUploads);
 }
+
+// Test helper: clears the in-memory store (localStorage untouched).
+export function __resetUploadStore() {
+  jobs = [];
+  files.clear();
+  emit();
+}
