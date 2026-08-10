@@ -2,12 +2,10 @@
 
 import * as React from "react";
 import { UploadCloud, X } from "lucide-react";
-import { useRouter } from "next/navigation";
 
 import { api, type Category } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import { useDialog } from "@/hooks/use-dialog";
-import { useToast } from "@/hooks/use-toast";
 import {
   addFiles,
   removeJob,
@@ -15,7 +13,6 @@ import {
   startJob,
   updateJob,
   useUploads,
-  setUploadDoneListener,
 } from "@/lib/upload-store";
 import { formatBytes } from "@/lib/format";
 import { Button } from "@/components/ui/button";
@@ -49,8 +46,6 @@ export function useUploadDialog() {
 
 export function UploadDialogContent() {
   const t = useT();
-  const router = useRouter();
-  const toast = useToast();
   const jobs = useUploads();
   const [categories, setCategories] = React.useState<Category[]>([]);
   const [dragOver, setDragOver] = React.useState(false);
@@ -59,15 +54,6 @@ export function UploadDialogContent() {
   React.useEffect(() => {
     api<Category[]>("/api/categories").then(setCategories).catch(() => {});
   }, []);
-
-  // When an upload completes, refresh the current page's data.
-  React.useEffect(() => {
-    setUploadDoneListener(() => {
-      router.refresh();
-      toast.success(t("uploadDone"));
-    });
-    return () => setUploadDoneListener(null);
-  }, [router, toast, t]);
 
   const activeCount = jobs.filter(
     (j) => j.status === "uploading" || j.status === "queued" || j.status === "interrupted",

@@ -30,7 +30,6 @@ export interface UploadJob {
 
 const STORAGE_KEY = "vod-uploads";
 const listeners = new Set<() => void>();
-let doneListener: (() => void) | null = null;
 
 let jobs: UploadJob[] = load();
 const files = new Map<string, File>(); // id -> File (memory only)
@@ -73,12 +72,6 @@ export function subscribeUploads(cb: () => void) {
 
 export function getUploads(): UploadJob[] {
   return jobs;
-}
-
-// setUploadDoneListener is invoked whenever an upload finishes, so pages can
-// refresh their data.
-export function setUploadDoneListener(cb: (() => void) | null) {
-  doneListener = cb;
 }
 
 function defaultTitle(name: string) {
@@ -174,7 +167,6 @@ export function startJob(id: string) {
     },
     onSuccess: () => {
       updateJob(id, { progress: 100, status: "done" });
-      doneListener?.();
     },
     onError: (err) => {
       updateJob(id, { status: "failed", error: err.message });

@@ -4,6 +4,7 @@ import "./globals.css";
 
 import { AuthProvider } from "@/components/auth-provider";
 import { Toaster } from "@/components/toaster";
+import { UploadNotifications } from "@/components/upload-notifications";
 import { DialogProvider } from "@/hooks/use-dialog";
 import { I18nProvider } from "@/lib/i18n";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -44,6 +45,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <DialogProvider>{children}</DialogProvider>
             </AuthProvider>
           </I18nProvider>
+          <UploadNotifications />
           <Toaster />
         </ThemeProvider>
       </body>
