@@ -13,7 +13,9 @@ import {
 import { api, type Category, type UploadConfig } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import { useDialog } from "@/hooks/use-dialog";
+import { useToast } from "@/hooks/use-toast";
 import {
+  MAX_BATCH,
   addFiles,
   removeJob,
   startAll,
@@ -52,6 +54,7 @@ export function useUploadDialog() {
 
 export function UploadDialogContent() {
   const t = useT();
+  const toast = useToast();
   const jobs = useUploads();
   const [categories, setCategories] = React.useState<Category[]>([]);
   const [uploadConfig, setUploadConfig] = React.useState<UploadConfig | null>(null);
@@ -70,6 +73,14 @@ export function UploadDialogContent() {
   const hasPending = jobs.some((j) => j.status !== "done");
 
   const pickFiles = () => inputRef.current?.click();
+
+  // Adds files respecting the batch cap; warns when some were dropped.
+  const addSelected = (files: File[]) => {
+    const added = addFiles(Array.from(files));
+    if (files.length > added) {
+      toast.error(t("uploadBatchLimit", { n: MAX_BATCH }));
+    }
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -102,7 +113,7 @@ export function UploadDialogContent() {
           onDrop={(e) => {
             e.preventDefault();
             setDragOver(false);
-            addFiles(Array.from(e.dataTransfer.files));
+            addSelected(Array.from(e.dataTransfer.files));
           }}
           onClick={pickFiles}
         >
@@ -125,7 +136,7 @@ export function UploadDialogContent() {
         accept="video/*,.mkv,.webm,.m4v,.avi"
         className="hidden"
         onChange={(e) => {
-          if (e.target.files?.length) addFiles(Array.from(e.target.files));
+          if (e.target.files?.length) addSelected(Array.from(e.target.files));
           e.target.value = "";
         }}
       />

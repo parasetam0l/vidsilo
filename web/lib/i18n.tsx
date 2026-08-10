@@ -195,6 +195,7 @@ const en = {
   uploadFilesSelected: "{n} file{s} selected",
   uploadInProgress: "Uploading…",
   uploadAllComplete: "All uploads complete.",
+  uploadBatchLimit: "You can upload up to {n} files at once.",
 
   // users
   usersTitle: "Users",

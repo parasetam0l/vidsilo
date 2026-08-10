@@ -80,8 +80,17 @@ function defaultTitle(name: string) {
   return name.replace(/\.[^.]+$/, "");
 }
 
-export function addFiles(newFiles: File[]) {
+export const MAX_BATCH = 10;
+
+export function addFiles(newFiles: File[]): number {
+  let added = 0;
+  // Free slots: active (non-done, non-failed) jobs count against the cap.
+  const active = jobs.filter(
+    (j) => j.status !== "done" && j.status !== "failed",
+  ).length;
+  const slots = Math.max(0, MAX_BATCH - active);
   for (const f of newFiles) {
+    if (added >= slots) break;
     // Resume: same file name+size with a stored tus upload URL.
     const resumable = jobs.find(
       (j) =>
@@ -98,6 +107,7 @@ export function addFiles(newFiles: File[]) {
       );
       emit();
       persist();
+      added++;
       continue;
     }
     if (
@@ -124,9 +134,11 @@ export function addFiles(newFiles: File[]) {
     files.set(job.id, f);
     void idbPut(job.id, f);
     jobs = [...jobs, job];
+    added++;
   }
   emit();
   persist();
+  return added;
 }
 
 export function updateJob(id: string, patch: Partial<UploadJob>) {
@@ -143,7 +155,9 @@ export function removeJob(id: string) {
   persist();
 }
 
-export async function startJob(id: string) {
+// startJob uploads one file and resolves when it finishes (done or failed),
+// so callers can serialize batches.
+export async function startJob(id: string): Promise<void> {
   const job = jobs.find((j) => j.id === id);
   if (!job || job.status === "uploading" || job.status === "done") {
     return;
@@ -157,6 +171,11 @@ export async function startJob(id: string) {
     files.set(id, file);
   }
   updateJob(id, { status: "uploading", error: undefined });
+
+  let resolveFinished: () => void;
+  const finished = new Promise<void>((resolve) => {
+    resolveFinished = resolve;
+  });
 
   const upload = new tus.Upload(file, {
     endpoint: "/upload/",
@@ -180,20 +199,34 @@ export async function startJob(id: string) {
     onSuccess: () => {
       void idbDelete(id);
       updateJob(id, { progress: 100, status: "done" });
+      resolveFinished();
     },
     onError: (err) => {
       updateJob(id, { status: "failed", error: err.message });
+      resolveFinished();
     },
   });
   upload.start();
+  await finished;
 }
 
+// startAll runs the pending batch one file at a time: bandwidth-friendly
+// and predictable. Re-entrant safe (no-op while already running).
+let batchRunning = false;
 export async function startAll() {
-  await Promise.all(
-    jobs
-      .filter((j) => j.status === "queued" || j.status === "interrupted")
-      .map((j) => startJob(j.id)),
-  );
+  if (batchRunning) return;
+  batchRunning = true;
+  try {
+    for (;;) {
+      const next = jobs.find(
+        (j) => j.status === "queued" || j.status === "interrupted",
+      );
+      if (!next) break;
+      await startJob(next.id);
+    }
+  } finally {
+    batchRunning = false;
+  }
 }
 
 export function useUploads() {
