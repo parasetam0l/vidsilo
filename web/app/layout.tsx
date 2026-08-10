@@ -37,6 +37,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){var t={"/dashboard":"Dashboard","/entries":"Entries","/upload":"Upload","/users":"Users","/categories":"Categories","/flavors":"Flavors","/settings":"Settings","/login":"Sign in to VOD"};var p=location.pathname.replace(/\/+$/,"");if(t[p])document.title=t[p]+" | VOD Admin";})()`,
+          }}
+        />
       </head>
       <body className="min-h-full flex flex-col">
         <ThemeProvider>

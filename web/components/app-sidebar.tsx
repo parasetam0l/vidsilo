@@ -13,7 +13,6 @@ import {
   SettingsIcon,
   SlidersHorizontalIcon,
   SunIcon,
-  UploadIcon,
   UsersIcon,
 } from "lucide-react"
 import { usePathname, useRouter } from "next/navigation"
@@ -40,7 +39,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useAuth } from "@/components/auth-provider"
-import { useUploadDialog } from "@/components/upload-dialog"
 import { useChangePasswordDialog } from "@/components/change-password-dialog"
 import { useTheme } from "@/components/theme-provider"
 import { locales, useI18n, useT } from "@/lib/i18n"
@@ -52,7 +50,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { user, logout } = useAuth()
   const { theme, toggle: toggleTheme } = useTheme()
   const { locale, setLocale } = useI18n()
-  const openUpload = useUploadDialog()
   const openChangePassword = useChangePasswordDialog()
 
   const navGroups = [
@@ -97,19 +94,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarMenu className="gap-1">
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                isActive={pathname === "/upload"}
-                render={<button type="button" onClick={openUpload} />}
-              >
-                <UploadIcon />
-                <span>{t("navUpload")}</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarGroup>
         {navGroups.map((group) => (
           <SidebarGroup key={group.label}>
             <SidebarGroupLabel>{group.label}</SidebarGroupLabel>

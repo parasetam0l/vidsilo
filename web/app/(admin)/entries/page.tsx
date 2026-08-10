@@ -9,6 +9,7 @@ import {
   RotateCcw,
   Search,
   Trash2,
+  UploadCloudIcon,
 } from "lucide-react";
 
 import { api, type Category, type Entry, type EntryList } from "@/lib/api";
@@ -18,6 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { formatBytes, formatDate, formatDuration } from "@/lib/format";
 import { StatusBadge } from "@/components/status-badge";
 import { EmptyState } from "@/components/empty-state";
+import { useUploadDialog } from "@/components/upload-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -43,6 +45,7 @@ export default function EntriesPage() {
   const t = useT();
   const { confirm } = useDialog();
   const toast = useToast();
+  const openUpload = useUploadDialog();
   const [list, setList] = React.useState<EntryList | null>(null);
   const [q, setQ] = React.useState("");
   const [status, setStatus] = React.useState("");
@@ -175,6 +178,9 @@ export default function EntriesPage() {
             </Button>
           </>
         ) : null}
+        <Button className="ml-auto" onClick={openUpload}>
+          <UploadCloudIcon className="size-4" /> {t("navUpload")}
+        </Button>
       </div>
 
       <Card className="overflow-hidden py-0 shadow-sm">
