@@ -15,34 +15,34 @@ import (
 // defaultSettings are the code defaults from DESIGN §4.3. Admin edits land in
 // the settings table and win over these.
 var defaultSettings = map[string]any{
-	"site_name":                "VOD",
-	"default_lang":             "en",
-	"upload.max_size_bytes":    8 << 30,
+	"site_name":                 "VOD",
+	"default_lang":              "en",
+	"upload.max_size_bytes":     8 << 30,
 	"upload.allowed_extensions": []string{"mp4", "mov", "mkv", "webm", "m4v", "avi"},
-	"transcode.concurrency":    0,
+	"transcode.concurrency":     0,
 	"transcode.segment_seconds": 4,
-	"transcode.gop_seconds":    2,
-	"transcode.preset":         "veryfast",
-	"cache.enabled":            false,
-	"cache.max_bytes":          1 << 30,
-	"analytics.enabled":        true,
-	"analytics.retention_days": 30,
+	"transcode.gop_seconds":     2,
+	"transcode.preset":          "veryfast",
+	"cache.enabled":             false,
+	"cache.max_bytes":           1 << 30,
+	"analytics.enabled":         true,
+	"analytics.retention_days":  30,
 	"analytics.flush_interval_s": 10,
-	"embed.default_policy":     "same-origin",
-	"embed.default_allowlist":  []string{},
-	"tls.mode":                 "off",
-	"tls.acme_domains":         []string{},
-	"tls.cert_dir":             "/data/certs",
+	"embed.default_policy":      "same-origin",
+	"embed.default_allowlist":   []string{},
+	"tls.mode":                  "off",
+	"tls.acme_domains":          []string{},
+	"tls.cert_dir":              "/data/certs",
 }
 
-// SeedSettings inserts missing defaults; existing values are preserved.
-func SeedSettings(ctx context.Context, pool *pgxpool.Pool) error {
+// seedSettings inserts missing defaults; existing values are preserved.
+func seedSettings(ctx context.Context, conn *pgxpool.Conn) error {
 	for key, value := range defaultSettings {
 		raw, err := json.Marshal(value)
 		if err != nil {
 			return err
 		}
-		if _, err := pool.Exec(ctx,
+		if _, err := conn.Exec(ctx,
 			`INSERT INTO settings (key, value) VALUES ($1, $2::jsonb)
 			 ON CONFLICT (key) DO NOTHING`, key, raw); err != nil {
 			return err
@@ -64,8 +64,8 @@ var defaultFlavors = []Flavor{
 
 func f64(v float64) *float64 { return &v }
 
-// SeedFlavors inserts default flavors that are not yet present (by name).
-func SeedFlavors(ctx context.Context, pool *pgxpool.Pool) error {
+// seedFlavors inserts default flavors that are not yet present (by name).
+func seedFlavors(ctx context.Context, conn *pgxpool.Conn) error {
 	for _, f := range defaultFlavors {
 		var crf *float64
 		var vbr *int
@@ -74,7 +74,7 @@ func SeedFlavors(ctx context.Context, pool *pgxpool.Pool) error {
 		} else {
 			vbr = f.VideoBitrate
 		}
-		_, err := pool.Exec(ctx, `
+		_, err := conn.Exec(ctx, `
 			INSERT INTO flavors (name, label, codec, height, video_mode, crf, video_bitrate, audio_bitrate, preset, enabled, position)
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 			ON CONFLICT (name) DO NOTHING`,
@@ -86,11 +86,11 @@ func SeedFlavors(ctx context.Context, pool *pgxpool.Pool) error {
 	return nil
 }
 
-// SeedAdmin creates the first-run admin when the users table is empty. The
+// seedAdmin creates the first-run admin when the users table is empty. The
 // random password is logged once; reset-admin rotates it later.
-func SeedAdmin(ctx context.Context, pool *pgxpool.Pool, log *slog.Logger) error {
+func seedAdmin(ctx context.Context, conn *pgxpool.Conn, log *slog.Logger) error {
 	var n int
-	if err := pool.QueryRow(ctx, `SELECT count(*) FROM users`).Scan(&n); err != nil {
+	if err := conn.QueryRow(ctx, `SELECT count(*) FROM users`).Scan(&n); err != nil {
 		return err
 	}
 	if n > 0 {
@@ -101,7 +101,7 @@ func SeedAdmin(ctx context.Context, pool *pgxpool.Pool, log *slog.Logger) error 
 	if err != nil {
 		return err
 	}
-	if _, err := pool.Exec(ctx,
+	if _, err := conn.Exec(ctx,
 		`INSERT INTO users (username, password_hash, role) VALUES ($1, $2, 'admin')`,
 		"admin", hash); err != nil {
 		return err

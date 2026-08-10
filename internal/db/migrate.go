@@ -16,9 +16,16 @@ import (
 var migrationsFS embed.FS
 
 // Migrate applies embedded SQL migrations in filename order, recording each
-// version in schema_migrations. Idempotent and safe to run at every boot.
+// version in schema_migrations. Idempotent, safe at every boot, and
+// serialized across nodes via the bootstrap advisory lock.
 func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
-	if _, err := pool.Exec(ctx, `
+	return withBootstrapLock(ctx, pool, func(conn *pgxpool.Conn) error {
+		return migrateOnConn(ctx, conn)
+	})
+}
+
+func migrateOnConn(ctx context.Context, conn *pgxpool.Conn) error {
+	if _, err := conn.Exec(ctx, `
 		CREATE TABLE IF NOT EXISTS schema_migrations (
 			version    int PRIMARY KEY,
 			applied_at timestamptz NOT NULL DEFAULT now()
@@ -44,7 +51,7 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 			return fmt.Errorf("db: migration %q has no numeric prefix", name)
 		}
 		var applied bool
-		err := pool.QueryRow(ctx,
+		err := conn.QueryRow(ctx,
 			`SELECT EXISTS (SELECT 1 FROM schema_migrations WHERE version = $1)`, version,
 		).Scan(&applied)
 		if err != nil {
@@ -57,7 +64,7 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 		if err != nil {
 			return err
 		}
-		tx, err := pool.Begin(ctx)
+		tx, err := conn.Begin(ctx)
 		if err != nil {
 			return err
 		}

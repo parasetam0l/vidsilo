@@ -6,7 +6,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"sync"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -134,6 +136,27 @@ func (s *Service) All() map[string]any {
 		}
 	}
 	return out
+}
+
+// Run refreshes the in-memory cache every interval so panel changes made on
+// other app nodes propagate without restarts (multi-node deployments). An
+// interval <= 0 defaults to 1 minute.
+func (s *Service) Run(ctx context.Context, interval time.Duration) {
+	if interval <= 0 {
+		interval = time.Minute
+	}
+	t := time.NewTicker(interval)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			if err := s.Reload(ctx); err != nil {
+				slog.Default().Warn("settings reload", "err", err)
+			}
+		}
+	}
 }
 
 // KeySpec describes one editable key for validation in the API layer.
