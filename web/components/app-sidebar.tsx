@@ -29,6 +29,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -144,14 +145,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               }
             />
             <DropdownMenuContent side="top" align="start" className="w-56">
-              <DropdownMenuLabel className="capitalize">
-                {user.username} · {user.role}
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout}>
-                <LogOutIcon className="size-4" />
-                {t("signOut")}
-              </DropdownMenuItem>
+              <DropdownMenuGroup>
+                <DropdownMenuLabel className="capitalize">
+                  {user.username} · {user.role}
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout}>
+                  <LogOutIcon className="size-4" />
+                  {t("signOut")}
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
         </SidebarFooter>
