@@ -35,6 +35,10 @@ services:
   worker:
     build: .
     command: ["worker"]
+    # The worker is a queue consumer with no HTTP listener; the Dockerfile
+    # HEALTHCHECK only applies to the server role.
+    healthcheck:
+      disable: true
     environment:
       DATABASE_URL: postgres://vod:vod@db:5432/vod
       DATA_DIR: /data
