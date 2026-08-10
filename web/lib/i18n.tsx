@@ -37,6 +37,14 @@ const en = {
   langLabel: "Language",
   langEnglish: "English",
   signOut: "Sign out",
+  changePassword: "Change password",
+  changePasswordTitle: "Change password",
+  changePasswordDesc: "Other signed-in sessions will be signed out.",
+  currentPassword: "Current password",
+  newPassword: "New password",
+  confirmPassword: "Confirm new password",
+  passwordMismatch: "New passwords do not match.",
+  passwordChanged: "Password updated",
 
   // login
   loginTitle: "Sign in to VOD",

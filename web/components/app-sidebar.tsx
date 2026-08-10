@@ -3,6 +3,7 @@
 import {
   ChevronsUpDownIcon,
   ClapperboardIcon,
+  KeyRoundIcon,
   FilmIcon,
   FolderTreeIcon,
   LayoutDashboardIcon,
@@ -37,6 +38,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useAuth } from "@/components/auth-provider"
 import { useUploadDialog } from "@/components/upload-dialog"
+import { useChangePasswordDialog } from "@/components/change-password-dialog"
 import { useT } from "@/lib/i18n"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
@@ -45,6 +47,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const t = useT()
   const { user, logout } = useAuth()
   const openUpload = useUploadDialog()
+  const openChangePassword = useChangePasswordDialog()
 
   const navGroups = [
     {
@@ -150,6 +153,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   {user.username} · {user.role}
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={openChangePassword}>
+                  <KeyRoundIcon className="size-4" />
+                  {t("changePassword")}
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleLogout}>
                   <LogOutIcon className="size-4" />
                   {t("signOut")}

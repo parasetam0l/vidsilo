@@ -31,6 +31,7 @@ func (s *Server) registerAuthRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/auth/login", s.handleLogin)
 	mux.HandleFunc("POST /api/auth/refresh", s.handleRefresh)
 	mux.HandleFunc("POST /api/auth/logout", s.handleLogout)
+	mux.Handle("PATCH /api/auth/password", s.requireAuth(http.HandlerFunc(s.handleChangePassword)))
 	mux.Handle("GET /api/auth/me", s.requireAuth(http.HandlerFunc(s.handleMe)))
 }
 
@@ -138,6 +139,50 @@ func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 			`DELETE FROM refresh_tokens WHERE token_hash = $1`, hex.EncodeToString(hash[:]))
 	}
 	s.clearSessionCookies(w, r)
+	w.WriteHeader(http.StatusNoContent)
+}
+
+type changePasswordRequest struct {
+	CurrentPassword string `json:"currentPassword"`
+	NewPassword     string `json:"newPassword"`
+}
+
+// handleChangePassword lets a signed-in user rotate their own password;
+// other sessions are revoked so a leaked password stops working everywhere.
+func (s *Server) handleChangePassword(w http.ResponseWriter, r *http.Request) {
+	u := userFromContext(r.Context())
+	var req changePasswordRequest
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "bad_request", "invalid JSON body")
+		return
+	}
+	if len(req.NewPassword) < 8 {
+		writeError(w, http.StatusBadRequest, "bad_request", "new password must be at least 8 characters")
+		return
+	}
+	ok, _ := password.Verify(req.CurrentPassword, u.PasswordHash)
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized", "current password is incorrect")
+		return
+	}
+	hash, err := password.Hash(req.NewPassword)
+	if err != nil {
+		s.internalError(w, r, "hash password", err)
+		return
+	}
+	if err := db.UpdateUserPassword(r.Context(), s.pool, u.ID, hash); err != nil {
+		s.internalError(w, r, "update password", err)
+		return
+	}
+	// Revoke every refresh token except the one in this request's cookie.
+	if c, err := r.Cookie(refreshCookieName); err == nil && c.Value != "" {
+		hash := sha256.Sum256([]byte(c.Value))
+		_, _ = s.pool.Exec(r.Context(), `
+			DELETE FROM refresh_tokens
+			WHERE user_id = $1 AND token_hash <> $2`, u.ID, hex.EncodeToString(hash[:]))
+	} else {
+		_, _ = s.pool.Exec(r.Context(), `DELETE FROM refresh_tokens WHERE user_id = $1`, u.ID)
+	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
