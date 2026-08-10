@@ -23,7 +23,7 @@ export function LanguageSelect() {
   return (
     <Select value={locale} onValueChange={(v) => v && setLocale(v as (typeof locales)[number])}>
       <SelectTrigger
-        className="h-8 w-14 gap-1 px-2"
+        className="h-8 gap-1 px-2"
         aria-label={t("langLabel")}
       >
         <GlobeIcon className="size-4" />
