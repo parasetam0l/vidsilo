@@ -22,7 +22,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: {
     default: "VOD Admin",
-    template: "%s · VOD Admin",
+    template: "%s | VOD Admin",
   },
   description: "VOD platform admin panel",
 };

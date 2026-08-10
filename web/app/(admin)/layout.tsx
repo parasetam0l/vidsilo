@@ -4,8 +4,6 @@ import * as React from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 import { AppSidebar } from "@/components/app-sidebar";
-import { LanguageSelect } from "@/components/language-select";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/components/auth-provider";
 
 import { Separator } from "@/components/ui/separator";
@@ -32,7 +30,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     "/flavors": t("navFlavors"),
     "/settings": t("navSettings"),
   };
-  const pageTitle = pageTitles[pathname] ?? "VOD Admin";
+  const pageTitle = pageTitles[pathname] ?? t("appTitle");
+
+  // Translatable window title per page: "Dashboard | VOD Admin".
+  React.useEffect(() => {
+    document.title = `${pageTitle} | ${t("appTitle")}`;
+  }, [pageTitle, t]);
 
   // Unauthenticated visitors are sent to the login page, returning to the
   // page they tried to open after signing in.
@@ -69,10 +72,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               className="mx-2 data-[orientation=vertical]:h-4"
             />
             <h1 className="text-base font-medium">{pageTitle}</h1>
-            <div className="ml-auto flex items-center gap-2">
-              <LanguageSelect />
-              <ThemeToggle />
-            </div>
           </div>
         </header>
         {children}

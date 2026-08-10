@@ -44,8 +44,9 @@ function LoginForm() {
   const [busy, setBusy] = React.useState(false);
 
   React.useEffect(() => {
+    document.title = `${t("loginTitle")} | ${t("appTitle")}`;
     if (user) router.replace(next);
-  }, [user, router, next]);
+  }, [user, router, next, t]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();

@@ -1,6 +1,7 @@
 "use client"
 
 import {
+  CheckIcon,
   ChevronsUpDownIcon,
   ClapperboardIcon,
   KeyRoundIcon,
@@ -8,8 +9,10 @@ import {
   FolderTreeIcon,
   LayoutDashboardIcon,
   LogOutIcon,
+  MoonIcon,
   SettingsIcon,
   SlidersHorizontalIcon,
+  SunIcon,
   UploadIcon,
   UsersIcon,
 } from "lucide-react"
@@ -39,13 +42,16 @@ import {
 import { useAuth } from "@/components/auth-provider"
 import { useUploadDialog } from "@/components/upload-dialog"
 import { useChangePasswordDialog } from "@/components/change-password-dialog"
-import { useT } from "@/lib/i18n"
+import { useTheme } from "@/components/theme-provider"
+import { locales, useI18n, useT } from "@/lib/i18n"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
   const router = useRouter()
   const t = useT()
   const { user, logout } = useAuth()
+  const { theme, toggle: toggleTheme } = useTheme()
+  const { locale, setLocale } = useI18n()
   const openUpload = useUploadDialog()
   const openChangePassword = useChangePasswordDialog()
 
@@ -133,7 +139,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left outline-none transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground data-open:bg-sidebar-accent data-open:text-sidebar-accent-foreground"
                 >
                   <Avatar className="size-8">
-                    <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground text-xs">
+                    <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground rounded-lg text-xs">
                       {user.username.slice(0, 2).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
@@ -147,17 +153,55 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 </button>
               }
             />
-            <DropdownMenuContent side="top" align="start" className="w-56">
+            <DropdownMenuContent side="top" align="start" className="w-60">
               <DropdownMenuGroup>
-                <DropdownMenuLabel className="capitalize">
-                  {user.username} · {user.role}
+                <DropdownMenuLabel className="flex items-center gap-2 font-normal">
+                  <Avatar className="size-8">
+                    <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground rounded-lg text-xs">
+                      {user.username.slice(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="flex min-w-0 flex-col leading-tight">
+                    <span className="truncate text-sm font-medium capitalize">
+                      {user.username}
+                    </span>
+                    <span className="truncate text-xs text-muted-foreground capitalize">
+                      {user.role}
+                    </span>
+                  </span>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={openChangePassword}>
                   <KeyRoundIcon className="size-4" />
                   {t("changePassword")}
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleLogout}>
+                <DropdownMenuItem onClick={toggleTheme}>
+                  {theme === "dark" ? (
+                    <SunIcon className="size-4" />
+                  ) : (
+                    <MoonIcon className="size-4" />
+                  )}
+                  {t("darkMode")}
+                  {theme === "dark" ? (
+                    <CheckIcon className="ml-auto size-4" />
+                  ) : null}
+                </DropdownMenuItem>
+                {locales.map((l) => (
+                  <DropdownMenuItem
+                    key={l}
+                    onClick={() => setLocale(l)}
+                    className={locale === l ? "bg-accent text-accent-foreground" : undefined}
+                  >
+                    <span className="uppercase">{l}</span>
+                    {l === "en" ? t("langEnglish") : l}
+                    {locale === l ? <CheckIcon className="ml-auto size-4" /> : null}
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={handleLogout}
+                  className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                >
                   <LogOutIcon className="size-4" />
                   {t("signOut")}
                 </DropdownMenuItem>

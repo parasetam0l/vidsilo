@@ -10,6 +10,7 @@ export type Locale = (typeof locales)[number];
 const en = {
   // app
   appName: "VOD",
+  appTitle: "VOD Admin",
   error: "Something went wrong",
   deleted: "Deleted",
   appVersion: "v0.1.0",
@@ -37,6 +38,14 @@ const en = {
   langLabel: "Language",
   langEnglish: "English",
   signOut: "Sign out",
+  darkMode: "Dark mode",
+  editUserTitle: "Edit user",
+  editCategoryTitle: "Edit category",
+  userUpdated: "User updated",
+  categoryCreated: "Category created",
+  categoryUpdated: "Category updated",
+  flavorCreated: "Flavor created",
+  flavorUpdated: "Flavor updated",
   changePassword: "Change password",
   changePasswordTitle: "Change password",
   changePasswordDesc: "Other signed-in sessions will be signed out.",
