@@ -159,6 +159,8 @@ const en = {
   uploadDone: " — done, opening entries…",
   uploadFailed: " — failed: {error}",
   uploadStart: "Start upload",
+  uploadDialogTitle: "Upload videos",
+  uploadInterrupted: "interrupted — re-select this file to resume",
   uploadStartN: "Upload {n} file{s}",
   uploadHowTitle: "How it works",
   uploadHowDesc:

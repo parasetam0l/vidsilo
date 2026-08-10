@@ -17,6 +17,7 @@ import { api, type Dashboard, type Entry } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import { formatBytes, formatDuration, formatGb } from "@/lib/format";
 import { StatusBadge } from "@/components/status-badge";
+import { useUploadDialog } from "@/components/upload-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -81,6 +82,7 @@ function Sparkline({
 
 export default function DashboardPage() {
   const t = useT();
+  const openUpload = useUploadDialog();
   const [data, setData] = React.useState<Dashboard | null>(null);
 
   React.useEffect(() => {
@@ -159,7 +161,7 @@ export default function DashboardPage() {
                 {t("dashWelcomeDesc")}
               </p>
             </div>
-            <Button render={<Link href="/upload" />}>
+            <Button onClick={openUpload}>
               <UploadCloudIcon className="size-4" /> {t("dashUploadFirst")}
             </Button>
           </CardContent>
@@ -280,7 +282,7 @@ export default function DashboardPage() {
               <div className="flex flex-col items-center gap-2 py-8 text-center">
                 <ClapperboardIcon className="size-6 text-muted-foreground/50" />
                 <p className="text-sm text-muted-foreground">{t("dashRecentEmpty")}</p>
-                <Button variant="link" size="sm" render={<Link href="/upload" />}>
+                <Button variant="link" size="sm" onClick={openUpload}>
                   {t("dashUploadFirst")}
                 </Button>
               </div>
