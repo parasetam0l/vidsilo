@@ -66,12 +66,14 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-// storageUsed sums media bytes: dir walk for the local driver, source sizes
-// as a cheap fallback for object storage.
+// storageUsed sums media bytes: dir walk of the entries/ tree for the local
+// driver (logs, secret.key and upload spools are not media), source sizes as
+// a cheap fallback for object storage.
 func (s *Server) storageUsed(ctx context.Context) int64 {
 	if local, ok := s.store.(*store.Local); ok {
+		root := filepath.Join(local.Root(), store.EntriesRoot)
 		var total int64
-		_ = filepath.WalkDir(local.Root(), func(p string, d os.DirEntry, err error) error {
+		_ = filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
 			if err == nil && !d.IsDir() {
 				if fi, err := d.Info(); err == nil {
 					total += fi.Size()
