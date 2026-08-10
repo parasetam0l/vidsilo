@@ -148,11 +148,11 @@ export default function EntriesPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="">{t("entriesAllStatuses")}</SelectItem>
-            <SelectItem value="uploading">uploading</SelectItem>
-            <SelectItem value="probing">probing</SelectItem>
-            <SelectItem value="transcoding">transcoding</SelectItem>
-            <SelectItem value="ready">ready</SelectItem>
-            <SelectItem value="failed">failed</SelectItem>
+            <SelectItem value="uploading">{t("statusUploading")}</SelectItem>
+            <SelectItem value="probing">{t("statusProbing")}</SelectItem>
+            <SelectItem value="transcoding">{t("statusTranscoding")}</SelectItem>
+            <SelectItem value="ready">{t("statusReady")}</SelectItem>
+            <SelectItem value="failed">{t("statusFailed")}</SelectItem>
           </SelectContent>
         </Select>
         <Select value={category} onValueChange={(v) => { setCategory(v ?? ""); setPage(1); }}>
