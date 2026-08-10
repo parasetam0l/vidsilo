@@ -119,8 +119,8 @@ export default function UsersPage() {
       <Card>
         <CardContent className="p-0">
           <Table>
-            <TableHeader>
-              <TableRow>
+            <TableHeader className="bg-muted/50">
+              <TableRow className="hover:bg-transparent">
                 <TableHead>{t("loginUsername")}</TableHead>
                 <TableHead>{t("colRole")}</TableHead>
                 <TableHead>{t("colStatus")}</TableHead>

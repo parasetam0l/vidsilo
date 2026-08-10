@@ -106,8 +106,8 @@ export default function CategoriesPage() {
       <Card>
         <CardContent className="p-0">
           <Table>
-            <TableHeader>
-              <TableRow>
+            <TableHeader className="bg-muted/50">
+              <TableRow className="hover:bg-transparent">
                 <TableHead>{t("colName")}</TableHead>
                 <TableHead>{t("colSlug")}</TableHead>
                 <TableHead>{t("colParent")}</TableHead>

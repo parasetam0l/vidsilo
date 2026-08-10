@@ -270,15 +270,15 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm">
+        <Card className="overflow-hidden shadow-sm">
           <CardHeader>
             <CardTitle className="text-base">{t("dashRecent")}</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             {(data.recent ?? []).length > 0 ? (
               <Table>
-                <TableHeader>
-                  <TableRow>
+                <TableHeader className="bg-muted/50">
+                  <TableRow className="hover:bg-transparent">
                     <TableHead>{t("colTitle")}</TableHead>
                     <TableHead>{t("colStatus")}</TableHead>
                     <TableHead>{t("colDuration")}</TableHead>

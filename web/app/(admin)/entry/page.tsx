@@ -252,8 +252,8 @@ export default function EntryPage() {
             </CardHeader>
             <CardContent>
               <Table>
-                <TableHeader>
-                  <TableRow>
+                <TableHeader className="bg-muted/50">
+                  <TableRow className="hover:bg-transparent">
                     <TableHead>{t("labelTick")}</TableHead>
                     <TableHead>{t("colFlavor")}</TableHead>
                     <TableHead>{t("colCodec")}</TableHead>
@@ -412,8 +412,8 @@ function SubtitlesTab({ entry }: { entry: EntryDetail }) {
     <Card>
       <CardContent className="space-y-4 pt-6">
         <Table>
-          <TableHeader>
-            <TableRow>
+          <TableHeader className="bg-muted/50">
+            <TableRow className="hover:bg-transparent">
               <TableHead>Lang</TableHead>
               <TableHead>Label</TableHead>
               <TableHead>File</TableHead>

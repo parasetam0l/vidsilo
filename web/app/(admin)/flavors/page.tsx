@@ -116,8 +116,8 @@ export default function FlavorsPage() {
       <Card>
         <CardContent className="p-0">
           <Table>
-            <TableHeader>
-              <TableRow>
+            <TableHeader className="bg-muted/50">
+              <TableRow className="hover:bg-transparent">
                 <TableHead>{t("colEnabled")}</TableHead>
                 <TableHead>{t("colName")}</TableHead>
                 <TableHead>{t("colCodec")}</TableHead>

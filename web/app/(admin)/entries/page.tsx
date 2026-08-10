@@ -180,8 +180,8 @@ export default function EntriesPage() {
       <Card className="overflow-hidden shadow-sm">
         <CardContent className="p-0">
           <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/50 hover:bg-muted/50 [&_th:first-child]:rounded-tl-xl [&_th:last-child]:rounded-tr-xl">
+            <TableHeader className="bg-muted/50">
+              <TableRow className="hover:bg-transparent">
                 <TableHead className="w-10">
                   <Checkbox
                     checked={list != null && (list.items ?? []).length > 0 && (list.items ?? []).every((e) => selected.has(e.id))}
