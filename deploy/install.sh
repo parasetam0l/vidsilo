@@ -20,9 +20,12 @@ for arg in "$@"; do
     case "$arg" in
         --role=*) ROLE="${arg#*=}" ;;
         --env-file=*) ENV_FILE="${arg#*=}" ;;
+        --db-password=*) DB_PASSWORD="${arg#*=}" ;;
         --no-start) NO_START=1 ;;
         --help|-h)
-            echo "usage: $0 [--role=app|worker|db] [--env-file=FILE] [--no-start]"; exit 0 ;;
+            echo "usage: $0 [--role=app|worker|db] [--env-file=FILE] [--db-password=PW] [--no-start]"
+            echo "  --db-password sets a scram password on the vod role (remote app/worker nodes need it)"
+            exit 0 ;;
         *) echo "unknown option: $arg"; exit 2 ;;
     esac
 done
@@ -71,14 +74,26 @@ mkdir -p "$DATA_DIR" "$CERT_DIR" "$ENV_DIR" /var/log/vod-app
 chown -R "$VOD_USER":"$VOD_USER" "$DATA_DIR" "$CERT_DIR" /var/log/vod-app
 
 # --- database (db role creates the role+db; others assume it exists) ---------
+# Auth model: same-host app/worker nodes use the unix socket with peer auth
+# (no password needed — systemd runs as the vod user, pg_hba defaults to
+# 'local all all peer'). Remote nodes must set a scram password on the role
+# (--db-password) and use a TCP DATABASE_URL; pg_hba.conf must allow it.
 DB_ENV="$ENV_DIR/env"
+DB_PASSWORD="${DB_PASSWORD:-}"
 if [ "$ROLE" = "db" ]; then
     if ! command -v pg_ctlcluster >/dev/null 2>&1; then
         apt-get install -y -qq postgresql
     fi
     systemctl enable --now postgresql 2>/dev/null || true
-    su -s /bin/sh postgres -c "psql -tAc \"SELECT 1 FROM pg_roles WHERE rolname='vod'\"" | grep -q 1 ||
-        su -s /bin/sh postgres -c "psql -c \"CREATE ROLE vod LOGIN\""
+    if ! su -s /bin/sh postgres -c "psql -tAc \"SELECT 1 FROM pg_roles WHERE rolname='vod'\"" | grep -q 1; then
+        if [ -n "$DB_PASSWORD" ]; then
+            su -s /bin/sh postgres -c "psql -c \"CREATE ROLE vod LOGIN PASSWORD '$DB_PASSWORD'\""
+            echo "created postgres role 'vod' with the password from --db-password"
+        else
+            su -s /bin/sh postgres -c "psql -c \"CREATE ROLE vod LOGIN\""
+            echo "created postgres role 'vod' (peer auth only — remote nodes need --db-password)"
+        fi
+    fi
     su -s /bin/sh postgres -c "psql -tAc \"SELECT 1 FROM pg_database WHERE datname='vod'\"" | grep -q 1 ||
         su -s /bin/sh postgres -c "createdb -O vod vod"
 fi
@@ -89,11 +104,20 @@ if [ "$ROLE" = "app" ] || [ "$ROLE" = "worker" ]; then
         cp "$ENV_FILE" "$DB_ENV"
     elif [ ! -f "$DB_ENV" ]; then
         echo "creating $DB_ENV — edit DATABASE_URL/STORAGE_DRIVER as needed"
-        cat > "$DB_ENV" <<EOF
-DATABASE_URL=postgres://vod:vod@localhost:5432/vod
+        if [ -n "$DB_PASSWORD" ]; then
+            cat > "$DB_ENV" <<EOF
+DATABASE_URL=postgres://vod:$DB_PASSWORD@localhost:5432/vod
 DATA_DIR=$DATA_DIR
 STORAGE_DRIVER=local
 EOF
+        else
+            # Peer auth via the unix socket (same-host installs).
+            cat > "$DB_ENV" <<EOF
+DATABASE_URL=postgres:///vod?host=/var/run/postgresql
+DATA_DIR=$DATA_DIR
+STORAGE_DRIVER=local
+EOF
+        fi
     fi
     chown "$VOD_USER":"$VOD_USER" "$DB_ENV"
     chmod 600 "$DB_ENV"
