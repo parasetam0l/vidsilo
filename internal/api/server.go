@@ -10,6 +10,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/parasetam0l/vod-app/internal/analytics"
 	"github.com/parasetam0l/vod-app/internal/media"
 	"github.com/parasetam0l/vod-app/internal/queue"
 	"github.com/parasetam0l/vod-app/internal/settings"
@@ -19,13 +20,14 @@ import (
 
 // Server wires the HTTP surface: API routes, embedded UI, middleware.
 type Server struct {
-	Log      *slog.Logger
-	pool     *pgxpool.Pool
-	secret   []byte
-	store    store.Store
-	settings *settings.Service
-	queue    *queue.Queue
-	media    *media.Manager
+	Log       *slog.Logger
+	pool      *pgxpool.Pool
+	secret    []byte
+	store     store.Store
+	settings  *settings.Service
+	queue     *queue.Queue
+	media     *media.Manager
+	analytics *analytics.Accumulator
 
 	uiHandler  http.Handler
 	uiFS       http.FileSystem
@@ -47,7 +49,7 @@ const (
 	loginRate = 5.0   // tight on auth endpoints
 )
 
-func NewServer(log *slog.Logger, uiFS http.FileSystem, pool *pgxpool.Pool, secret []byte, st store.Store, svc *settings.Service, q *queue.Queue, m *media.Manager, ds *upload.DataStore) *Server {
+func NewServer(log *slog.Logger, uiFS http.FileSystem, pool *pgxpool.Pool, secret []byte, st store.Store, svc *settings.Service, q *queue.Queue, m *media.Manager, ds *upload.DataStore, acc *analytics.Accumulator) *Server {
 	s := &Server{
 		Log:          log,
 		pool:         pool,
@@ -56,6 +58,7 @@ func NewServer(log *slog.Logger, uiFS http.FileSystem, pool *pgxpool.Pool, secre
 		settings:     svc,
 		queue:        q,
 		media:        m,
+		analytics:    acc,
 		uiHandler:    http.FileServer(uiFS),
 		uiFS:         uiFS,
 		apiLimiter:   newRateLimiter(apiRate, apiRate),
@@ -83,6 +86,7 @@ func (s *Server) Handler() http.Handler {
 	s.registerSettingsRoutes(mux)
 	s.registerEntryRoutes(mux, s.tusHandler)
 	s.registerMediaRoutes(mux)
+	s.registerAnalyticsRoutes(mux)
 
 	mux.HandleFunc("GET /healthz", s.handleHealthz)
 	mux.HandleFunc("GET /api/", s.handleNotFound())

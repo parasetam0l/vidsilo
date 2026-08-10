@@ -35,6 +35,14 @@ func (s *Server) handleMedia(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rc.Close()
 
+	// Server-measured bandwidth: every byte served counts toward the entry's
+	// analytics. Zero extra requests.
+	if entryID, err := store.EntryIDFromMediaKey(key); err == nil {
+		rc = &countingReadSeeker{readSeeker: rc, addBytes: func(n int64) {
+			s.analytics.AddBytes(entryID, n)
+		}}
+	}
+
 	fi, err := s.store.Stat(r.Context(), key)
 	if err != nil {
 		s.internalError(w, r, "stat media", err)
@@ -72,6 +80,26 @@ func contentType(name string) string {
 	default:
 		return "application/octet-stream"
 	}
+}
+
+// countingReadSeeker reports bytes read to a callback (bandwidth analytics).
+type countingReadSeeker struct {
+	readSeeker
+	addBytes func(n int64)
+}
+
+type readSeeker interface {
+	io.Reader
+	io.Seeker
+	io.Closer
+}
+
+func (c *countingReadSeeker) Read(p []byte) (int, error) {
+	n, err := c.readSeeker.Read(p)
+	if n > 0 && c.addBytes != nil {
+		c.addBytes(int64(n))
+	}
+	return n, err
 }
 
 // playInfo is what the player page needs to boot.
