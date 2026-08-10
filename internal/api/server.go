@@ -10,8 +10,11 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/parasetam0l/vod-app/internal/media"
+	"github.com/parasetam0l/vod-app/internal/queue"
 	"github.com/parasetam0l/vod-app/internal/settings"
 	"github.com/parasetam0l/vod-app/internal/store"
+	"github.com/parasetam0l/vod-app/internal/upload"
 )
 
 // Server wires the HTTP surface: API routes, embedded UI, middleware.
@@ -21,9 +24,12 @@ type Server struct {
 	secret   []byte
 	store    store.Store
 	settings *settings.Service
+	queue    *queue.Queue
+	media    *media.Manager
 
-	uiHandler http.Handler
-	health    func() []HealthCheck
+	uiHandler  http.Handler
+	tusHandler http.Handler
+	health     func() []HealthCheck
 
 	apiLimiter   *rateLimiter
 	loginLimiter *rateLimiter
@@ -40,16 +46,21 @@ const (
 	loginRate = 5.0   // tight on auth endpoints
 )
 
-func NewServer(log *slog.Logger, uiFS http.FileSystem, pool *pgxpool.Pool, secret []byte, st store.Store, svc *settings.Service) *Server {
+func NewServer(log *slog.Logger, uiFS http.FileSystem, pool *pgxpool.Pool, secret []byte, st store.Store, svc *settings.Service, q *queue.Queue, m *media.Manager, ds *upload.DataStore) *Server {
 	s := &Server{
 		Log:          log,
 		pool:         pool,
 		secret:       secret,
 		store:        st,
 		settings:     svc,
+		queue:        q,
+		media:        m,
 		uiHandler:    http.FileServer(uiFS),
 		apiLimiter:   newRateLimiter(apiRate, apiRate),
 		loginLimiter: newRateLimiter(loginRate, loginRate),
+	}
+	if ds != nil {
+		s.tusHandler = s.newTusHandler(ds)
 	}
 	s.health = func() []HealthCheck { return nil }
 	return s
@@ -68,6 +79,7 @@ func (s *Server) Handler() http.Handler {
 
 	s.registerAuthRoutes(mux)
 	s.registerSettingsRoutes(mux)
+	s.registerEntryRoutes(mux, s.tusHandler)
 
 	mux.HandleFunc("GET /healthz", s.handleHealthz)
 	mux.HandleFunc("GET /api/", s.handleNotFound())

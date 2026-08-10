@@ -58,6 +58,19 @@ func (l *Local) Put(ctx context.Context, key string, r io.Reader, size int64) er
 	return os.Rename(tmp.Name(), p)
 }
 
+// MoveIn atomically relocates an existing local file into the store tree
+// (zero-copy promotion of spooled uploads).
+func (l *Local) MoveIn(key, srcPath string) error {
+	p, err := l.pathForKey(key)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+		return err
+	}
+	return os.Rename(srcPath, p)
+}
+
 func (l *Local) Open(ctx context.Context, key string) (io.ReadSeekCloser, error) {
 	p, err := l.pathForKey(key)
 	if err != nil {
