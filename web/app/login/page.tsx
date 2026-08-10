@@ -5,7 +5,8 @@ import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useT } from "@/lib/i18n";
 import { useToast } from "@/hooks/use-toast";
-import { firstIssue, loginSchema } from "@/lib/validators";
+import { fieldErrors, loginSchema, type FieldErrors } from "@/lib/validators";
+import { FormError } from "@/components/form-error";
 
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LanguageSelect } from "@/components/language-select";
@@ -43,6 +44,7 @@ function LoginForm() {
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [busy, setBusy] = React.useState(false);
+  const [errors, setErrors] = React.useState<FieldErrors>({});
   const toast = useToast();
 
   React.useEffect(() => {
@@ -52,11 +54,12 @@ function LoginForm() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const issue = firstIssue(loginSchema, { email, password });
-    if (issue) {
-      toast.error(issue);
+    const errs = fieldErrors(loginSchema, { email, password });
+    if (Object.keys(errs).length > 0) {
+      setErrors(errs);
       return;
     }
+    setErrors({});
     setBusy(true);
     try {
       await login(email, password);
@@ -95,9 +98,13 @@ function LoginForm() {
                 id="email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setErrors((prev) => ({ ...prev, email: "" }));
+                }}
                 autoComplete="email"
               />
+              <FormError message={errors.email} />
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="password">{t("loginPassword")}</Label>
@@ -105,9 +112,13 @@ function LoginForm() {
                 id="password"
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setErrors((prev) => ({ ...prev, password: "" }));
+                }}
                 autoComplete="current-password"
               />
+              <FormError message={errors.password} />
             </div>
             <Button type="submit" className="w-full" disabled={busy}>
               {busy ? t("loginSigningIn") : t("loginButton")}

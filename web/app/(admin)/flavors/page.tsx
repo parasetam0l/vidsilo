@@ -7,7 +7,8 @@ import { api, type Flavor } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import { useDialog } from "@/hooks/use-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { firstIssue, flavorSchema } from "@/lib/validators";
+import { fieldErrors, flavorSchema, type FieldErrors } from "@/lib/validators";
+import { FormError } from "@/components/form-error";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -181,20 +182,22 @@ function FlavorFormContent({
   const editing = initial.id !== 0;
   const [draft, setDraft] = React.useState<Flavor>(initial);
   const [busy, setBusy] = React.useState(false);
+  const [errors, setErrors] = React.useState<FieldErrors>({});
 
   const set = (patch: Partial<Flavor>) => setDraft((d) => ({ ...d, ...patch }));
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    const issue = firstIssue(flavorSchema, {
+    const errs = fieldErrors(flavorSchema, {
       ...draft,
       videoBitrate: draft.videoMode === "bitrate" ? draft.videoBitrate : null,
       crf: draft.videoMode === "crf" ? draft.crf : null,
     });
-    if (issue) {
-      toast.error(issue);
+    if (Object.keys(errs).length > 0) {
+      setErrors(errs);
       return;
     }
+    setErrors({});
     setBusy(true);
     try {
       const body = {
@@ -232,6 +235,7 @@ function FlavorFormContent({
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-medium">{t("colName")}</label>
           <Input value={draft.name} onChange={(e) => set({ name: e.target.value })} />
+          <FormError message={errors.name} />
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-medium">{t("colFlavor")}</label>
@@ -259,6 +263,7 @@ function FlavorFormContent({
             value={draft.height}
             onChange={(e) => set({ height: Number(e.target.value) })}
           />
+          <FormError message={errors.height} />
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-medium">{t("videoMode")}</label>
@@ -284,6 +289,7 @@ function FlavorFormContent({
               value={draft.crf ?? 23}
               onChange={(e) => set({ crf: Number(e.target.value) })}
             />
+            <FormError message={errors.crf} />
           </div>
         ) : (
           <div className="flex flex-col gap-1.5">
@@ -293,6 +299,7 @@ function FlavorFormContent({
               value={draft.videoBitrate ?? 0}
               onChange={(e) => set({ videoBitrate: Number(e.target.value) })}
             />
+            <FormError message={errors.videoBitrate} />
           </div>
         )}
         <div className="flex flex-col gap-1.5">
@@ -302,6 +309,7 @@ function FlavorFormContent({
             value={draft.audioBitrate}
             onChange={(e) => set({ audioBitrate: Number(e.target.value) })}
           />
+          <FormError message={errors.audioBitrate} />
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-medium">{t("labelPreset")}</label>

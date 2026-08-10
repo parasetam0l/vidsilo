@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useDialog } from "@/hooks/use-dialog";
-import { firstIssue, changePasswordSchema } from "@/lib/validators";
+import { changePasswordSchema, fieldErrors, type FieldErrors } from "@/lib/validators";
+import { FormError } from "@/components/form-error";
 
 export function useChangePasswordDialog() {
   const dialog = useDialog();
@@ -30,18 +31,20 @@ function ChangePasswordContent() {
   const [next, setNext] = React.useState("");
   const [confirm, setConfirm] = React.useState("");
   const [busy, setBusy] = React.useState(false);
+  const [errors, setErrors] = React.useState<FieldErrors>({});
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    const issue = firstIssue(changePasswordSchema, {
+    const errs = fieldErrors(changePasswordSchema, {
       currentPassword: current,
       newPassword: next,
       confirm,
     });
-    if (issue) {
-      toast.error(issue);
+    if (Object.keys(errs).length > 0) {
+      setErrors(errs);
       return;
     }
+    setErrors({});
     setBusy(true);
     try {
       await api<void>("/api/auth/password", {
@@ -73,8 +76,12 @@ function ChangePasswordContent() {
           type="password"
           autoComplete="current-password"
           value={current}
-          onChange={(e) => setCurrent(e.target.value)}
+          onChange={(e) => {
+            setCurrent(e.target.value);
+            setErrors((prev) => ({ ...prev, currentPassword: "" }));
+          }}
         />
+        <FormError message={errors.currentPassword} />
       </div>
       <div className="flex flex-col gap-1.5">
         <Label>{t("newPassword")}</Label>
@@ -82,8 +89,12 @@ function ChangePasswordContent() {
           type="password"
           autoComplete="new-password"
           value={next}
-          onChange={(e) => setNext(e.target.value)}
+          onChange={(e) => {
+            setNext(e.target.value);
+            setErrors((prev) => ({ ...prev, newPassword: "" }));
+          }}
         />
+        <FormError message={errors.newPassword} />
       </div>
       <div className="flex flex-col gap-1.5">
         <Label>{t("confirmPassword")}</Label>
@@ -91,8 +102,12 @@ function ChangePasswordContent() {
           type="password"
           autoComplete="new-password"
           value={confirm}
-          onChange={(e) => setConfirm(e.target.value)}
+          onChange={(e) => {
+            setConfirm(e.target.value);
+            setErrors((prev) => ({ ...prev, confirm: "" }));
+          }}
         />
+        <FormError message={errors.confirm} />
       </div>
       <Button type="submit" disabled={busy}>
         {busy ? t("loading") : t("save")}

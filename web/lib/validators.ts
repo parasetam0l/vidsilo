@@ -61,12 +61,19 @@ export const flavorSchema = z.object({
   preset: z.string().min(1),
 });
 
-// firstIssue returns the first validation error message, or null when valid.
-export function firstIssue(
+export type FieldErrors = Record<string, string>;
+
+// fieldErrors maps each failing field to its first validation message.
+export function fieldErrors(
   schema: z.ZodTypeAny,
   data: unknown,
-): string | null {
+): FieldErrors {
   const res = schema.safeParse(data);
-  if (res.success) return null;
-  return res.error.issues[0]?.message ?? "Invalid input";
+  if (res.success) return {};
+  const out: FieldErrors = {};
+  for (const issue of res.error.issues) {
+    const key = String(issue.path[0] ?? "form");
+    if (!(key in out)) out[key] = issue.message;
+  }
+  return out;
 }

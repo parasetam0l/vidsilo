@@ -7,7 +7,8 @@ import { api, type Category } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import { useDialog } from "@/hooks/use-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { categorySchema, firstIssue } from "@/lib/validators";
+import { categorySchema, fieldErrors, type FieldErrors } from "@/lib/validators";
+import { FormError } from "@/components/form-error";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -184,17 +185,19 @@ function CategoryFormContent({
     initial?.parentId ? String(initial.parentId) : "",
   );
   const [busy, setBusy] = React.useState(false);
+  const [errors, setErrors] = React.useState<FieldErrors>({});
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    const issue = firstIssue(categorySchema, {
+    const errs = fieldErrors(categorySchema, {
       name,
       parentId: parent ? Number(parent) : null,
     });
-    if (issue) {
-      toast.error(issue);
+    if (Object.keys(errs).length > 0) {
+      setErrors(errs);
       return;
     }
+    setErrors({});
     setBusy(true);
     try {
       const body = {
@@ -232,8 +235,12 @@ function CategoryFormContent({
         <Label>{t("colName")}</Label>
         <Input
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={(e) => {
+            setName(e.target.value);
+            setErrors((prev) => ({ ...prev, name: "" }));
+          }}
         />
+        <FormError message={errors.name} />
       </div>
       <div className="flex flex-col gap-1.5">
         <Label>{t("colParent")}</Label>

@@ -7,7 +7,8 @@ import { api, ApiError, displayName, type Role, type User } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import { useDialog } from "@/hooks/use-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { firstIssue, userSchema, userEditSchema } from "@/lib/validators";
+import { fieldErrors, userSchema, userEditSchema, type FieldErrors } from "@/lib/validators";
+import { FormError } from "@/components/form-error";
 import { formatDate } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -163,15 +164,17 @@ function UserFormContent({
   const [role, setRole] = React.useState<Role>(initial?.role ?? "viewer");
   const [disabled, setDisabled] = React.useState(initial?.disabled ?? false);
   const [busy, setBusy] = React.useState(false);
+  const [errors, setErrors] = React.useState<FieldErrors>({});
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     const values = { email, nameSurname, password, role, disabled };
-    const issue = firstIssue(editing ? userEditSchema : userSchema, values);
-    if (issue) {
-      toast.error(issue);
+    const errs = fieldErrors(editing ? userEditSchema : userSchema, values);
+    if (Object.keys(errs).length > 0) {
+      setErrors(errs);
       return;
     }
+    setErrors({});
     setBusy(true);
     try {
       if (editing) {
@@ -207,8 +210,12 @@ function UserFormContent({
         <Input
           type="email"
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={(e) => {
+            setEmail(e.target.value);
+            setErrors((prev) => ({ ...prev, email: "" }));
+          }}
         />
+        <FormError message={errors.email} />
       </div>
       <div className="flex flex-col gap-1.5">
         <Label>{t("colNameSurname")}</Label>
@@ -221,8 +228,12 @@ function UserFormContent({
           value={password}
           autoComplete="new-password"
           placeholder={editing ? t("passwordKeep") : undefined}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={(e) => {
+            setPassword(e.target.value);
+            setErrors((prev) => ({ ...prev, password: "" }));
+          }}
         />
+        <FormError message={errors.password} />
       </div>
       <div className="flex flex-col gap-1.5">
         <Label>{t("colRole")}</Label>
