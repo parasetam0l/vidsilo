@@ -48,6 +48,19 @@ interface Kpi {
   spark?: { day: string; bytes: number }[];
 }
 
+function padSeries(points: { day: string; bytes: number }[]): { day: string; bytes: number }[] {
+  const byDay = new Map(points.map((p) => [p.day, p.bytes]));
+  const out: { day: string; bytes: number }[] = [];
+  const today = new Date();
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    out.push({ day: key, bytes: byDay.get(key) ?? 0 });
+  }
+  return out;
+}
+
 function Sparkline({
   points,
   className,
@@ -58,6 +71,7 @@ function Sparkline({
   const width = 88;
   const height = 30;
   const pad = 2;
+  points = padSeries(points);
   const values = points.map((p) => p.bytes);
   const max = Math.max(...values, 1);
   const x = (i: number) =>
@@ -85,11 +99,26 @@ export default function DashboardPage() {
   const openUpload = useUploadDialog();
   const [data, setData] = React.useState<Dashboard | null>(null);
 
-  React.useEffect(() => {
+  const load = React.useCallback(() => {
     api<Dashboard>("/api/dashboard")
       .then(setData)
       .catch(() => {});
   }, []);
+
+  React.useEffect(load, [load]);
+
+  // Keep KPIs fresh: refetch on window focus and every 60s while visible.
+  React.useEffect(() => {
+    const onFocus = () => load();
+    window.addEventListener("focus", onFocus);
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") load();
+    }, 60_000);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      window.clearInterval(timer);
+    };
+  }, [load]);
 
   if (!data) {
     return (
