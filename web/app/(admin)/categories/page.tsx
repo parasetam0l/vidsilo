@@ -7,6 +7,7 @@ import { api, type Category } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import { useDialog } from "@/hooks/use-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { categorySchema, firstIssue } from "@/lib/validators";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -183,11 +184,17 @@ function CategoryFormContent({
     initial?.parentId ? String(initial.parentId) : "",
   );
   const [busy, setBusy] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
+    const issue = firstIssue(categorySchema, {
+      name,
+      parentId: parent ? Number(parent) : null,
+    });
+    if (issue) {
+      toast.error(issue);
+      return;
+    }
     setBusy(true);
     try {
       const body = {
@@ -210,7 +217,7 @@ function CategoryFormContent({
       }
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("error"));
+      toast.error(err instanceof Error ? err.message : t("error"));
     } finally {
       setBusy(false);
     }
@@ -221,13 +228,11 @@ function CategoryFormContent({
       <h2 className="text-lg font-semibold tracking-tight">
         {editing ? t("editCategoryTitle") : t("newCategory")}
       </h2>
-      {error ? <p className="text-sm text-red-500">{error}</p> : null}
       <div className="flex flex-col gap-1.5">
         <Label>{t("colName")}</Label>
         <Input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          required
         />
       </div>
       <div className="flex flex-col gap-1.5">

@@ -7,6 +7,7 @@ import { api, type Flavor } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import { useDialog } from "@/hooks/use-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { firstIssue, flavorSchema } from "@/lib/validators";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -180,13 +181,20 @@ function FlavorFormContent({
   const editing = initial.id !== 0;
   const [draft, setDraft] = React.useState<Flavor>(initial);
   const [busy, setBusy] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
 
   const set = (patch: Partial<Flavor>) => setDraft((d) => ({ ...d, ...patch }));
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
+    const issue = firstIssue(flavorSchema, {
+      ...draft,
+      videoBitrate: draft.videoMode === "bitrate" ? draft.videoBitrate : null,
+      crf: draft.videoMode === "crf" ? draft.crf : null,
+    });
+    if (issue) {
+      toast.error(issue);
+      return;
+    }
     setBusy(true);
     try {
       const body = {
@@ -209,7 +217,7 @@ function FlavorFormContent({
       }
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("error"));
+      toast.error(err instanceof Error ? err.message : t("error"));
     } finally {
       setBusy(false);
     }
@@ -220,11 +228,10 @@ function FlavorFormContent({
       <h2 className="text-lg font-semibold tracking-tight">
         {editing ? t("editFlavorTitle") : t("newFlavorTitle")}
       </h2>
-      {error ? <p className="text-sm text-red-500">{error}</p> : null}
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-medium">{t("colName")}</label>
-          <Input value={draft.name} onChange={(e) => set({ name: e.target.value })} required />
+          <Input value={draft.name} onChange={(e) => set({ name: e.target.value })} />
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-medium">{t("colFlavor")}</label>

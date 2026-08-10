@@ -4,6 +4,8 @@ import { ClapperboardIcon } from "lucide-react";
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useT } from "@/lib/i18n";
+import { useToast } from "@/hooks/use-toast";
+import { firstIssue, loginSchema } from "@/lib/validators";
 
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LanguageSelect } from "@/components/language-select";
@@ -18,7 +20,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+
 import { ApiError } from "@/lib/api";
 
 export default function LoginPage() {
@@ -40,8 +42,8 @@ function LoginForm() {
   const next = rawNext && rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/dashboard";
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
-  const [error, setError] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState(false);
+  const toast = useToast();
 
   React.useEffect(() => {
     document.title = `${t("loginTitle")} | ${t("appTitle")}`;
@@ -50,15 +52,17 @@ function LoginForm() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const issue = firstIssue(loginSchema, { email, password });
+    if (issue) {
+      toast.error(issue);
+      return;
+    }
     setBusy(true);
-    setError(null);
     try {
       await login(email, password);
       router.replace(next);
     } catch (err) {
-      setError(
-        err instanceof ApiError ? err.message : "Sign in failed — try again.",
-      );
+      toast.error(err instanceof ApiError ? err.message : t("loginFailed"));
     } finally {
       setBusy(false);
     }
@@ -85,11 +89,6 @@ function LoginForm() {
         </CardHeader>
         <CardContent>
           <form className="flex flex-col gap-4" onSubmit={onSubmit}>
-            {error ? (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            ) : null}
             <div className="flex flex-col gap-2">
               <Label htmlFor="email">{t("loginEmail")}</Label>
               <Input
@@ -98,7 +97,6 @@ function LoginForm() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 autoComplete="email"
-                required
               />
             </div>
             <div className="flex flex-col gap-2">
@@ -109,7 +107,6 @@ function LoginForm() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="current-password"
-                required
               />
             </div>
             <Button type="submit" className="w-full" disabled={busy}>

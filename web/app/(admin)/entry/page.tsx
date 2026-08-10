@@ -59,7 +59,7 @@ export default function EntryPage() {
   const [entry, setEntry] = React.useState<EntryDetail | null>(null);
   const [flavors, setFlavors] = React.useState<Flavor[]>([]);
   const [categories, setCategories] = React.useState<Category[]>([]);
-  const [error, setError] = React.useState<string | null>(null);
+
 
   const [ticked, setTicked] = React.useState<Set<number>>(new Set());
   const [analytics, setAnalytics] = React.useState<AnalyticsResponse | null>(null);
@@ -73,14 +73,13 @@ export default function EntryPage() {
           new Set(e.flavors.filter((f) => f.status !== "skipped").map((f) => f.flavorId)),
         );
       })
-      .catch((err) => setError(err.message));
+      .catch((err) => toast.error(err.message));
     api<Flavor[]>("/api/flavors").then(setFlavors).catch(() => {});
     api<Category[]>("/api/categories").then(setCategories).catch(() => {});
     api<AnalyticsResponse>(`/api/entries/${id}/analytics`).then(setAnalytics).catch(() => {});
-  }, [id]);
+  }, [id, toast]);
 
   if (!id) return <div className="p-4 text-sm text-muted-foreground">{t("entryNotFound")}</div>;
-  if (error) return <div className="p-4 text-sm text-red-500">{error}</div>;
   if (!entry) return <div className="p-4 text-sm text-muted-foreground">{t("loading")}</div>;
 
     const catName = categories.find((c) => c.id === entry.categoryId)?.name ?? "—";
@@ -99,21 +98,29 @@ export default function EntryPage() {
       setEntry(updated);
       toast.success(t("saved"));
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "save failed");
+      toast.error(e instanceof ApiError ? e.message : t("error"));
     }
   }
 
   const reprocess = async () => {
-    await api<void>(`/api/entries/${entry.id}/reprocess`, { method: "POST" }).catch((e) => setError(e.message));
-    router.refresh();
+    try {
+      await api<void>(`/api/entries/${entry.id}/reprocess`, { method: "POST" });
+      router.refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("error"));
+    }
   }
 
   const applyFlavors = async () => {
-    await api<void>(`/api/entries/${entry.id}/flavors`, {
-      method: "POST",
-      body: JSON.stringify({ flavorIds: [...ticked] }),
-    }).catch((e) => setError(e.message));
-    router.refresh();
+    try {
+      await api<void>(`/api/entries/${entry.id}/flavors`, {
+        method: "POST",
+        body: JSON.stringify({ flavorIds: [...ticked] }),
+      });
+      router.refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("error"));
+    }
   }
 
   const deleteEntry = async () => {

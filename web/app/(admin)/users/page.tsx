@@ -7,6 +7,7 @@ import { api, ApiError, displayName, type Role, type User } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import { useDialog } from "@/hooks/use-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { firstIssue, userSchema, userEditSchema } from "@/lib/validators";
 import { formatDate } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -162,11 +163,15 @@ function UserFormContent({
   const [role, setRole] = React.useState<Role>(initial?.role ?? "viewer");
   const [disabled, setDisabled] = React.useState(initial?.disabled ?? false);
   const [busy, setBusy] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
+    const values = { email, nameSurname, password, role, disabled };
+    const issue = firstIssue(editing ? userEditSchema : userSchema, values);
+    if (issue) {
+      toast.error(issue);
+      return;
+    }
     setBusy(true);
     try {
       if (editing) {
@@ -184,7 +189,7 @@ function UserFormContent({
       }
       onClose();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : t("error"));
+      toast.error(err instanceof ApiError ? err.message : t("error"));
     } finally {
       setBusy(false);
     }
@@ -197,14 +202,12 @@ function UserFormContent({
           {editing ? t("editUserTitle") : t("newUserTitle")}
         </h2>
       </div>
-      {error ? <p className="text-sm text-red-500">{error}</p> : null}
       <div className="flex flex-col gap-1.5">
         <Label>{t("loginEmail")}</Label>
         <Input
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          required
         />
       </div>
       <div className="flex flex-col gap-1.5">
@@ -219,7 +222,6 @@ function UserFormContent({
           autoComplete="new-password"
           placeholder={editing ? t("passwordKeep") : undefined}
           onChange={(e) => setPassword(e.target.value)}
-          required={!editing}
         />
       </div>
       <div className="flex flex-col gap-1.5">

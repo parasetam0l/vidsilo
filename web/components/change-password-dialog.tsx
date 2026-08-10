@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useDialog } from "@/hooks/use-dialog";
+import { firstIssue, changePasswordSchema } from "@/lib/validators";
 
 export function useChangePasswordDialog() {
   const dialog = useDialog();
@@ -29,13 +30,16 @@ function ChangePasswordContent() {
   const [next, setNext] = React.useState("");
   const [confirm, setConfirm] = React.useState("");
   const [busy, setBusy] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
-    if (next !== confirm) {
-      setError(t("passwordMismatch"));
+    const issue = firstIssue(changePasswordSchema, {
+      currentPassword: current,
+      newPassword: next,
+      confirm,
+    });
+    if (issue) {
+      toast.error(issue);
       return;
     }
     setBusy(true);
@@ -49,7 +53,7 @@ function ChangePasswordContent() {
       setConfirm("");
       toast.success(t("passwordChanged"));
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : t("error"));
+      toast.error(err instanceof ApiError ? err.message : t("error"));
     } finally {
       setBusy(false);
     }
@@ -63,7 +67,6 @@ function ChangePasswordContent() {
         </h2>
         <p className="text-sm text-muted-foreground">{t("changePasswordDesc")}</p>
       </div>
-      {error ? <p className="text-sm text-red-500">{error}</p> : null}
       <div className="flex flex-col gap-1.5">
         <Label>{t("currentPassword")}</Label>
         <Input
@@ -71,7 +74,6 @@ function ChangePasswordContent() {
           autoComplete="current-password"
           value={current}
           onChange={(e) => setCurrent(e.target.value)}
-          required
         />
       </div>
       <div className="flex flex-col gap-1.5">
@@ -81,7 +83,6 @@ function ChangePasswordContent() {
           autoComplete="new-password"
           value={next}
           onChange={(e) => setNext(e.target.value)}
-          required
         />
       </div>
       <div className="flex flex-col gap-1.5">
@@ -91,7 +92,6 @@ function ChangePasswordContent() {
           autoComplete="new-password"
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}
-          required
         />
       </div>
       <Button type="submit" disabled={busy}>
