@@ -37,6 +37,7 @@ type Server struct {
 
 	apiLimiter   *rateLimiter
 	loginLimiter *rateLimiter
+	denylist     *Denylist
 }
 
 type HealthCheck struct {
@@ -66,6 +67,7 @@ func NewServer(log *slog.Logger, uiFS fs.FS, pool *pgxpool.Pool, secret []byte, 
 		uiFS:         uiFS,
 		apiLimiter:   newRateLimiter(apiRate, apiRate),
 		loginLimiter: newRateLimiter(loginRate, loginRate),
+		denylist:     NewDenylist(),
 	}
 	if ds != nil {
 		s.tusHandler = s.newTusHandler(ds)

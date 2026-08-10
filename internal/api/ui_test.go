@@ -14,7 +14,9 @@ func TestServeUICleanURLs(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := NewServer(nil, fs, nil, nil, nil, nil, nil, nil, nil, nil)
-	for _, path := range []string{"/login", "/dashboard", "/upload", "/entries"} {
+	// /upload is intentionally absent: the page became a dialog and the
+	// path is owned by the tus subtree.
+	for _, path := range []string{"/login", "/dashboard", "/entries"} {
 		req := httptest.NewRequest("GET", path, nil)
 		rec := httptest.NewRecorder()
 		s.serveUI(rec, req)

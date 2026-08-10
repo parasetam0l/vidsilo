@@ -127,6 +127,11 @@ func (s *Server) handleRefresh(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
+	// Revoke the access JWT immediately (stateless tokens otherwise live
+	// out their TTL); also drop the refresh token from the DB.
+	if c, err := r.Cookie(accessCookieName); err == nil && c.Value != "" {
+		s.denylist.Revoke(c.Value, accessTokenTTL)
+	}
 	if c, err := r.Cookie(refreshCookieName); err == nil && c.Value != "" {
 		hash := sha256.Sum256([]byte(c.Value))
 		_, _ = s.pool.Exec(r.Context(),
@@ -206,6 +211,10 @@ func (s *Server) requireAuth(next http.Handler) http.Handler {
 		c, err := r.Cookie(accessCookieName)
 		if err != nil || c.Value == "" {
 			writeError(w, http.StatusUnauthorized, "unauthorized", "not signed in")
+			return
+		}
+		if s.denylist.Revoked(c.Value) {
+			writeError(w, http.StatusUnauthorized, "unauthorized", "session revoked")
 			return
 		}
 		claims, err := verifyAccessToken(s.secret, c.Value)
