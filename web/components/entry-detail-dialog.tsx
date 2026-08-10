@@ -6,12 +6,18 @@ import { useT } from "@/lib/i18n";
 import { useDialog } from "@/hooks/use-dialog";
 import { useToast } from "@/hooks/use-toast";
 import {
+  BarChartIcon,
+  CaptionsIcon,
   Copy,
+  ImageIcon,
+  LinkIcon,
+  PencilLineIcon,
   Play,
   RotateCcw,
   Save,
   Trash2,
   Upload,
+  VideoIcon,
 } from "lucide-react";
 
 import {
@@ -37,7 +43,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+} from "@/components/ui/sidebar";
 import {
   Table,
   TableBody,
@@ -49,8 +64,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { SvgChart } from "@/components/svg-chart";
 
-// Opens the entry detail in a dialog (useDialog). The entries table and the
-// dashboard open it; there is no dedicated detail page anymore.
+// Opens the entry detail in a sidebar-13 style dialog: an icon section nav
+// on the left, a header + scrollable content pane on the right.
 export function useEntryDetailDialog() {
   const dialog = useDialog();
   return React.useCallback(
@@ -59,7 +74,8 @@ export function useEntryDetailDialog() {
         content: (close) => (
           <EntryDetailDialog publicId={publicId} onClose={close} />
         ),
-        size: "4xl",
+        size: "5xl",
+        className: "p-0 overflow-hidden",
         dismissible: false,
         showCloseButton: true,
       });
@@ -85,12 +101,9 @@ export function EntryDetailDialog({
   const [ticked, setTicked] = React.useState<Set<number>>(new Set());
   const [analytics, setAnalytics] = React.useState<AnalyticsResponse | null>(null);
   const [reloadKey, setReloadKey] = React.useState(0);
+  const [active, setActive] = React.useState("metadata");
 
-  // Reload re-fetches everything after mutations (poster, subtitles, embed).
-  const reload = React.useCallback(
-    () => setReloadKey((k) => k + 1),
-    [],
-  );
+  const reload = React.useCallback(() => setReloadKey((k) => k + 1), []);
 
   React.useEffect(() => {
     api<EntryDetail>(`/api/entries/${publicId}`)
@@ -105,6 +118,15 @@ export function EntryDetailDialog({
     api<Category[]>("/api/categories").then(setCategories).catch(() => {});
     api<AnalyticsResponse>(`/api/entries/${publicId}/analytics`).then(setAnalytics).catch(() => {});
   }, [publicId, reloadKey, toast]);
+
+  const sections = [
+    { id: "metadata", label: t("tabMetadata"), icon: <PencilLineIcon className="size-4" /> },
+    { id: "flavors", label: t("tabFlavors"), icon: <VideoIcon className="size-4" /> },
+    { id: "poster", label: t("tabPoster"), icon: <ImageIcon className="size-4" /> },
+    { id: "subtitles", label: t("tabSubtitles"), icon: <CaptionsIcon className="size-4" /> },
+    { id: "playback", label: t("tabPlayback"), icon: <LinkIcon className="size-4" /> },
+    { id: "analytics", label: t("tabAnalytics"), icon: <BarChartIcon className="size-4" /> },
+  ];
 
   if (!entry) return <p className="text-sm text-muted-foreground">{t("loading")}</p>;
 
@@ -173,203 +195,231 @@ export function EntryDetailDialog({
   };
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-start justify-between gap-4 pr-6">
-        <div className="min-w-0">
-          <div className="flex items-center gap-3">
-            <h2 className="text-lg font-semibold tracking-tight">
-              {entry.title || t("untitled")}
-            </h2>
-            <StatusBadge status={entry.status} />
-          </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {t("entryMetaLine", {
-              category: catName,
-              duration: formatDuration(entry.durationMs),
-              size: formatBytes(entry.sourceSize),
-              date: formatDate(entry.createdAt),
-              by: entry.uploaderName ? ` by ${entry.uploaderName}` : "",
-            })}
-          </p>
-          {entry.error ? (
-            <p className="mt-2 max-w-xl text-sm text-amber-500">{entry.error}</p>
-          ) : null}
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={reprocess}>
-            <RotateCcw className="size-4" /> {t("entryReprocess")}
-          </Button>
+    <SidebarProvider className="items-start">
+      {/* Section nav (icon + label), sidebar-13 style */}
+      <Sidebar collapsible="none" className="hidden w-48 border-r md:flex">
+        <SidebarContent>
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu className="gap-1 p-2">
+                {sections.map((s) => (
+                  <SidebarMenuItem key={s.id}>
+                    <SidebarMenuButton
+                      isActive={active === s.id}
+                      render={
+                        <button type="button" onClick={() => setActive(s.id)} />
+                      }
+                    >
+                      {s.icon}
+                      <span>{s.label}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
+      </Sidebar>
+
+      {/* Mobile: horizontal section chips */}
+      <div className="flex gap-1 overflow-x-auto border-b p-2 md:hidden">
+        {sections.map((s) => (
           <Button
-            variant="outline"
-            render={
-              <a href={`/play/${entry.id}`} target="_blank" rel="noreferrer" />
-            }
+            key={s.id}
+            variant={active === s.id ? "default" : "outline"}
+            size="sm"
+            onClick={() => setActive(s.id)}
           >
-            <Play className="size-4" /> {t("entryWatch")}
+            {s.icon} {s.label}
           </Button>
-          <Button variant="destructive" onClick={askDelete}>
-            <Trash2 className="size-4" /> {t("delete")}
-          </Button>
-        </div>
+        ))}
       </div>
 
-      {entry.status === "ready" && entry.posterKey ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={`/media/${entry.posterKey}`}
-          alt="poster"
-          className="aspect-video w-full max-w-xl rounded-xl border object-cover"
-        />
-      ) : null}
+      <main className="flex h-[560px] max-h-[70vh] flex-1 flex-col overflow-hidden">
+        <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b px-4 pr-10">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <h2 className="truncate text-base font-semibold tracking-tight">
+                {entry.title || t("untitled")}
+              </h2>
+              <StatusBadge status={entry.status} />
+            </div>
+            <p className="truncate text-xs text-muted-foreground">
+              {t("entryMetaLine", {
+                category: catName,
+                duration: formatDuration(entry.durationMs),
+                size: formatBytes(entry.sourceSize),
+                date: formatDate(entry.createdAt),
+                by: entry.uploaderName ? ` by ${entry.uploaderName}` : "",
+              })}
+            </p>
+          </div>
+          <div className="flex shrink-0 gap-2">
+            <Button variant="outline" size="sm" onClick={reprocess}>
+              <RotateCcw className="size-3.5" /> {t("entryReprocess")}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              render={
+                <a href={`/play/${entry.id}`} target="_blank" rel="noreferrer" />
+              }
+            >
+              <Play className="size-3.5" /> {t("entryWatch")}
+            </Button>
+            <Button variant="destructive" size="sm" onClick={askDelete}>
+              <Trash2 className="size-3.5" /> {t("delete")}
+            </Button>
+          </div>
+        </header>
 
-      <Tabs defaultValue="metadata">
-        <TabsList>
-          <TabsTrigger value="metadata">{t("tabMetadata")}</TabsTrigger>
-          <TabsTrigger value="flavors">{t("tabFlavors")}</TabsTrigger>
-          <TabsTrigger value="poster">{t("tabPoster")}</TabsTrigger>
-          <TabsTrigger value="subtitles">{t("tabSubtitles")}</TabsTrigger>
-          <TabsTrigger value="playback">{t("tabPlayback")}</TabsTrigger>
-          <TabsTrigger value="analytics">{t("tabAnalytics")}</TabsTrigger>
-        </TabsList>
+        {entry.error ? (
+          <p className="border-b px-4 py-1.5 text-xs text-amber-500">
+            {entry.error}
+          </p>
+        ) : null}
 
-        <TabsContent value="metadata" className="mt-4 space-y-4">
-          <Card>
-            <CardContent className="space-y-4 pt-6">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="flex flex-col gap-2">
-                  <Label>{t("labelTitle")}</Label>
-                  <Input
-                    value={entry.title}
-                    onChange={(e) => setEntry({ ...entry, title: e.target.value })}
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Label>{t("labelCategory")}</Label>
-                  <Select
-                    value={entry.categoryId ? String(entry.categoryId) : "none"}
-                    onValueChange={(v) =>
-                      setEntry({ ...entry, categoryId: v === "none" ? null : Number(v) })
-                    }
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">{t("none")}</SelectItem>
-                      {categories.map((c) => (
-                        <SelectItem key={c.id} value={String(c.id)}>
-                          {c.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label>{t("labelDescription")}</Label>
-                <Textarea
-                  rows={4}
-                  value={entry.description}
-                  onChange={(e) =>
-                    setEntry({ ...entry, description: e.target.value })
-                  }
+        <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-4">
+          {active === "metadata" ? (
+            <>
+              {entry.status === "ready" && entry.posterKey ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={`/media/${entry.posterKey}`}
+                  alt="poster"
+                  className="aspect-video w-full max-w-xl rounded-xl border object-cover"
                 />
-              </div>
-              <div className="flex items-center gap-2">
-                <Switch
-                  checked={entry.isPublic}
-                  onCheckedChange={(v) => setEntry({ ...entry, isPublic: v })}
-                />
-                <Label>{t("labelPublic")}</Label>
-              </div>
-              <Button onClick={saveMetadata}>
-                <Save className="size-4" /> {t("save")}
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
+              ) : null}
+              <Card>
+                <CardContent className="space-y-4 pt-6">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="flex flex-col gap-2">
+                      <Label>{t("labelTitle")}</Label>
+                      <Input
+                        value={entry.title}
+                        onChange={(e) => setEntry({ ...entry, title: e.target.value })}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <Label>{t("labelCategory")}</Label>
+                      <Select
+                        value={entry.categoryId ? String(entry.categoryId) : "none"}
+                        onValueChange={(v) =>
+                          setEntry({ ...entry, categoryId: v === "none" ? null : Number(v) })
+                        }
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">{t("none")}</SelectItem>
+                          {categories.map((c) => (
+                            <SelectItem key={c.id} value={String(c.id)}>
+                              {c.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <Label>{t("labelDescription")}</Label>
+                    <Textarea
+                      rows={4}
+                      value={entry.description}
+                      onChange={(e) =>
+                        setEntry({ ...entry, description: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      checked={entry.isPublic}
+                      onCheckedChange={(v) => setEntry({ ...entry, isPublic: v })}
+                    />
+                    <Label>{t("labelPublic")}</Label>
+                  </div>
+                  <Button onClick={saveMetadata}>
+                    <Save className="size-4" /> {t("save")}
+                  </Button>
+                </CardContent>
+              </Card>
+            </>
+          ) : null}
 
-        <TabsContent value="flavors" className="mt-4 space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("tabFlavors")}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader className="bg-muted/50">
-                  <TableRow className="hover:bg-transparent">
-                    <TableHead>{t("labelTick")}</TableHead>
-                    <TableHead>{t("colFlavor")}</TableHead>
-                    <TableHead>{t("colCodec")}</TableHead>
-                    <TableHead>{t("colHeight")}</TableHead>
-                    <TableHead>{t("colStatus")}</TableHead>
-                    <TableHead>{t("colNote")}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {flavors.map((f) => {
-                    const ef = entry.flavors.find((x) => x.flavorId === f.id);
-                    return (
-                      <TableRow key={f.id}>
-                        <TableCell>
-                          <Switch
-                            checked={ticked.has(f.id)}
-                            onCheckedChange={(v) => {
-                              setTicked((prev) => {
-                                const next = new Set(prev);
-                                if (v) next.add(f.id);
-                                else next.delete(f.id);
-                                return next;
-                              });
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell>{f.name}</TableCell>
-                        <TableCell className="text-muted-foreground">{f.codec}</TableCell>
-                        <TableCell className="text-muted-foreground">{f.height}p</TableCell>
-                        <TableCell>
-                          {ef ? (
-                            <Badge variant="outline">{ef.status}</Badge>
-                          ) : (
-                            <span className="text-muted-foreground">{t("notTicked")}</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {ef?.status === "failed" ? ef.error : ef?.status === "skipped" ? ef.error : ""}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-              <Button className="mt-4" onClick={applyFlavors}>
-                {t("saveFlavorsReprocess")}
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
+          {active === "flavors" ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>{t("tabFlavors")}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader className="bg-muted/50">
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead>{t("labelTick")}</TableHead>
+                      <TableHead>{t("colFlavor")}</TableHead>
+                      <TableHead>{t("colCodec")}</TableHead>
+                      <TableHead>{t("colHeight")}</TableHead>
+                      <TableHead>{t("colStatus")}</TableHead>
+                      <TableHead>{t("colNote")}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {flavors.map((f) => {
+                      const ef = entry.flavors.find((x) => x.flavorId === f.id);
+                      return (
+                        <TableRow key={f.id}>
+                          <TableCell>
+                            <Switch
+                              checked={ticked.has(f.id)}
+                              onCheckedChange={(v) => {
+                                setTicked((prev) => {
+                                  const next = new Set(prev);
+                                  if (v) next.add(f.id);
+                                  else next.delete(f.id);
+                                  return next;
+                                });
+                              }}
+                            />
+                          </TableCell>
+                          <TableCell>{f.name}</TableCell>
+                          <TableCell className="text-muted-foreground">{f.codec}</TableCell>
+                          <TableCell className="text-muted-foreground">{f.height}p</TableCell>
+                          <TableCell>
+                            {ef ? (
+                              <Badge variant="outline">{ef.status}</Badge>
+                            ) : (
+                              <span className="text-muted-foreground">{t("notTicked")}</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {ef?.status === "failed" ? ef.error : ef?.status === "skipped" ? ef.error : ""}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+                <Button className="mt-4" onClick={applyFlavors}>
+                  {t("saveFlavorsReprocess")}
+                </Button>
+              </CardContent>
+            </Card>
+          ) : null}
 
-        <TabsContent value="poster" className="mt-4">
-          <PosterPicker entry={entry} onPicked={reload} />
-        </TabsContent>
-
-        <TabsContent value="subtitles" className="mt-4">
-          <SubtitlesTab entry={entry} onChanged={reload} />
-        </TabsContent>
-
-        <TabsContent value="playback" className="mt-4">
-          <PlaybackTab entry={entry} onChanged={reload} />
-        </TabsContent>
-
-        <TabsContent value="analytics" className="mt-4">
-          {analytics ? (
-            <AnalyticsTab data={analytics} />
-          ) : (
-            <p className="text-sm text-muted-foreground">{t("loading")}</p>
-          )}
-        </TabsContent>
-      </Tabs>
-    </div>
+          {active === "poster" ? <PosterPicker entry={entry} onPicked={reload} /> : null}
+          {active === "subtitles" ? <SubtitlesTab entry={entry} onChanged={reload} /> : null}
+          {active === "playback" ? <PlaybackTab entry={entry} onChanged={reload} /> : null}
+          {active === "analytics" ? (
+            analytics ? (
+              <AnalyticsTab data={analytics} />
+            ) : (
+              <p className="text-sm text-muted-foreground">{t("loading")}</p>
+            )
+          ) : null}
+        </div>
+      </main>
+    </SidebarProvider>
   );
 }
 
