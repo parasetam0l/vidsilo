@@ -160,7 +160,7 @@ export default function EntryPage() {
             })}
           </p>
           {entry.error ? (
-            <p className="mt-2 max-w-xl text-sm text-red-500">{entry.error}</p>
+            <p className="mt-2 max-w-xl text-sm text-amber-500">{entry.error}</p>
           ) : null}
         </div>
         <div className="flex gap-2">

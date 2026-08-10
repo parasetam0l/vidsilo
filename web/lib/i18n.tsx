@@ -258,6 +258,7 @@ const en = {
   playerOff: "Off",
   playerVideoStatus: "Video is {status}",
   playerMissingId: "Missing entry id in URL",
+  videoUnavailable: "Video is unavailable.",
 } as const;
 
 export type MessageKey = keyof typeof en;

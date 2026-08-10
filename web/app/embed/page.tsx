@@ -4,6 +4,7 @@ import * as React from "react";
 
 import { api, type PlayInfo } from "@/lib/api";
 import { useT } from "@/lib/i18n";
+import { useToast } from "@/hooks/use-toast";
 import { VODPlayer } from "@/components/vod-player";
 
 function uuidFromPath(): string {
@@ -14,9 +15,10 @@ function uuidFromPath(): string {
 
 export default function EmbedPage() {
   const t = useT();
+  const toast = useToast();
   const [uuid] = React.useState(uuidFromPath);
   const [info, setInfo] = React.useState<PlayInfo | null>(null);
-  const [error, setError] = React.useState<string | null>(null);
+  const [error, setError] = React.useState(false);
   const [opts] = React.useState(() => {
     if (typeof window === "undefined") return { autoplay: false, muted: false, loop: false };
     const p = new URLSearchParams(window.location.search);
@@ -31,11 +33,19 @@ export default function EmbedPage() {
     if (!uuid) return;
     api<PlayInfo>(`/play/${uuid}/playinfo.json`)
       .then(setInfo)
-      .catch((e) => setError(e.message));
-  }, [uuid]);
+      .catch((e) => {
+        toast.error(e.message);
+        setError(true);
+      });
+  }, [uuid, toast]);
 
   if (!uuid) return <div className="grid h-full min-h-[100px] place-items-center text-xs text-muted-foreground">{t("playerMissingId")}</div>;
-  if (error) return <div className="grid h-full min-h-[100px] place-items-center text-xs text-red-500">{error}</div>;
+  if (error)
+    return (
+      <div className="grid h-full min-h-[100px] place-items-center text-xs text-muted-foreground">
+        {t("videoUnavailable")}
+      </div>
+    );
   if (!info) return <div className="grid h-full min-h-[100px] place-items-center text-xs text-muted-foreground">{t("loading")}</div>;
 
   return (

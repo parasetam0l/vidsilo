@@ -19,6 +19,7 @@ import { formatBytes, formatDuration, formatGb } from "@/lib/format";
 import { StatusBadge } from "@/components/status-badge";
 import { useUploadDialog } from "@/components/upload-dialog";
 import { EmptyState } from "@/components/empty-state";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -97,14 +98,15 @@ function Sparkline({
 
 export default function DashboardPage() {
   const t = useT();
+  const toast = useToast();
   const openUpload = useUploadDialog();
   const [data, setData] = React.useState<Dashboard | null>(null);
 
   const load = React.useCallback(() => {
     api<Dashboard>("/api/dashboard")
       .then(setData)
-      .catch(() => {});
-  }, []);
+      .catch((e) => toast.error(e.message));
+  }, [toast]);
 
   React.useEffect(load, [load]);
 

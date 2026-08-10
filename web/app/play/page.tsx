@@ -4,6 +4,7 @@ import * as React from "react";
 
 import { api, type PlayInfo } from "@/lib/api";
 import { useT } from "@/lib/i18n";
+import { useToast } from "@/hooks/use-toast";
 import { VODPlayer } from "@/components/vod-player";
 import { ClapperboardIcon } from "lucide-react";
 
@@ -16,9 +17,10 @@ function uuidFromPath(): string {
 
 export default function PlayPage() {
   const t = useT();
+  const toast = useToast();
   const [uuid] = React.useState(uuidFromPath);
   const [info, setInfo] = React.useState<PlayInfo | null>(null);
-  const [error, setError] = React.useState<string | null>(null);
+  const [error, setError] = React.useState(false);
   const [opts] = React.useState(() => {
     if (typeof window === "undefined") return { autoplay: false, muted: false, loop: false };
     const p = new URLSearchParams(window.location.search);
@@ -33,8 +35,11 @@ export default function PlayPage() {
     if (!uuid) return;
     api<PlayInfo>(`/play/${uuid}/playinfo.json`)
       .then(setInfo)
-      .catch((e) => setError(e.message));
-  }, [uuid]);
+      .catch((e) => {
+        toast.error(e.message);
+        setError(true);
+      });
+  }, [uuid, toast]);
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col p-4">
@@ -43,7 +48,7 @@ export default function PlayPage() {
         <span className="text-sm font-medium">{t("appName")}</span>
       </header>
       {error ? (
-        <p className="text-sm text-red-500">{error}</p>
+        <p className="text-sm text-muted-foreground">{t("videoUnavailable")}</p>
       ) : !info ? (
         <p className="text-sm text-muted-foreground">{t("loading")}</p>
       ) : info.status !== "ready" ? (
