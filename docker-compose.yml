@@ -1,0 +1,67 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: vod
+      POSTGRES_PASSWORD: vod
+      POSTGRES_DB: vod
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vod -d vod"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [vod]
+
+  app:
+    build: .
+    environment:
+      DATABASE_URL: postgres://vod:vod@db:5432/vod
+      DATA_DIR: /data
+      STORAGE_DRIVER: local
+      PORT: 8080
+    volumes:
+      - media:/data
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    networks: [vod]
+
+  worker:
+    build: .
+    command: ["worker"]
+    environment:
+      DATABASE_URL: postgres://vod:vod@db:5432/vod
+      DATA_DIR: /data
+      STORAGE_DRIVER: local
+    volumes:
+      - media:/data
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [vod]
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: vod
+      MINIO_ROOT_PASSWORD: vod-secret
+    volumes:
+      - minio-data:/data
+    profiles: [s3]
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    networks: [vod]
+
+volumes:
+  pgdata:
+  media:
+  minio-data:
+
+networks:
+  vod:
