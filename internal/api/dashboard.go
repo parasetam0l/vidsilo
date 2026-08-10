@@ -16,11 +16,15 @@ func (s *Server) registerDashboardRoutes(mux *http.ServeMux) {
 }
 
 type dashboardResponse struct {
-	EntriesByStatus map[string]int64     `json:"entriesByStatus"`
-	TotalEntries    int64                `json:"totalEntries"`
-	StorageUsed     int64                `json:"storageUsed"`
-	QueueDepth      int64                `json:"queueDepth"`
-	Recent          []db.Entry           `json:"recent"`
+	EntriesByStatus map[string]int64 `json:"entriesByStatus"`
+	TotalEntries    int64            `json:"totalEntries"`
+	StorageUsed     int64            `json:"storageUsed"`
+	// Bandwidth: server-measured bytes served to viewers (view traffic),
+	// from the analytics totals/daily tables.
+	BandwidthTotalBytes int64 `json:"bandwidthTotalBytes"`
+	BandwidthTodayBytes int64 `json:"bandwidthTodayBytes"`
+	QueueDepth          int64 `json:"queueDepth"`
+	Recent              []db.Entry `json:"recent"`
 }
 
 func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
@@ -56,6 +60,19 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	out.StorageUsed = s.storageUsed(r.Context())
+
+	// View traffic: every byte served to viewers is counted server-side by
+	// the analytics accumulator (batched flush, merges across app nodes).
+	if err := s.pool.QueryRow(r.Context(), `
+		SELECT COALESCE(SUM(bytes), 0) FROM analytics_totals`).Scan(&out.BandwidthTotalBytes); err != nil {
+		s.internalError(w, r, "dashboard bandwidth", err)
+		return
+	}
+	if err := s.pool.QueryRow(r.Context(), `
+		SELECT COALESCE(SUM(bytes), 0) FROM analytics_daily WHERE day = current_date`).Scan(&out.BandwidthTodayBytes); err != nil {
+		s.internalError(w, r, "dashboard bandwidth today", err)
+		return
+	}
 
 	list, err := db.ListEntries(r.Context(), s.pool, db.EntryFilter{Page: 1, Limit: 8})
 	if err != nil {

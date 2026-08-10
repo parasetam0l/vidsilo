@@ -5,7 +5,7 @@ import Link from "next/link";
 
 import { api, type Dashboard } from "@/lib/api";
 import { useT } from "@/lib/i18n";
-import { formatBytes, formatDuration } from "@/lib/format";
+import { formatBytes, formatDuration, formatGb } from "@/lib/format";
 import { StatusBadge } from "@/components/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -43,8 +43,12 @@ export default function DashboardPage() {
   const kpis = [
     { title: t("dashEntries"), value: String(data.totalEntries), hint: t("dashEntriesHint") },
     { title: t("dashStorage"), value: formatBytes(data.storageUsed), hint: t("dashStorageHint") },
+    {
+      title: t("dashBandwidth"),
+      value: `${formatGb(data.bandwidthTotalBytes)} GB`,
+      hint: t("dashBandwidthHint", { today: formatGb(data.bandwidthTodayBytes) }),
+    },
     { title: t("dashQueue"), value: String(data.queueDepth), hint: t("dashQueueHint") },
-    { title: t("dashReady"), value: String(data.entriesByStatus.ready ?? 0), hint: t("dashReadyHint") },
   ];
 
   return (

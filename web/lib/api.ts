@@ -161,6 +161,8 @@ export interface Dashboard {
   entriesByStatus: Record<string, number>;
   totalEntries: number;
   storageUsed: number;
+  bandwidthTotalBytes: number;
+  bandwidthTodayBytes: number;
   queueDepth: number;
   recent: Entry[];
 }
