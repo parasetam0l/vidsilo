@@ -15,10 +15,10 @@ type Server struct {
 	Log *slog.Logger
 
 	uiHandler http.Handler
-	health    func() []healthCheck
+	health    func() []HealthCheck
 }
 
-type healthCheck struct {
+type HealthCheck struct {
 	Name string `json:"name"`
 	OK   bool   `json:"ok"`
 	Err  string `json:"error,omitempty"`
@@ -29,12 +29,12 @@ func NewServer(log *slog.Logger, uiFS http.FileSystem) *Server {
 		Log:       log,
 		uiHandler: http.FileServer(uiFS),
 	}
-	s.health = func() []healthCheck { return nil }
+	s.health = func() []HealthCheck { return nil }
 	return s
 }
 
 // SetHealth registers dynamic health checks (db, storage) added by later phases.
-func (s *Server) SetHealth(fn func() []healthCheck) {
+func (s *Server) SetHealth(fn func() []HealthCheck) {
 	if fn != nil {
 		s.health = fn
 	}
