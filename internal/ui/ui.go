@@ -8,6 +8,7 @@ import (
 )
 
 //go:embed web/out
+//go:embed web/out/_next
 var Files embed.FS
 
 // FS returns the embedded static files rooted at the export directory.
