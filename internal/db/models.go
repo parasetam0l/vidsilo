@@ -64,8 +64,10 @@ const (
 )
 
 type Entry struct {
-	ID           int64       `json:"id"`
-	PublicID     string      `json:"publicId"`
+	// ID is the internal sequential id: used for FKs, jobs, analytics and
+	// storage keys only. Never exposed in API JSON.
+	ID           int64       `json:"-"`
+	PublicID     string      `json:"id"`
 	CategoryID   *int64      `json:"categoryId"`
 	UploadedBy   *int64      `json:"uploadedBy"`
 	Title        string      `json:"title"`
@@ -95,11 +97,11 @@ const (
 )
 
 type EntryFlavor struct {
-	EntryID    int64            `json:"entryId"`
-	FlavorID   int64            `json:"flavorId"`
+	EntryID    int64             `json:"-"`
+	FlavorID   int64             `json:"flavorId"`
 	Status     EntryFlavorStatus `json:"status"`
-	Error      string           `json:"error,omitempty"`
-	PlaylistKey string          `json:"playlistKey"`
+	Error      string            `json:"error,omitempty"`
+	PlaylistKey string           `json:"playlistKey"`
 }
 
 type Subtitle struct {

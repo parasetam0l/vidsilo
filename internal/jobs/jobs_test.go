@@ -10,12 +10,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/jackc/pgx/v5/pgxpool"
-
 	"github.com/parasetam0l/vod-app/internal/db"
 	"github.com/parasetam0l/vod-app/internal/queue"
 	"github.com/parasetam0l/vod-app/internal/settings"
 	"github.com/parasetam0l/vod-app/internal/store"
+	"github.com/parasetam0l/vod-app/internal/testdb"
 )
 
 // Integration test of the full probe + transcode pipeline against a live DB.
@@ -38,11 +37,7 @@ func TestPipelineProbeAndTranscode(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	pool, err := pgxpool.New(ctx, dsn)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(pool.Close)
+	pool := testdb.Pool(t)
 	db.MustSeed(ctx, pool, nil)
 	svc, err := settings.New(ctx, pool)
 	if err != nil {

@@ -28,7 +28,7 @@ func scanEntry(row pgx.Row) (Entry, error) {
 const entryColumns = `
 	e.id, e.public_id::text, e.category_id, e.uploaded_by,
 	e.title, e.description, e.status, e.duration_ms,
-	e.source_key, e.source_size, e.is_public,
+	coalesce(e.source_key, ''), e.source_size, e.is_public,
 	e.embed_policy, e.embed_domains,
 	coalesce(e.poster_key, ''), coalesce(e.sprite_key, ''), coalesce(e.sprite_frames, 0), coalesce(e.error, ''),
 	e.created_at, e.updated_at`
@@ -62,7 +62,7 @@ type EntryFilter struct {
 	ExcludeID int64 // used when fetching related entries
 }
 
-func (f EntryFilter) Validate() {
+func (f *EntryFilter) Validate() {
 	if f.Limit <= 0 || f.Limit > 100 {
 		f.Limit = 20
 	}

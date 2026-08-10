@@ -15,21 +15,22 @@ func (s *Server) registerEntryRoutes(mux *http.ServeMux, tusHandler http.Handler
 	mux.Handle("/upload/", s.requireRole(roleUploader, roleEditor, roleAdmin)(tusHandler))
 	mux.Handle("HEAD /upload/", s.requireRole(roleUploader, roleEditor, roleAdmin)(tusHandler))
 
-	// Catalog (any authenticated user).
+	// Catalog (any authenticated user). Entries are addressed by their public
+	// uuid everywhere in the API; the internal sequential id never leaks.
 	mux.Handle("GET /api/entries", s.requireAuth(http.HandlerFunc(s.handleEntriesList)))
-	mux.Handle("GET /api/entries/{id}", s.requireAuth(http.HandlerFunc(s.handleEntryGet)))
+	mux.Handle("GET /api/entries/{publicId}", s.requireAuth(http.HandlerFunc(s.handleEntryGet)))
 
 	// Editing: editors+; uploaders may edit their own entries.
-	mux.Handle("PATCH /api/entries/{id}", s.requireRole(roleEditor, roleAdmin)(http.HandlerFunc(s.handleEntryPatch)))
-	mux.Handle("DELETE /api/entries/{id}", s.requireRole(roleEditor, roleAdmin)(http.HandlerFunc(s.handleEntryDelete)))
+	mux.Handle("PATCH /api/entries/{publicId}", s.requireRole(roleEditor, roleAdmin)(http.HandlerFunc(s.handleEntryPatch)))
+	mux.Handle("DELETE /api/entries/{publicId}", s.requireRole(roleEditor, roleAdmin)(http.HandlerFunc(s.handleEntryDelete)))
 
-	mux.Handle("POST /api/entries/{id}/reprocess", s.requireRole(roleEditor, roleAdmin)(http.HandlerFunc(s.handleEntryReprocess)))
-	mux.Handle("POST /api/entries/{id}/flavors", s.requireRole(roleEditor, roleAdmin)(http.HandlerFunc(s.handleEntryFlavors)))
-	mux.Handle("GET /api/entries/{id}/embed", s.requireRole(roleEditor, roleAdmin)(http.HandlerFunc(s.handleEntryEmbedGet)))
-	mux.Handle("PATCH /api/entries/{id}/embed", s.requireRole(roleEditor, roleAdmin)(http.HandlerFunc(s.handleEntryEmbedPatch)))
-	mux.Handle("POST /api/entries/{id}/poster", s.requireRole(roleEditor, roleAdmin)(http.HandlerFunc(s.handleEntryPoster)))
-	mux.Handle("POST /api/entries/{id}/subtitles", s.requireRole(roleEditor, roleAdmin)(http.HandlerFunc(s.handleEntrySubtitleAdd)))
-	mux.Handle("DELETE /api/entries/{id}/subtitles/{sid}", s.requireRole(roleEditor, roleAdmin)(http.HandlerFunc(s.handleEntrySubtitleDelete)))
+	mux.Handle("POST /api/entries/{publicId}/reprocess", s.requireRole(roleEditor, roleAdmin)(http.HandlerFunc(s.handleEntryReprocess)))
+	mux.Handle("POST /api/entries/{publicId}/flavors", s.requireRole(roleEditor, roleAdmin)(http.HandlerFunc(s.handleEntryFlavors)))
+	mux.Handle("GET /api/entries/{publicId}/embed", s.requireRole(roleEditor, roleAdmin)(http.HandlerFunc(s.handleEntryEmbedGet)))
+	mux.Handle("PATCH /api/entries/{publicId}/embed", s.requireRole(roleEditor, roleAdmin)(http.HandlerFunc(s.handleEntryEmbedPatch)))
+	mux.Handle("POST /api/entries/{publicId}/poster", s.requireRole(roleEditor, roleAdmin)(http.HandlerFunc(s.handleEntryPoster)))
+	mux.Handle("POST /api/entries/{publicId}/subtitles", s.requireRole(roleEditor, roleAdmin)(http.HandlerFunc(s.handleEntrySubtitleAdd)))
+	mux.Handle("DELETE /api/entries/{publicId}/subtitles/{sid}", s.requireRole(roleEditor, roleAdmin)(http.HandlerFunc(s.handleEntrySubtitleDelete)))
 }
 
 const (
@@ -39,17 +40,14 @@ const (
 	roleViewer   = "viewer"
 )
 
-func (s *Server) pathID(r *http.Request) (int64, error) {
-	return strconv.ParseInt(r.PathValue("id"), 10, 64)
-}
-
+// entryOr404 resolves the public uuid from the path into the internal entry.
 func (s *Server) entryOr404(w http.ResponseWriter, r *http.Request) (db.Entry, bool) {
-	id, err := s.pathID(r)
-	if err != nil {
+	publicID := r.PathValue("publicId")
+	if publicID == "" {
 		writeError(w, http.StatusBadRequest, "bad_request", "invalid entry id")
 		return db.Entry{}, false
 	}
-	e, err := db.EntryByID(r.Context(), s.pool, id)
+	e, err := db.EntryByPublicID(r.Context(), s.pool, publicID)
 	if errors.Is(err, db.ErrNotFound) {
 		writeError(w, http.StatusNotFound, "not_found", "entry not found")
 		return db.Entry{}, false
@@ -137,15 +135,17 @@ func (s *Server) handleEntryDelete(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	// Remove media from the store (best effort per key).
-	keys := []string{e.SourceKey, e.PosterKey, e.SpriteKey}
-	for _, k := range keys {
-		if k != "" {
-			_ = s.store.Delete(r.Context(), k)
-		}
+	// Remove all media under the entry's storage subtree (original, flavors,
+	// poster, sprite, subtitles) before dropping the catalog row.
+	prefix := strconv.FormatInt(e.ID, 10)
+	keys, err := s.store.List(r.Context(), "entries/"+prefix)
+	if err != nil {
+		s.Log.Warn("entry media list", "err", err)
 	}
-	if e.SpriteFrames > 0 {
-		_ = s.store.Delete(r.Context(), "/entries/"+strconv.FormatInt(e.ID, 10))
+	for _, k := range keys {
+		if err := s.store.Delete(r.Context(), k); err != nil {
+			s.Log.Warn("entry media delete", "key", k, "err", err)
+		}
 	}
 	if err := db.DeleteEntry(r.Context(), s.pool, e.ID); err != nil {
 		s.internalError(w, r, "delete entry", err)

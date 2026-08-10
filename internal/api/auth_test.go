@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
 
@@ -15,22 +14,15 @@ import (
 	"github.com/parasetam0l/vod-app/internal/password"
 	"github.com/parasetam0l/vod-app/internal/secrets"
 	"github.com/parasetam0l/vod-app/internal/settings"
+	"github.com/parasetam0l/vod-app/internal/testdb"
 )
 
 // Integration tests against a live database (docker compose up -d db).
 
 func testServer(t *testing.T) (*Server, *pgxpool.Pool, string) {
 	t.Helper()
-	dsn := os.Getenv("DATABASE_URL")
-	if dsn == "" {
-		t.Skip("DATABASE_URL not set")
-	}
 	ctx := context.Background()
-	pool, err := pgxpool.New(ctx, dsn)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(pool.Close)
+	pool := testdb.Pool(t)
 	db.MustSeed(ctx, pool, nil)
 
 	svc, err := settings.New(ctx, pool)

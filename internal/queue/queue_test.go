@@ -2,32 +2,24 @@ package queue
 
 import (
 	"context"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-)
 
-func testPool(t *testing.T) *pgxpool.Pool {
-	t.Helper()
-	dsn := os.Getenv("DATABASE_URL")
-	if dsn == "" {
-		t.Skip("DATABASE_URL not set")
-	}
-	pool, err := pgxpool.New(context.Background(), dsn)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(pool.Close)
-	return pool
-}
+	"github.com/parasetam0l/vod-app/internal/db"
+	"github.com/parasetam0l/vod-app/internal/testdb"
+)
 
 
 func testEntryID(t *testing.T, pool *pgxpool.Pool) int64 {
 	t.Helper()
+	ctx := context.Background()
+	if err := db.Migrate(ctx, pool); err != nil {
+		t.Fatal(err)
+	}
 	var id int64
-	if err := pool.QueryRow(context.Background(),
+	if err := pool.QueryRow(ctx,
 		`INSERT INTO entries (title) VALUES ('queue-test') RETURNING id`).Scan(&id); err != nil {
 		t.Fatal(err)
 	}
@@ -37,7 +29,7 @@ func testEntryID(t *testing.T, pool *pgxpool.Pool) int64 {
 
 func TestQueueClaimDone(t *testing.T) {
 	ctx := context.Background()
-	q := New(testPool(t))
+	q := New(testdb.Pool(t))
 
 	id, err := q.Enqueue(ctx, "test", testEntryID(t, q.pool), map[string]any{"x": 1}, 3)
 	if err != nil {
@@ -63,7 +55,7 @@ func TestQueueClaimDone(t *testing.T) {
 
 func TestQueueClaimIsolation(t *testing.T) {
 	ctx := context.Background()
-	q := New(testPool(t))
+	q := New(testdb.Pool(t))
 	id, _ := q.Enqueue(ctx, "test", testEntryID(t, q.pool), nil, 3)
 	t.Cleanup(func() { _, _ = q.pool.Exec(context.Background(), `DELETE FROM jobs WHERE id = $1`, id) })
 
@@ -82,7 +74,7 @@ func TestQueueClaimIsolation(t *testing.T) {
 
 func TestQueueRetryBackoffThenDeadLetter(t *testing.T) {
 	ctx := context.Background()
-	q := New(testPool(t))
+	q := New(testdb.Pool(t))
 	id, _ := q.Enqueue(ctx, "test", testEntryID(t, q.pool), nil, 2)
 	t.Cleanup(func() { _, _ = q.pool.Exec(context.Background(), `DELETE FROM jobs WHERE id = $1`, id) })
 
@@ -116,7 +108,7 @@ func TestQueueRetryBackoffThenDeadLetter(t *testing.T) {
 
 func TestRequeueStale(t *testing.T) {
 	ctx := context.Background()
-	q := New(testPool(t))
+	q := New(testdb.Pool(t))
 	id, _ := q.Enqueue(ctx, "test", testEntryID(t, q.pool), nil, 3)
 	t.Cleanup(func() { _, _ = q.pool.Exec(context.Background(), `DELETE FROM jobs WHERE id = $1`, id) })
 

@@ -35,6 +35,9 @@ func Health(ctx context.Context, pool *pgxpool.Pool) error {
 // MustSeed runs migrations and seeds for the server/worker startup path,
 // exiting the process on failure.
 func MustSeed(ctx context.Context, pool *pgxpool.Pool, log *slog.Logger) {
+	if log == nil {
+		log = slog.Default()
+	}
 	if err := Migrate(ctx, pool); err != nil {
 		log.Error("migrations failed", "err", err)
 		panic(err)

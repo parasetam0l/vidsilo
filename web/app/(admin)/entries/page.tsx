@@ -44,7 +44,7 @@ export default function EntriesPage() {
   const [category, setCategory] = React.useState("");
   const [page, setPage] = React.useState(1);
   const [categories, setCategories] = React.useState<Category[]>([]);
-  const [selected, setSelected] = React.useState<Set<number>>(new Set());
+  const [selected, setSelected] = React.useState<Set<string>>(new Set());
   const [confirmDelete, setConfirmDelete] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -67,7 +67,7 @@ export default function EntriesPage() {
   const catName = (id: number | null) =>
     categories.find((c) => c.id === id)?.name ?? "—";
 
-  function toggleSelect(id: number) {
+  function toggleSelect(id: string) {
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);

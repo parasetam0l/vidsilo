@@ -78,8 +78,8 @@ export type EntryStatus =
   | "failed";
 
 export interface Entry {
-  id: number;
-  publicId: string;
+  /** Public uuid — the only identifier the client ever sees. */
+  id: string;
   categoryId: number | null;
   uploadedBy: number | null;
   title: string;

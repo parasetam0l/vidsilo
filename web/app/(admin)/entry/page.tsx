@@ -150,7 +150,7 @@ export default function EntryPage() {
           <Button variant="outline" onClick={reprocess}>
             <RotateCcw className="size-4" /> Reprocess
           </Button>
-          <Button variant="outline" render={<a href={`/play/${entry.publicId}`} target="_blank" rel="noreferrer" />}>
+          <Button variant="outline" render={<a href={`/play/${entry.id}`} target="_blank" rel="noreferrer" />}>
             <Play className="size-4" /> Watch
           </Button>
           <Button variant="destructive" onClick={() => setConfirmDelete(true)}>
@@ -478,7 +478,7 @@ function PlaybackTab({ entry }: { entry: EntryDetail }) {
   const [domains, setDomains] = React.useState(entry.embedDomains.join(", "));
   const [copied, setCopied] = React.useState(false);
 
-  const embedUrl = `https://${typeof window !== "undefined" ? window.location.host : "localhost"}/embed/${entry.publicId}`;
+  const embedUrl = `https://${typeof window !== "undefined" ? window.location.host : "localhost"}/embed/${entry.id}`;
   const snippet = `<iframe src="${embedUrl}" width="640" height="360" frameborder="0" allowfullscreen></iframe>`;
 
   async function save() {
