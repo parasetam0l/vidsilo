@@ -158,6 +158,7 @@ export interface Flavor {
 export interface EntryList {
   items: Entry[];
   total: number;
+  catalogTotal: number;
   page: number;
   limit: number;
 }

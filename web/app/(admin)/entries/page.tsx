@@ -9,6 +9,7 @@ import {
   RotateCcw,
   Search,
   Trash2,
+  UploadCloudIcon,
 } from "lucide-react";
 
 import { api, type Category, type Entry, type EntryList } from "@/lib/api";
@@ -18,6 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { formatBytes, formatDate, formatDuration } from "@/lib/format";
 import { StatusBadge } from "@/components/status-badge";
 import { EmptyState } from "@/components/empty-state";
+import { useUploadDialog } from "@/components/upload-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -43,6 +45,7 @@ export default function EntriesPage() {
   const t = useT();
   const { confirm } = useDialog();
   const toast = useToast();
+  const openUpload = useUploadDialog();
   const [list, setList] = React.useState<EntryList | null>(null);
   const [q, setQ] = React.useState("");
   const [status, setStatus] = React.useState("");
@@ -247,7 +250,20 @@ export default function EntriesPage() {
               {list && (list.items ?? []).length === 0 ? (
                 <TableRow className="hover:bg-transparent">
                   <TableCell colSpan={7}>
-                    <EmptyState icon={FilmIcon} description={t("entriesEmpty")} />
+                    {list.catalogTotal === 0 ? (
+                      <EmptyState
+                        icon={FilmIcon}
+                        title={t("entriesNoneTitle")}
+                        description={t("dashNoEntries")}
+                        action={
+                          <Button size="sm" onClick={openUpload}>
+                            <UploadCloudIcon className="size-4" /> {t("dashUploadFirst")}
+                          </Button>
+                        }
+                      />
+                    ) : (
+                      <EmptyState icon={FilmIcon} description={t("entriesEmpty")} />
+                    )}
                   </TableCell>
                 </TableRow>
               ) : null}

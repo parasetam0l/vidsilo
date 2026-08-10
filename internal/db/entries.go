@@ -74,8 +74,11 @@ func (f *EntryFilter) Validate() {
 type EntryList struct {
 	Items []Entry `json:"items"`
 	Total int     `json:"total"`
-	Page  int     `json:"page"`
-	Limit int     `json:"limit"`
+	// CatalogTotal is the unfiltered entry count, so the UI can tell an
+	// empty catalog apart from "no results for the current filters".
+	CatalogTotal int `json:"catalogTotal"`
+	Page         int `json:"page"`
+	Limit        int `json:"limit"`
 }
 
 func ListEntries(ctx context.Context, pool *pgxpool.Pool, f EntryFilter) (EntryList, error) {
@@ -111,6 +114,11 @@ func ListEntries(ctx context.Context, pool *pgxpool.Pool, f EntryFilter) (EntryL
 		`SELECT count(*) FROM entries e `+where, args...).Scan(&total); err != nil {
 		return EntryList{}, err
 	}
+	var catalogTotal int
+	if err := pool.QueryRow(ctx,
+		`SELECT count(*) FROM entries`).Scan(&catalogTotal); err != nil {
+		return EntryList{}, err
+	}
 
 	offset := (f.Page - 1) * f.Limit
 	rows, err := pool.Query(ctx,
@@ -133,7 +141,7 @@ func ListEntries(ctx context.Context, pool *pgxpool.Pool, f EntryFilter) (EntryL
 	if err := rows.Err(); err != nil {
 		return EntryList{}, err
 	}
-	return EntryList{Items: items, Total: total, Page: f.Page, Limit: f.Limit}, nil
+	return EntryList{Items: items, Total: total, CatalogTotal: catalogTotal, Page: f.Page, Limit: f.Limit}, nil
 }
 
 func UpdateEntry(ctx context.Context, pool *pgxpool.Pool, id int64, patch EntryPatch) (Entry, error) {
