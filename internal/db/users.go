@@ -12,11 +12,11 @@ import (
 
 var ErrEmailTaken = errors.New("db: email taken")
 
-const userColumns = "id, email, name, surname, password_hash, role, disabled, created_at"
+const userColumns = "id, email, name_surname, password_hash, role, disabled, created_at"
 
 func scanUser(row pgx.Row) (User, error) {
 	var u User
-	err := row.Scan(&u.ID, &u.Email, &u.Name, &u.Surname, &u.PasswordHash,
+	err := row.Scan(&u.ID, &u.Email, &u.NameSurname, &u.PasswordHash,
 		&u.Role, &u.Disabled, &u.CreatedAt)
 	return u, err
 }
@@ -56,14 +56,14 @@ func ListUsers(ctx context.Context, pool *pgxpool.Pool) ([]User, error) {
 	return users, rows.Err()
 }
 
-func CreateUser(ctx context.Context, pool *pgxpool.Pool, email, name, surname, hash string, role Role) (User, error) {
+func CreateUser(ctx context.Context, pool *pgxpool.Pool, email, nameSurname, hash string, role Role) (User, error) {
 	var u User
 	err := pool.QueryRow(ctx, `
-		INSERT INTO users (email, name, surname, password_hash, role)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO users (email, name_surname, password_hash, role)
+		VALUES ($1, $2, $3, $4)
 		RETURNING `+userColumns,
-		email, name, surname, hash, role).Scan(
-		&u.ID, &u.Email, &u.Name, &u.Surname, &u.PasswordHash,
+		email, nameSurname, hash, role).Scan(
+		&u.ID, &u.Email, &u.NameSurname, &u.PasswordHash,
 		&u.Role, &u.Disabled, &u.CreatedAt)
 	if isUniqueViolation(err) {
 		return User{}, ErrEmailTaken
@@ -71,10 +71,10 @@ func CreateUser(ctx context.Context, pool *pgxpool.Pool, email, name, surname, h
 	return u, err
 }
 
-func UpdateUser(ctx context.Context, pool *pgxpool.Pool, id int64, email, name, surname string, role Role, disabled bool) error {
+func UpdateUser(ctx context.Context, pool *pgxpool.Pool, id int64, email, nameSurname string, role Role, disabled bool) error {
 	_, err := pool.Exec(ctx, `
-		UPDATE users SET email = $1, name = $2, surname = $3, role = $4, disabled = $5
-		WHERE id = $6`, email, name, surname, role, disabled, id)
+		UPDATE users SET email = $1, name_surname = $2, role = $3, disabled = $4
+		WHERE id = $5`, email, nameSurname, role, disabled, id)
 	if isUniqueViolation(err) {
 		return ErrEmailTaken
 	}

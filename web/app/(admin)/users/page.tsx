@@ -157,8 +157,7 @@ function UserFormContent({
   const toast = useToast();
   const editing = !!initial;
   const [email, setEmail] = React.useState(initial?.email ?? "");
-  const [name, setName] = React.useState(initial?.name ?? "");
-  const [surname, setSurname] = React.useState(initial?.surname ?? "");
+  const [nameSurname, setNameSurname] = React.useState(initial?.nameSurname ?? "");
   const [password, setPassword] = React.useState("");
   const [role, setRole] = React.useState<Role>(initial?.role ?? "viewer");
   const [disabled, setDisabled] = React.useState(initial?.disabled ?? false);
@@ -173,13 +172,13 @@ function UserFormContent({
       if (editing) {
         await api<User>(`/api/users/${initial.id}`, {
           method: "PATCH",
-          body: JSON.stringify({ email, name, surname, role, disabled, ...(password ? { password } : {}) }),
+          body: JSON.stringify({ email, nameSurname, role, disabled, ...(password ? { password } : {}) }),
         });
         toast.success(t("userUpdated"));
       } else {
         await api<User>("/api/users", {
           method: "POST",
-          body: JSON.stringify({ email, name, surname, password, role }),
+          body: JSON.stringify({ email, nameSurname, password, role }),
         });
         toast.success(t("userCreated"));
       }
@@ -208,15 +207,9 @@ function UserFormContent({
           required
         />
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="flex flex-col gap-1.5">
-          <Label>{t("colName")}</Label>
-          <Input value={name} onChange={(e) => setName(e.target.value)} />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <Label>{t("colSurname")}</Label>
-          <Input value={surname} onChange={(e) => setSurname(e.target.value)} />
-        </div>
+      <div className="flex flex-col gap-1.5">
+        <Label>{t("colNameSurname")}</Label>
+        <Input value={nameSurname} onChange={(e) => setNameSurname(e.target.value)} />
       </div>
       <div className="flex flex-col gap-1.5">
         <Label>{t("loginPassword")}</Label>

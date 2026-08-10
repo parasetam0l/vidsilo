@@ -3,8 +3,8 @@
 CREATE TABLE users (
     id            bigserial PRIMARY KEY,
     email         text NOT NULL,
-    name          text NOT NULL DEFAULT '',
-    surname       text NOT NULL DEFAULT '',
+    name_surname  text NOT NULL DEFAULT '',
+
     password_hash text NOT NULL,
     role          text NOT NULL CHECK (role IN ('admin', 'editor', 'uploader', 'viewer')) DEFAULT 'viewer',
     disabled      boolean NOT NULL DEFAULT false,

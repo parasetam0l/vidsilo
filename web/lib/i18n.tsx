@@ -92,7 +92,7 @@ const en = {
   colSize: "Size",
   colUploaded: "Uploaded",
   colName: "Name",
-  colSurname: "Surname",
+  colNameSurname: "Name & Surname",
   colEmail: "Email",
   colSlug: "Slug",
   colParent: "Parent",

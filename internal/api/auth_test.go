@@ -50,7 +50,7 @@ func TestAuthFlow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	u, err := db.CreateUser(ctx, pool, "apitest@example.com", "Api", "Test", hash, db.RoleEditor)
+	u, err := db.CreateUser(ctx, pool, "apitest@example.com", "Api Test", hash, db.RoleEditor)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -152,7 +152,7 @@ func TestRoleEnforcement(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	viewer, err := db.CreateUser(ctx, pool, "viewer@example.com", "Viewer", "Test", hash, db.RoleViewer)
+	viewer, err := db.CreateUser(ctx, pool, "viewer@example.com", "Viewer Test", hash, db.RoleViewer)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -29,12 +29,11 @@ func (s *Server) handleUsersList(w http.ResponseWriter, r *http.Request) {
 }
 
 type userBody struct {
-	Email    string   `json:"email"`
-	Name     string   `json:"name"`
-	Surname  string   `json:"surname"`
-	Password string   `json:"password"`
-	Role     db.Role  `json:"role"`
-	Disabled *bool    `json:"disabled"`
+	Email       string  `json:"email"`
+	NameSurname string  `json:"nameSurname"`
+	Password    string  `json:"password"`
+	Role        db.Role `json:"role"`
+	Disabled    *bool   `json:"disabled"`
 }
 
 func validRole(role db.Role) bool {
@@ -65,7 +64,7 @@ func (s *Server) handleUsersCreate(w http.ResponseWriter, r *http.Request) {
 		s.internalError(w, r, "hash password", err)
 		return
 	}
-	u, err := db.CreateUser(r.Context(), s.pool, body.Email, body.Name, body.Surname, hash, body.Role)
+	u, err := db.CreateUser(r.Context(), s.pool, body.Email, body.NameSurname, hash, body.Role)
 	if errors.Is(err, db.ErrEmailTaken) {
 		writeError(w, http.StatusConflict, "conflict", "email already taken")
 		return
@@ -121,7 +120,7 @@ func (s *Server) handleUsersPatch(w http.ResponseWriter, r *http.Request) {
 	if body.Disabled != nil {
 		disabled = *body.Disabled
 	}
-	if err := db.UpdateUser(r.Context(), s.pool, id, email, body.Name, body.Surname, body.Role, disabled); err != nil {
+	if err := db.UpdateUser(r.Context(), s.pool, id, email, body.NameSurname, body.Role, disabled); err != nil {
 		if errors.Is(err, db.ErrEmailTaken) {
 			writeError(w, http.StatusConflict, "conflict", "email already taken")
 			return
