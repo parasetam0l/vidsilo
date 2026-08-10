@@ -7,15 +7,24 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/parasetam0l/vod-app/internal/store"
 )
 
 // Server wires the HTTP surface: API routes, embedded UI, middleware.
-// Handlers for individual resource groups are added by later build phases.
 type Server struct {
-	Log *slog.Logger
+	Log    *slog.Logger
+	pool   *pgxpool.Pool
+	secret []byte
+	store  store.Store
 
 	uiHandler http.Handler
 	health    func() []HealthCheck
+
+	apiLimiter   *rateLimiter
+	loginLimiter *rateLimiter
 }
 
 type HealthCheck struct {
@@ -24,16 +33,26 @@ type HealthCheck struct {
 	Err  string `json:"error,omitempty"`
 }
 
-func NewServer(log *slog.Logger, uiFS http.FileSystem) *Server {
+const (
+	apiRate   = 120.0 // generous burst on general API
+	loginRate = 5.0   // tight on auth endpoints
+)
+
+func NewServer(log *slog.Logger, uiFS http.FileSystem, pool *pgxpool.Pool, secret []byte, st store.Store) *Server {
 	s := &Server{
-		Log:       log,
-		uiHandler: http.FileServer(uiFS),
+		Log:          log,
+		pool:         pool,
+		secret:       secret,
+		store:        st,
+		uiHandler:    http.FileServer(uiFS),
+		apiLimiter:   newRateLimiter(apiRate, apiRate),
+		loginLimiter: newRateLimiter(loginRate, loginRate),
 	}
 	s.health = func() []HealthCheck { return nil }
 	return s
 }
 
-// SetHealth registers dynamic health checks (db, storage) added by later phases.
+// SetHealth registers dynamic health checks (db, storage).
 func (s *Server) SetHealth(fn func() []HealthCheck) {
 	if fn != nil {
 		s.health = fn
@@ -44,11 +63,18 @@ func (s *Server) SetHealth(fn func() []HealthCheck) {
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 
+	s.registerAuthRoutes(mux)
+
 	mux.HandleFunc("GET /healthz", s.handleHealthz)
-	mux.Handle("GET /api/", s.handleNotFound())
+	mux.HandleFunc("GET /api/", s.handleNotFound())
 	mux.Handle("/", s.uiHandler)
 
-	return s.recoverPanic(s.accessLog(gzipMiddleware(mux)))
+	var h http.Handler = mux
+	h = s.originCheck(h)
+	h = s.recoverPanic(h)
+	h = s.accessLog(h)
+	h = gzipMiddleware(h)
+	return h
 }
 
 func (s *Server) handleHealthz(w http.ResponseWriter, r *http.Request) {
@@ -73,6 +99,11 @@ func (s *Server) handleNotFound() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "not_found", "endpoint not found")
 	}
+}
+
+func (s *Server) internalError(w http.ResponseWriter, r *http.Request, op string, err error) {
+	s.Log.Error(op, "err", err, "path", r.URL.Path)
+	writeError(w, http.StatusInternalServerError, "internal", "internal error")
 }
 
 // gzipMiddleware compresses JSON and text responses (never video).
@@ -163,4 +194,11 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 
 func writeError(w http.ResponseWriter, status int, code, msg string) {
 	writeJSON(w, status, map[string]any{"error": code, "message": msg})
+}
+
+// decodeJSON reads a JSON body into v (stdlib decoder; no custom wrapper).
+func decodeJSON(r *http.Request, v any) error {
+	dec := json.NewDecoder(r.Body)
+	dec.DisallowUnknownFields()
+	return dec.Decode(v)
 }
