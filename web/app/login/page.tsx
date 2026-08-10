@@ -21,6 +21,15 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ApiError } from "@/lib/api";
 
 export default function LoginPage() {
+  // useSearchParams must sit under a Suspense boundary for the static export.
+  return (
+    <React.Suspense fallback={null}>
+      <LoginForm />
+    </React.Suspense>
+  );
+}
+
+function LoginForm() {
   const t = useT();
   const { login, user } = useAuth();
   const router = useRouter();
