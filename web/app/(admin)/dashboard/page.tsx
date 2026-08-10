@@ -93,7 +93,7 @@ export default function DashboardPage() {
 
   if (!data) {
     return (
-      <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+      <div className="flex flex-1 flex-col gap-4 p-4">
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
             <Skeleton key={i} className="h-36 rounded-xl" />
@@ -145,7 +145,7 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+    <div className="flex flex-1 flex-col gap-4 p-4">
       {data.totalEntries === 0 ? (
         <Card className="relative overflow-hidden border-dashed shadow-sm">
           <div className="pointer-events-none absolute -top-16 -left-16 size-48 rounded-full bg-primary/10 blur-3xl" />
