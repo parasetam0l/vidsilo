@@ -35,8 +35,6 @@ const en = {
 
   // login
   loginTitle: "Sign in to VOD",
-  loginSubtitle:
-    "Admin panel — credentials are provisioned by the server on first run.",
   loginUsername: "Username",
   loginPassword: "Password",
   loginButton: "Sign in",
