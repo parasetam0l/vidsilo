@@ -50,6 +50,9 @@ const (
 )
 
 func NewServer(log *slog.Logger, uiFS http.FileSystem, pool *pgxpool.Pool, secret []byte, st store.Store, svc *settings.Service, q *queue.Queue, m *media.Manager, ds *upload.DataStore, acc *analytics.Accumulator) *Server {
+	if log == nil {
+		log = slog.Default()
+	}
 	s := &Server{
 		Log:          log,
 		pool:         pool,

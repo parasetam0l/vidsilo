@@ -72,26 +72,39 @@ Everything is admin-editable in the panel; only `DATABASE_URL` is required as en
 ## Development
 
 ```bash
-go run ./cmd/vod-app server      # backend (needs DATABASE_URL + a postgres)
-cd web && npm run dev            # UI dev server (proxies /api to :8080 via same origin config)
+docker compose up -d db                       # Postgres 17 on :5432
+DATABASE_URL=postgres://vod:vod@localhost:5432/vod DATA_DIR=/tmp/voddata \
+  go run ./cmd/vod-app server                 # backend on :8080 (pick a free port)
+DATABASE_URL=... go run ./cmd/vod-app worker  # transcode worker (second terminal)
+cd web && npm run dev                         # UI dev server on :3000 (proxies /api, /upload, /media, /play, /embed to :8090)
 ```
 
-The UI is built with **shadcn/ui** (not pure Tailwind) on Tailwind v4 — shadcn/ui components, Radix primitives, lucide icons — so we get a consistent premium look without hand-rolling components. The production UI is a static export (`web/out`) embedded into the binary via `go:embed`; the Dockerfile builds it in a `node:24` stage and copies it into `internal/ui/web/out/` before `go build`.
+The dev proxy target defaults to `:8090` (port 8080 is often taken by Docker Desktop on macOS) — adjust `web/next.config.ts` if you run the backend elsewhere.
+
+The UI is built with **shadcn/ui** (not pure Tailwind) on Tailwind v4 — shadcn/ui components, Radix/Base UI primitives, lucide icons — so we get a consistent premium look without hand-rolling components. The production UI is a static export (`web/out`) embedded into the binary via `go:embed`; the Dockerfile builds it in a `node:24` stage (`NEXT_OUTPUT=export`) and copies it into `internal/ui/web/out/` before `go build`. To embed a fresh UI locally:
+
+```bash
+cd web && NEXT_OUTPUT=export npm run build && cd ..
+rm -rf internal/ui/web/out && cp -r web/out internal/ui/web/out
+go build ./cmd/vod-app
+```
 
 ## Tests
 
 ```bash
 docker compose up -d db
-DATABASE_URL=postgres://vod:vod@localhost:5432/vod DATA_DIR=/tmp/voddata go test ./...
+DATABASE_URL=postgres://vod:vod@localhost:5432/vod go test ./...
 ```
+
+Integration tests (db, api, queue, jobs) run against the live database and skip when `DATABASE_URL` is unset; the jobs pipeline test needs ffmpeg and skips without it.
 
 ## Layout
 
 ```
-cmd/vod-app/        single binary: server | worker | migrate | version
+cmd/vod-app/        single binary: server | worker | migrate | reset-admin | version
 internal/           config, db (migrations/seed), store (local/s3/cache), media (ffmpeg),
-                    analytics, jobs, queue (hand-rolled), api, ui (go:embed)
-web/                Next.js static export (admin UI + player)
+                    analytics, jobs, queue (hand-rolled), api, settings, upload (tusd), ui (go:embed)
+web/                Next.js static export (admin UI + player, shadcn/ui + Tailwind v4)
 deploy/             install.sh, systemd units, env example, backup.sh
 Dockerfile          multi-stage (node:24 → golang:1.26 → ubuntu:24.04 + ffmpeg)
 docker-compose.yml  app, worker, db (postgres 17), minio (optional s3 profile)
