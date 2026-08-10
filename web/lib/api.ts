@@ -194,6 +194,11 @@ export interface PlayInfo {
   embedUrl: string;
 }
 
+export interface UploadConfig {
+  maxSizeBytes: number;
+  allowedExtensions: string[];
+}
+
 export interface SettingsResponse {
   settings: Record<string, unknown>;
   restartRequired: string[];

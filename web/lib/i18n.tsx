@@ -154,8 +154,7 @@ const en = {
 
   // upload
   uploadDragDrop: "Drag & drop videos here",
-  uploadOrClick:
-    "or click to browse — resumable via tus, up to 8 GiB",
+  uploadOrClick: "or click to browse — resumable via tus, up to {max}",
   uploadDone: " — done, opening entries…",
   uploadFailed: " — failed: {error}",
   uploadStart: "Start upload",

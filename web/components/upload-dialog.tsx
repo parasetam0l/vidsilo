@@ -3,7 +3,7 @@
 import * as React from "react";
 import { UploadCloud, X } from "lucide-react";
 
-import { api, type Category } from "@/lib/api";
+import { api, type Category, type UploadConfig } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import { useDialog } from "@/hooks/use-dialog";
 import {
@@ -48,11 +48,13 @@ export function UploadDialogContent() {
   const t = useT();
   const jobs = useUploads();
   const [categories, setCategories] = React.useState<Category[]>([]);
+  const [uploadConfig, setUploadConfig] = React.useState<UploadConfig | null>(null);
   const [dragOver, setDragOver] = React.useState(false);
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
     api<Category[]>("/api/categories").then(setCategories).catch(() => {});
+    api<UploadConfig>("/api/upload-config").then(setUploadConfig).catch(() => {});
   }, []);
 
   const activeCount = jobs.filter(
@@ -64,7 +66,9 @@ export function UploadDialogContent() {
     <div className="flex flex-col gap-4">
       <div>
         <h2 className="text-lg font-semibold tracking-tight">{t("uploadDialogTitle")}</h2>
-        <p className="text-sm text-muted-foreground">{t("uploadOrClick")}</p>
+        <p className="text-sm text-muted-foreground">
+          {t("uploadOrClick", { max: formatBytes(uploadConfig?.maxSizeBytes ?? 8 << 30) })}
+        </p>
       </div>
 
       <div
@@ -85,7 +89,9 @@ export function UploadDialogContent() {
       >
         <UploadCloud className="size-10 text-muted-foreground" />
         <p className="font-medium">{t("uploadDragDrop")}</p>
-        <p className="text-sm text-muted-foreground">{t("uploadOrClick")}</p>
+        <p className="text-sm text-muted-foreground">
+          {t("uploadOrClick", { max: formatBytes(uploadConfig?.maxSizeBytes ?? 8 << 30) })}
+        </p>
         <input
           ref={inputRef}
           type="file"
