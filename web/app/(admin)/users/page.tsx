@@ -116,7 +116,7 @@ export default function UsersPage() {
         </Button>
       </div>
       {error ? <p className="text-sm text-red-500">{error}</p> : null}
-      <Card>
+      <Card className="py-0">
         <CardContent className="p-0">
           <Table>
             <TableHeader className="bg-muted/50">

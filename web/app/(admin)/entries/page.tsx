@@ -177,7 +177,7 @@ export default function EntriesPage() {
         ) : null}
       </div>
 
-      <Card className="overflow-hidden shadow-sm">
+      <Card className="overflow-hidden py-0 shadow-sm">
         <CardContent className="p-0">
           <Table>
             <TableHeader className="bg-muted/50">

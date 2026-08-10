@@ -103,7 +103,7 @@ export default function CategoriesPage() {
           <p className="mt-1 text-sm text-muted-foreground">{t("categoriesSubtitle")}</p>
         </div>
       </div>
-      <Card>
+      <Card className="py-0">
         <CardContent className="p-0">
           <Table>
             <TableHeader className="bg-muted/50">

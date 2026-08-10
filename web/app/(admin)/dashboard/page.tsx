@@ -270,7 +270,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="overflow-hidden shadow-sm">
+        <Card className="overflow-hidden py-0 shadow-sm">
           <CardHeader>
             <CardTitle className="text-base">{t("dashRecent")}</CardTitle>
           </CardHeader>

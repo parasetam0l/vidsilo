@@ -113,7 +113,7 @@ export default function FlavorsPage() {
           <Plus className="size-4" /> {t("flavorsNew")}
         </Button>
       </div>
-      <Card>
+      <Card className="py-0">
         <CardContent className="p-0">
           <Table>
             <TableHeader className="bg-muted/50">
