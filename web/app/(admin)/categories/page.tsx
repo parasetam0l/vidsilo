@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { FolderTree, Plus, Trash2 } from "lucide-react";
+import { FolderTreeIcon, PencilIcon, Plus, Trash2 } from "lucide-react";
 
 import { api, type Category } from "@/lib/api";
 import { useT } from "@/lib/i18n";
@@ -10,6 +10,15 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { EmptyState } from "@/components/empty-state";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -18,26 +27,20 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 export default function CategoriesPage() {
   const t = useT();
-  const { confirm } = useDialog();
+  const { open, confirm } = useDialog();
   const toast = useToast();
   const [tree, setTree] = React.useState<Category[]>([]);
-  const [name, setName] = React.useState("");
-  const [parent, setParent] = React.useState("");
 
   const load = React.useCallback(() => {
-    api<Category[]>("/api/categories").then(setTree).catch(() => {});
-  }, []);
+    api<Category[]>("/api/categories")
+      .then(setTree)
+      .catch((e) => toast.error(e.message));
+  }, [toast]);
   React.useEffect(load, [load]);
+
   const flat = React.useMemo(() => {
     const out: Category[] = [];
     const walk = (nodes: Category[]) => {
@@ -50,41 +53,6 @@ export default function CategoriesPage() {
     return out;
   }, [tree]);
 
-  async function create() {
-    await api<Category>("/api/categories", {
-      method: "POST",
-      body: JSON.stringify({ name, parentId: parent ? Number(parent) : null, position: 0 }),
-    });
-    setName("");
-    setParent("");
-    load();
-  }
-
-  async function update(c: Category, patch: Partial<Category>) {
-    await api<Category>(`/api/categories/${c.id}`, {
-      method: "PATCH",
-      body: JSON.stringify({ ...c, ...patch }),
-    });
-    load();
-  }
-
-  async function remove(c: Category) {
-    await api<void>(`/api/categories/${c.id}`, { method: "DELETE" });
-    toast.success(t("deleted"));
-    load();
-  }
-
-  function askRemove(c: Category) {
-    confirm({
-      title: t("deleteCategoryTitle"),
-      description: t("deleteCategoryDesc"),
-      variant: "destructive",
-      confirmLabel: t("delete"),
-      cancelLabel: t("cancel"),
-      onConfirm: () => remove(c),
-    });
-  }
-
   const depthOf = (id: number) => {
     let d = 0;
     let cur = flat.find((c) => c.id === id);
@@ -95,6 +63,46 @@ export default function CategoriesPage() {
     return d;
   };
 
+  function openCreate() {
+    open({
+      content: (close) => <CategoryFormContent onClose={close} categories={flat} />,
+      size: "sm",
+      dismissible: false,
+      showCloseButton: false,
+    });
+  }
+
+  function openEdit(c: Category) {
+    open({
+      content: (close) => (
+        <CategoryFormContent onClose={close} categories={flat} initial={c} />
+      ),
+      size: "sm",
+      dismissible: false,
+      showCloseButton: false,
+    });
+  }
+
+  function askRemove(c: Category) {
+    confirm({
+      title: t("deleteCategoryTitle"),
+      description: t("deleteCategoryDesc"),
+      variant: "destructive",
+      confirmLabel: t("delete"),
+      cancelLabel: t("cancel"),
+      onConfirm: async () => {
+        try {
+          await api<void>(`/api/categories/${c.id}`, { method: "DELETE" });
+          toast.success(t("deleted"));
+          load();
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : t("error"));
+          throw err; // keep the dialog open
+        }
+      },
+    });
+  }
+
   return (
     <div className="flex flex-1 flex-col gap-4 p-4">
       <div className="flex items-center justify-between">
@@ -102,8 +110,11 @@ export default function CategoriesPage() {
           <h1 className="text-2xl font-semibold tracking-tight">{t("categoriesTitle")}</h1>
           <p className="mt-1 text-sm text-muted-foreground">{t("categoriesSubtitle")}</p>
         </div>
+        <Button onClick={openCreate}>
+          <Plus className="size-4" /> {t("newCategory")}
+        </Button>
       </div>
-      <Card className="py-0">
+      <Card className="overflow-hidden py-0 shadow-sm">
         <CardContent className="p-0">
           <Table>
             <TableHeader className="bg-muted/50">
@@ -118,77 +129,136 @@ export default function CategoriesPage() {
               {flat.map((c) => (
                 <TableRow key={c.id}>
                   <TableCell className="font-medium">
-                    <span style={{ paddingLeft: depthOf(c.id) * 20 }} className="flex items-center gap-2">
-                      <FolderTree className="size-4 text-muted-foreground" />
-                      <Input
-                        className="h-8 w-48"
-                        defaultValue={c.name}
-                        onBlur={(e) => {
-                          if (e.target.value !== c.name) update(c, { name: e.target.value });
-                        }}
-                      />
+                    <span
+                      style={{ paddingLeft: depthOf(c.id) * 20 }}
+                      className="flex items-center gap-2"
+                    >
+                      <FolderTreeIcon className="size-4 text-muted-foreground" />
+                      {c.name}
                     </span>
                   </TableCell>
                   <TableCell className="text-muted-foreground">{c.slug}</TableCell>
-                  <TableCell>
-                    <Select
-                      value={c.parentId ? String(c.parentId) : "none"}
-                      onValueChange={(v) => update(c, { parentId: v === "none" ? null : Number(v) })}
-                    >
-                      <SelectTrigger className="w-40">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">{t("none")}</SelectItem>
-                        {flat
-                          .filter((x) => x.id !== c.id)
-                          .map((x) => (
-                            <SelectItem key={x.id} value={String(x.id)}>
-                              {x.name}
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
+                  <TableCell className="text-muted-foreground">
+                    {flat.find((x) => x.id === c.parentId)?.name ?? "—"}
                   </TableCell>
                   <TableCell className="text-right">
+                    <Button variant="ghost" size="icon" onClick={() => openEdit(c)}>
+                      <PencilIcon className="size-4" />
+                    </Button>
                     <Button variant="ghost" size="icon" onClick={() => askRemove(c)}>
                       <Trash2 className="size-4" />
                     </Button>
                   </TableCell>
                 </TableRow>
               ))}
+              {flat.length === 0 ? (
+                <TableRow className="hover:bg-transparent">
+                  <TableCell colSpan={4}>
+                    <EmptyState
+                      icon={FolderTreeIcon}
+                      description={t("dashEmpty")}
+                    />
+                  </TableCell>
+                </TableRow>
+              ) : null}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
-      <div className="flex items-end gap-3">
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium">{t("newCategory")}</label>
-          <Input
-            className="w-56"
-            placeholder="Name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && create()}
-          />
-        </div>
+    </div>
+  );
+}
+
+function CategoryFormContent({
+  onClose,
+  categories,
+  initial,
+}: {
+  onClose: () => void;
+  categories: Category[];
+  initial?: Category;
+}) {
+  const t = useT();
+  const toast = useToast();
+  const editing = !!initial;
+  const [name, setName] = React.useState(initial?.name ?? "");
+  const [parent, setParent] = React.useState(
+    initial?.parentId ? String(initial.parentId) : "",
+  );
+  const [busy, setBusy] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setBusy(true);
+    try {
+      const body = {
+        name,
+        parentId: parent ? Number(parent) : null,
+        position: initial?.position ?? 0,
+      };
+      if (editing) {
+        await api<Category>(`/api/categories/${initial.id}`, {
+          method: "PATCH",
+          body: JSON.stringify(body),
+        });
+        toast.success(t("categoryUpdated"));
+      } else {
+        await api<Category>("/api/categories", {
+          method: "POST",
+          body: JSON.stringify(body),
+        });
+        toast.success(t("categoryCreated"));
+      }
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("error"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form className="flex flex-col gap-4" onSubmit={submit}>
+      <h2 className="text-lg font-semibold tracking-tight">
+        {editing ? t("editCategoryTitle") : t("newCategory")}
+      </h2>
+      {error ? <p className="text-sm text-red-500">{error}</p> : null}
+      <div className="flex flex-col gap-1.5">
+        <Label>{t("colName")}</Label>
+        <Input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          required
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Label>{t("colParent")}</Label>
         <Select value={parent} onValueChange={(v) => setParent(v ?? "")}>
-          <SelectTrigger className="w-40">
+          <SelectTrigger>
             <SelectValue placeholder={t("parentNone")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">None</SelectItem>
-            {flat.map((c) => (
-              <SelectItem key={c.id} value={String(c.id)}>
-                {c.name}
-              </SelectItem>
-            ))}
+            <SelectItem value="">{t("none")}</SelectItem>
+            {categories
+              .filter((c) => c.id !== initial?.id)
+              .map((c) => (
+                <SelectItem key={c.id} value={String(c.id)}>
+                  {c.name}
+                </SelectItem>
+              ))}
           </SelectContent>
         </Select>
-        <Button onClick={create}>
-          <Plus className="size-4" />
+      </div>
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="outline" onClick={onClose} disabled={busy}>
+          {t("cancel")}
+        </Button>
+        <Button type="submit" disabled={busy}>
+          {busy ? t("loading") : t("save")}
         </Button>
       </div>
-    </div>
+    </form>
   );
 }

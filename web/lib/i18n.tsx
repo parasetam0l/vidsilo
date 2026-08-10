@@ -52,6 +52,7 @@ const en = {
   currentPassword: "Current password",
   newPassword: "New password",
   confirmPassword: "Confirm new password",
+  passwordKeep: "leave blank to keep the current password",
   passwordMismatch: "New passwords do not match.",
   passwordChanged: "Password updated",
 

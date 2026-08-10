@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Plus, Save, Trash2 } from "lucide-react";
+import { PencilIcon, Plus, Trash2, UsersIcon } from "lucide-react";
 
 import { api, ApiError, type Role, type User } from "@/lib/api";
 import { useT } from "@/lib/i18n";
@@ -12,6 +12,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/empty-state";
 import {
   Select,
   SelectContent,
@@ -19,8 +22,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -29,68 +30,38 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 
 const roles: Role[] = ["admin", "editor", "uploader", "viewer"];
 
 export default function UsersPage() {
   const t = useT();
-  const { confirm } = useDialog();
+  const { open, confirm } = useDialog();
   const toast = useToast();
   const [users, setUsers] = React.useState<User[]>([]);
-  const [error, setError] = React.useState<string | null>(null);
-  const [creating, setCreating] = React.useState(false);
-  const [username, setUsername] = React.useState("");
-  const [password, setPassword] = React.useState("");
-  const [role, setRole] = React.useState<Role>("viewer");
 
   const load = React.useCallback(() => {
-    api<User[]>("/api/users").then(setUsers).catch((e) => setError(e.message));
-  }, []);
+    api<User[]>("/api/users")
+      .then(setUsers)
+      .catch((e) => toast.error(e.message));
+  }, [toast]);
   React.useEffect(load, [load]);
 
-  async function create() {
-    setError(null);
-    try {
-      await api<User>("/api/users", {
-        method: "POST",
-        body: JSON.stringify({ username, password, role }),
-      });
-      setCreating(false);
-      setUsername("");
-      setPassword("");
-      toast.success(t("userCreated"));
-      load();
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : "create failed");
-    }
+  function openCreate() {
+    open({
+      content: (close) => <UserFormContent onClose={close} />,
+      size: "sm",
+      dismissible: false,
+      showCloseButton: false,
+    });
   }
 
-  async function update(u: User, patch: { role?: Role; disabled?: boolean }) {
-    try {
-      await api<User>(`/api/users/${u.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ role: patch.role ?? u.role, disabled: patch.disabled ?? u.disabled }),
-      });
-      load();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : t("error"));
-    }
-  }
-
-  async function remove(u: User) {
-    try {
-      await api<void>(`/api/users/${u.id}`, { method: "DELETE" });
-      toast.success(t("deleted"));
-      load();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : t("error"));
-    }
+  function openEdit(u: User) {
+    open({
+      content: (close) => <UserFormContent onClose={close} initial={u} />,
+      size: "sm",
+      dismissible: false,
+      showCloseButton: false,
+    });
   }
 
   function askRemove(u: User) {
@@ -100,7 +71,16 @@ export default function UsersPage() {
       variant: "destructive",
       confirmLabel: t("delete"),
       cancelLabel: t("cancel"),
-      onConfirm: () => remove(u),
+      onConfirm: async () => {
+        try {
+          await api<void>(`/api/users/${u.id}`, { method: "DELETE" });
+          toast.success(t("deleted"));
+          load();
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : t("error"));
+          throw err; // keep the dialog open
+        }
+      },
     });
   }
 
@@ -111,12 +91,11 @@ export default function UsersPage() {
           <h1 className="text-2xl font-semibold tracking-tight">{t("usersTitle")}</h1>
           <p className="mt-1 text-sm text-muted-foreground">{t("usersSubtitle")}</p>
         </div>
-        <Button onClick={() => setCreating(true)}>
+        <Button onClick={openCreate}>
           <Plus className="size-4" /> {t("usersNew")}
         </Button>
       </div>
-      {error ? <p className="text-sm text-red-500">{error}</p> : null}
-      <Card className="py-0">
+      <Card className="overflow-hidden py-0 shadow-sm">
         <CardContent className="p-0">
           <Table>
             <TableHeader className="bg-muted/50">
@@ -133,84 +112,143 @@ export default function UsersPage() {
                 <TableRow key={u.id}>
                   <TableCell className="font-medium">{u.username}</TableCell>
                   <TableCell>
-                    <Select value={u.role} onValueChange={(v) => update(u, { role: v as Role })}>
-                      <SelectTrigger className="w-32">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {roles.map((r) => (
-                          <SelectItem key={r} value={r}>
-                            {r}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Badge variant="outline" className="capitalize">
+                      {u.role}
+                    </Badge>
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Switch
-                        checked={!u.disabled}
-                        onCheckedChange={(v) => update(u, { disabled: !v })}
-                      />
-                      <Badge variant={u.disabled ? "destructive" : "outline"}>
-                        {u.disabled ? t("statusDisabled") : t("statusActive")}
-                      </Badge>
-                    </div>
+                    <Badge variant={u.disabled ? "destructive" : "outline"}>
+                      {u.disabled ? t("statusDisabled") : t("statusActive")}
+                    </Badge>
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {formatDate(u.createdAt)}
                   </TableCell>
                   <TableCell className="text-right">
+                    <Button variant="ghost" size="icon" onClick={() => openEdit(u)}>
+                      <PencilIcon className="size-4" />
+                    </Button>
                     <Button variant="ghost" size="icon" onClick={() => askRemove(u)}>
                       <Trash2 className="size-4" />
                     </Button>
                   </TableCell>
                 </TableRow>
               ))}
+              {users.length === 0 ? (
+                <TableRow className="hover:bg-transparent">
+                  <TableCell colSpan={5}>
+                    <EmptyState icon={UsersIcon} description={t("dashEmpty")} />
+                  </TableCell>
+                </TableRow>
+              ) : null}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
-
-      <Dialog open={creating} onOpenChange={setCreating}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t("newUserTitle")}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div className="flex flex-col gap-1.5">
-              <Label>{t("loginUsername")}</Label>
-              <Input value={username} onChange={(e) => setUsername(e.target.value)} />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>{t("loginPassword")}</Label>
-              <Input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label>{t("colRole")}</Label>
-              <Select value={role} onValueChange={(v) => setRole(v as Role)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {roles.map((r) => (
-                    <SelectItem key={r} value={r}>
-                      {r}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <Button className="w-full" onClick={create}>
-              <Save className="size-4" /> {t("create")}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
+  );
+}
+
+function UserFormContent({
+  onClose,
+  initial,
+}: {
+  onClose: () => void;
+  initial?: User;
+}) {
+  const t = useT();
+  const toast = useToast();
+  const editing = !!initial;
+  const [username, setUsername] = React.useState(initial?.username ?? "");
+  const [password, setPassword] = React.useState("");
+  const [role, setRole] = React.useState<Role>(initial?.role ?? "viewer");
+  const [disabled, setDisabled] = React.useState(initial?.disabled ?? false);
+  const [busy, setBusy] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setBusy(true);
+    try {
+      if (editing) {
+        await api<User>(`/api/users/${initial.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ role, disabled, ...(password ? { password } : {}) }),
+        });
+        toast.success(t("userUpdated"));
+      } else {
+        await api<User>("/api/users", {
+          method: "POST",
+          body: JSON.stringify({ username, password, role }),
+        });
+        toast.success(t("userCreated"));
+      }
+      onClose();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("error"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form className="flex flex-col gap-4" onSubmit={submit}>
+      <div>
+        <h2 className="text-lg font-semibold tracking-tight">
+          {editing ? t("editUserTitle") : t("newUserTitle")}
+        </h2>
+      </div>
+      {error ? <p className="text-sm text-red-500">{error}</p> : null}
+      <div className="flex flex-col gap-1.5">
+        <Label>{t("loginUsername")}</Label>
+        <Input
+          value={username}
+          disabled={editing}
+          onChange={(e) => setUsername(e.target.value)}
+          required
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Label>{t("loginPassword")}</Label>
+        <Input
+          type="password"
+          value={password}
+          autoComplete="new-password"
+          placeholder={editing ? t("passwordKeep") : undefined}
+          onChange={(e) => setPassword(e.target.value)}
+          required={!editing}
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Label>{t("colRole")}</Label>
+        <Select value={role} onValueChange={(v) => v && setRole(v as Role)}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {roles.map((r) => (
+              <SelectItem key={r} value={r}>
+                {r}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      {editing ? (
+        <div className="flex items-center gap-2">
+          <Switch checked={disabled} onCheckedChange={setDisabled} />
+          <Label>{t("statusDisabled")}</Label>
+        </div>
+      ) : null}
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="outline" onClick={onClose} disabled={busy}>
+          {t("cancel")}
+        </Button>
+        <Button type="submit" disabled={busy}>
+          {busy ? t("loading") : t("save")}
+        </Button>
+      </div>
+    </form>
   );
 }
