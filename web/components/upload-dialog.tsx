@@ -105,14 +105,14 @@ export function UploadDialogContent({ onClose }: { onClose: () => void }) {
     jobs.some((j) => j.status === "uploading") ||
     urlJobs.some((j) => j.status === "downloading" || j.status === "checking");
 
-  // Tabs only exist in the idle state — while uploading AND after
-  // completion the dialog shows the plain per-file list.
-  const showTabs = !anyActive && !allDone && !allUrlDone;
-
   const urlActive = urlJobs.some((j) => j.status === "downloading" || j.status === "checking");
   const urlQueued = urlJobs.some((j) => j.status === "queued");
   const urlQueuedCount = urlJobs.filter((j) => j.status === "queued").length;
   const allUrlDone = urlJobs.length > 0 && !urlActive && !urlQueued;
+
+  // Tabs only exist in the idle state — while uploading AND after
+  // completion the dialog shows the plain per-file list.
+  const showTabs = !anyActive && !allDone && !allUrlDone;
 
   const pickFiles = () => inputRef.current?.click();
 
