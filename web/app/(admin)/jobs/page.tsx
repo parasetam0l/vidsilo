@@ -105,7 +105,7 @@ export default function JobsPage() {
   ];
 
   return (
-    <div className="flex flex-1 flex-col gap-4 px-4 pb-4 pt-0">
+    <div className="flex flex-1 flex-col gap-4 p-4">
       {/* KPI Cards */}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {jobs === null

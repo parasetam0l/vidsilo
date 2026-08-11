@@ -178,7 +178,7 @@ export default function EntriesPage() {
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-4 px-4 pb-4 pt-0">
+    <div className="flex flex-1 flex-col gap-4 p-4">
       <Card className="p-3 shadow-xs">
         <div className="flex flex-wrap items-center gap-2.5">
           <div className="relative flex-1 min-w-48">

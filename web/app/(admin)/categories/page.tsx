@@ -111,7 +111,7 @@ export default function CategoriesPage() {
   const childCount = flat.length - rootCount;
 
   return (
-    <div className="flex flex-1 flex-col gap-4 px-4 pb-4 pt-0">
+    <div className="flex flex-1 flex-col gap-4 p-4">
       {/* Top summary strip */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2 rounded-xl border bg-card px-3.5 py-2 shadow-2xs">
