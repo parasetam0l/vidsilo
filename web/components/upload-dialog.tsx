@@ -239,11 +239,13 @@ export function UploadDialogContent({ onClose }: { onClose: () => void }) {
         <DialogDescription className="text-xs">
           {anyActive
             ? t("uploadInProgressDesc")
-            : tab === "computer"
-              ? jobs.length === 0
-                ? t("uploadOrClick", { max: formatBytes(maxSize) })
-                : t("uploadFilesSelected", { n: jobs.length })
-              : t("uploadUrlHint")}
+            : allDone || allUrlDone
+              ? t("uploadAllComplete")
+              : tab === "computer"
+                ? jobs.length === 0
+                  ? t("uploadOrClick", { max: formatBytes(maxSize) })
+                  : t("uploadFilesSelected", { n: jobs.length })
+                : t("uploadUrlHint")}
         </DialogDescription>
         <Button
           variant="ghost"
@@ -332,14 +334,6 @@ export function UploadDialogContent({ onClose }: { onClose: () => void }) {
               }}
             />
 
-            {hasPending ? (
-              <div className="flex justify-end">
-                <Button variant="outline" size="sm" onClick={pickFiles}>
-                  <PlusIcon className="size-4" /> {t("uploadAddMore")}
-                </Button>
-              </div>
-            ) : null}
-
             {jobs.length > 0 ? (
               <div className="flex flex-col gap-3 min-w-0">
                 {jobs.map((job) => (
@@ -350,6 +344,11 @@ export function UploadDialogContent({ onClose }: { onClose: () => void }) {
                     onRemove={() => askRemove(job)}
                   />
                 ))}
+                {hasPending ? (
+                  <Button variant="outline" className="w-full" onClick={pickFiles}>
+                    <PlusIcon className="size-4" /> {t("uploadAddMore")}
+                  </Button>
+                ) : null}
               </div>
             ) : null}
           </TabsContent>
@@ -398,7 +397,7 @@ export function UploadDialogContent({ onClose }: { onClose: () => void }) {
           </Button>
         </DialogFooter>
       ) : tab === "computer" ? (
-        jobs.length === 0 ? (
+        jobs.length === 0 || allDone ? (
           <DialogFooter>
             <Button variant="outline" onClick={handleCloseAttempt}>
               {t("close")}
