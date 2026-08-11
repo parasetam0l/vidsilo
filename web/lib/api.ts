@@ -236,6 +236,8 @@ export interface JobActivity {
   error?: string;
   /** Free-text progress line, e.g. "Transcoding 1080p-h264 (2/4)". */
   progress?: string;
+  /** Flavor label for transcode jobs (from the job payload). */
+  label?: string;
   createdAt: string;
 }
 

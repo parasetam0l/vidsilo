@@ -14,6 +14,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -38,6 +39,10 @@ type Runner struct {
 	downloadSem chan struct{}
 	// transcodeSem serializes flavor transcodes (one at a time).
 	transcodeSem chan struct{}
+	// Busy flags mirror the semaphores so the claim loop can leave queued
+	// jobs of a busy kind alone (they then honestly show as "queued").
+	transcodeBusy atomic.Bool
+	downloadBusy  atomic.Bool
 }
 
 // EnsureDownloadSem lazily creates the download semaphore.
@@ -53,6 +58,12 @@ func (r *Runner) EnsureTranscodeSem() {
 		r.transcodeSem = make(chan struct{}, 1)
 	}
 }
+
+// TranscodeBusy reports whether a flavor transcode is currently executing.
+func (r *Runner) TranscodeBusy() bool { return r.transcodeBusy.Load() }
+
+// DownloadBusy reports whether a URL download is currently executing.
+func (r *Runner) DownloadBusy() bool { return r.downloadBusy.Load() }
 
 // Handle dispatches a claimed job to its handler.
 func (r *Runner) Handle(ctx context.Context, job db.Job) error {
@@ -131,6 +142,8 @@ func (r *Runner) Download(ctx context.Context, job db.Job) error {
 	case <-ctx.Done():
 		return ctx.Err()
 	}
+	r.downloadBusy.Store(true)
+	defer r.downloadBusy.Store(false)
 
 	// A browser-like user-agent avoids CDN blocks on Go's default client UA;
 	// every redirect hop is re-validated by safeurl.Client (SSRF).
@@ -359,8 +372,11 @@ func (r *Runner) Probe(ctx context.Context, job db.Job) error {
 		return err
 	}
 	// One transcode job per flavor, executed serially (see transcodeSem).
-	for _, fid := range pending {
-		if _, err := r.Queue.Enqueue(ctx, "transcode", e.ID, transcodeParams{FlavorID: fid}, 3); err != nil {
+	// Stagger run_at so the claim loop picks them up one at a time and the
+	// waiting ones honestly show as 'queued'.
+	for i, fid := range pending {
+		if _, err := r.Queue.EnqueueAt(ctx, "transcode", e.ID, transcodeParams{FlavorID: fid}, 3,
+			time.Now().Add(time.Duration(i)*2*time.Second)); err != nil {
 			return err
 		}
 	}
@@ -422,6 +438,8 @@ func (r *Runner) Transcode(ctx context.Context, job db.Job) error {
 	case <-ctx.Done():
 		return ctx.Err()
 	}
+	r.transcodeBusy.Store(true)
+	defer r.transcodeBusy.Store(false)
 
 	f, err := db.FlavorByID(ctx, r.Pool, params.FlavorID)
 	if err != nil {

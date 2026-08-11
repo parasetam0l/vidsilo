@@ -93,7 +93,7 @@ const en = {
   dashActivityEmpty: "Nothing processing right now.",
   dashUploadingBy: "uploading by {email}",
   jobRunning: "Processing",
-  jobQueued: "Queued",
+  jobQueued: "In Queue",
   jobDone: "Done",
   jobProbe: "Probe",
   jobTranscode: "Transcode",
@@ -168,6 +168,10 @@ const en = {
   entryMetaLine: "{category} · {duration} · {size} · uploaded {date}{by}",
   entryWatch: "Watch",
   entryReprocess: "Reprocess",
+  reprocessTitle: "Reprocess this entry?",
+  reprocessDesc:
+    "Probing and transcoding will re-run with the current flavor selection. Existing media is replaced.",
+  reprocessQueued: "Reprocessing queued — entry status will update shortly.",
   entryDeleteTitle: "Delete this entry?",
   entryDeleteDesc:
     "The entry and all its media (original file, quality presets, posters, analytics) will be permanently removed.",

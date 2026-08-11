@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"time"
+
+	"github.com/jackc/pgx/v5"
 )
 
 // Server-side view of in-flight work, shared by every signed-in user:
@@ -32,7 +34,31 @@ type jobActivity struct {
 	Attempts   int       `json:"attempts"`
 	Error      string    `json:"error,omitempty"`
 	Progress   string    `json:"progress,omitempty"`
+	Label      string    `json:"label,omitempty"`
 	CreatedAt  time.Time `json:"createdAt"`
+}
+
+const jobSelect = `
+	SELECT j.id, j.type, j.entry_id, coalesce(e.title, ''), j.status,
+	       j.attempts, coalesce(j.error, ''), coalesce(j.progress, ''),
+	       coalesce(f.label, ''), j.created_at
+	FROM jobs j
+	LEFT JOIN entries e ON e.id = j.entry_id
+	LEFT JOIN entry_flavors ef
+	  ON ef.entry_id = j.entry_id AND ef.flavor_id = coalesce((j.payload->>'flavorId')::bigint, -1)
+	LEFT JOIN flavors f ON f.id = ef.flavor_id`
+
+func scanJobActivity(rows pgx.Rows) ([]jobActivity, error) {
+	out := []jobActivity{}
+	for rows.Next() {
+		var j jobActivity
+		if err := rows.Scan(&j.ID, &j.Type, &j.EntryID, &j.EntryTitle, &j.Status,
+			&j.Attempts, &j.Error, &j.Progress, &j.Label, &j.CreatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, j)
+	}
+	return out, rows.Err()
 }
 
 func (s *Server) registerActivityRoutes(mux *http.ServeMux) {
@@ -43,11 +69,7 @@ func (s *Server) registerActivityRoutes(mux *http.ServeMux) {
 }
 
 func (s *Server) handleJobs(w http.ResponseWriter, r *http.Request) {
-	rows, err := s.pool.Query(r.Context(), `
-		SELECT j.id, j.type, j.entry_id, coalesce(e.title, ''), j.status,
-		       j.attempts, coalesce(j.error, ''), coalesce(j.progress, ''), j.created_at
-		FROM jobs j
-		LEFT JOIN entries e ON e.id = j.entry_id
+	rows, err := s.pool.Query(r.Context(), jobSelect+`
 		ORDER BY j.id DESC
 		LIMIT 50`)
 	if err != nil {
@@ -56,17 +78,8 @@ func (s *Server) handleJobs(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
-	out := []jobActivity{}
-	for rows.Next() {
-		var j jobActivity
-		if err := rows.Scan(&j.ID, &j.Type, &j.EntryID, &j.EntryTitle, &j.Status,
-			&j.Attempts, &j.Error, &j.Progress, &j.CreatedAt); err != nil {
-			s.internalError(w, r, "list jobs", err)
-			return
-		}
-		out = append(out, j)
-	}
-	if err := rows.Err(); err != nil {
+	out, err := scanJobActivity(rows)
+	if err != nil {
 		s.internalError(w, r, "list jobs", err)
 		return
 	}
@@ -137,11 +150,7 @@ func (s *Server) handleActiveUploads(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleCurrentJobs(w http.ResponseWriter, r *http.Request) {
-	rows, err := s.pool.Query(r.Context(), `
-		SELECT j.id, j.type, j.entry_id, coalesce(e.title, ''), j.status,
-		       j.attempts, coalesce(j.error, ''), coalesce(j.progress, ''), j.created_at
-		FROM jobs j
-		LEFT JOIN entries e ON e.id = j.entry_id
+	rows, err := s.pool.Query(r.Context(), jobSelect+`
 		WHERE j.status IN ('queued', 'running', 'failed')
 		ORDER BY j.id DESC
 		LIMIT 20`)
@@ -151,17 +160,8 @@ func (s *Server) handleCurrentJobs(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
-	out := []jobActivity{}
-	for rows.Next() {
-		var j jobActivity
-		if err := rows.Scan(&j.ID, &j.Type, &j.EntryID, &j.EntryTitle, &j.Status,
-			&j.Attempts, &j.Error, &j.Progress, &j.CreatedAt); err != nil {
-			s.internalError(w, r, "list jobs", err)
-			return
-		}
-		out = append(out, j)
-	}
-	if err := rows.Err(); err != nil {
+	out, err := scanJobActivity(rows)
+	if err != nil {
 		s.internalError(w, r, "list jobs", err)
 		return
 	}

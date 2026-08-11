@@ -135,7 +135,10 @@ func (s *Server) handleFromURLSubmit(w http.ResponseWriter, r *http.Request) {
 			s.internalError(w, r, "register download", err)
 			return
 		}
-		if _, err := s.queue.Enqueue(r.Context(), "download", entryID, map[string]any{"url": item.URL}, 2); err != nil {
+		// Stagger so serial downloads are claimed one at a time and waiters
+		// honestly show as 'queued'.
+		if _, err := s.queue.EnqueueAt(r.Context(), "download", entryID,
+			map[string]any{"url": item.URL}, 2, time.Now().Add(time.Duration(len(out))*2*time.Second)); err != nil {
 			s.internalError(w, r, "enqueue download", err)
 			return
 		}

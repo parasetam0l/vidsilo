@@ -23,6 +23,13 @@ func New(pool *pgxpool.Pool) *Queue {
 
 // Enqueue adds a job (or re-enqueues after a failure retry).
 func (q *Queue) Enqueue(ctx context.Context, jobType string, entryID int64, payload any, maxAttempts int) (int64, error) {
+	return q.EnqueueAt(ctx, jobType, entryID, payload, maxAttempts, time.Now())
+}
+
+// EnqueueAt adds a job scheduled at runAt. Used to stagger serialized job
+// kinds (transcode flavors, URL downloads) so they are claimed one at a
+// time and honestly show as 'queued' until their turn.
+func (q *Queue) EnqueueAt(ctx context.Context, jobType string, entryID int64, payload any, maxAttempts int, runAt time.Time) (int64, error) {
 	raw, err := json.Marshal(payload)
 	if err != nil {
 		return 0, err
@@ -32,14 +39,21 @@ func (q *Queue) Enqueue(ctx context.Context, jobType string, entryID int64, payl
 	}
 	var id int64
 	err = q.pool.QueryRow(ctx, `
-		INSERT INTO jobs (type, entry_id, payload, max_attempts)
-		VALUES ($1, $2, $3::jsonb, $4)
-		RETURNING id`, jobType, entryID, raw, maxAttempts).Scan(&id)
+		INSERT INTO jobs (type, entry_id, payload, max_attempts, run_at)
+		VALUES ($1, $2, $3::jsonb, $4, $5)
+		RETURNING id`, jobType, entryID, raw, maxAttempts, runAt).Scan(&id)
 	return id, err
 }
 
-// Claim atomically marks up to n due jobs as running and returns them.
-func (q *Queue) Claim(ctx context.Context, n int) ([]db.Job, error) {
+// Claim atomically marks up to n due jobs as running and returns them. Job
+// types listed in exclude are skipped, so serialized job kinds (transcode,
+// download) stay honestly 'queued' while one of them is executing.
+func (q *Queue) Claim(ctx context.Context, n int, exclude ...string) ([]db.Job, error) {
+	// pgx encodes a nil []string as SQL NULL, which would turn the
+	// exclusion condition NULL and match nothing — normalize to '{}'.
+	if exclude == nil {
+		exclude = []string{}
+	}
 	tx, err := q.pool.Begin(ctx)
 	if err != nil {
 		return nil, err
@@ -50,9 +64,10 @@ func (q *Queue) Claim(ctx context.Context, n int) ([]db.Job, error) {
 		SELECT id, type, entry_id, payload, status, attempts, max_attempts, coalesce(error, ''), created_at
 		FROM jobs
 		WHERE status = 'queued' AND run_at <= now()
+		  AND (cardinality($2::text[]) = 0 OR NOT (type = ANY($2::text[])))
 		ORDER BY id
 		LIMIT $1
-		FOR UPDATE SKIP LOCKED`, n)
+		FOR UPDATE SKIP LOCKED`, n, exclude)
 	if err != nil {
 		return nil, err
 	}

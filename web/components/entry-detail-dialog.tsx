@@ -221,9 +221,24 @@ export function EntryDetailDialog({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["entry", publicId] });
       queryClient.invalidateQueries({ queryKey: ["entries"] });
+      toast.success(t("reprocessQueued"));
     },
     onError: (err: Error) => toast.error(err.message),
   });
+
+  // Reprocessing is destructive to the current pipeline state — confirm
+  // first, then the entry is queued (status flips to probing).
+  const askReprocess = () => {
+    confirm({
+      title: t("reprocessTitle"),
+      description: t("reprocessDesc"),
+      confirmLabel: t("entryReprocess"),
+      cancelLabel: t("cancel"),
+      onConfirm: () => reprocess.mutateAsync(),
+      onError: (err: unknown) =>
+        toast.error(err instanceof Error ? err.message : t("error")),
+    });
+  };
 
   const sections = [
     { id: "metadata", label: t("tabMetadata"), icon: <PencilLineIcon className="size-4" /> },
@@ -632,7 +647,7 @@ export function EntryDetailDialog({
                     variant="outline"
                     size="sm"
                     className="h-8 gap-1.5 text-xs rounded-lg"
-                    onClick={() => reprocess.mutate()}
+                    onClick={askReprocess}
                     disabled={reprocess.isPending}
                   >
                     <RotateCcwIcon className="size-3.5" /> {t("entryReprocess")}

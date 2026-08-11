@@ -157,6 +157,11 @@ export default function JobsPage() {
                       <Badge variant="outline" className="font-mono text-xs uppercase">
                         {j.type === "probe" ? t("jobProbe") : t("jobTranscode")}
                       </Badge>
+                      {j.label ? (
+                        <Badge variant="outline" className="font-mono text-xs text-muted-foreground">
+                          {j.label}
+                        </Badge>
+                      ) : null}
                     </div>
                   </TableCell>
                   <TableCell className="font-medium">

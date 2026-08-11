@@ -136,8 +136,17 @@ func (w *worker) run(ctx context.Context) {
 }
 
 func (w *worker) claimRound(ctx context.Context, sem chan struct{}) {
-	// Claim up to the pool size each round.
-	jobs, err := w.queue.Claim(ctx, w.concurrency)
+	// While a transcode/download executes, don't claim more of that kind —
+	// queued ones stay honestly 'queued' instead of sitting 'running' behind
+	// the serialization semaphore.
+	var exclude []string
+	if w.runner.TranscodeBusy() {
+		exclude = append(exclude, "transcode")
+	}
+	if w.runner.DownloadBusy() {
+		exclude = append(exclude, "download")
+	}
+	jobs, err := w.queue.Claim(ctx, w.concurrency, exclude...)
 	if err != nil {
 		w.log.Error("claim", "err", err)
 		return
