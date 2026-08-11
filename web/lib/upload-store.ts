@@ -253,6 +253,20 @@ export function useUploads() {
   return React.useSyncExternalStore(subscribeUploads, getUploads, () => []);
 }
 
+// resetIdle clears the list when nothing is in flight (called on dialog
+// open): with no ongoing upload the dialog always starts fresh.
+export function resetIdle() {
+  const active = jobs.some(
+    (j) => j.status === "uploading" || j.status === "queued" || j.status === "interrupted",
+  );
+  if (!active && jobs.length > 0) {
+    jobs = [];
+    files.clear();
+    emit();
+    persist();
+  }
+}
+
 // Test helper: clears the in-memory store (localStorage untouched).
 export function __resetUploadStore() {
   jobs = [];

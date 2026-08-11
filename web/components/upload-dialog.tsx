@@ -5,6 +5,8 @@ import {
   CheckIcon,
   CircleAlertIcon,
   CircleCheckIcon,
+  DownloadIcon,
+  Loader2Icon,
   PlusIcon,
   TimerIcon,
   Trash2Icon,
@@ -20,11 +22,20 @@ import {
   MAX_BATCH,
   addFiles,
   removeJob,
+  resetIdle,
   startAll,
   updateJob,
   useUploads,
   type UploadJob,
 } from "@/lib/upload-store";
+import {
+  checkUrls,
+  removeUrlDownload,
+  resetIdleDownloads,
+  startDownloads,
+  useUrlDownloads,
+  type UrlDownloadJob,
+} from "@/lib/url-download-store";
 import { formatBytes } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -33,12 +44,16 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Select } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-// Uploads run at app level (lib/upload-store) so they survive closing the
-// dialog, page navigation and hard refreshes.
+// Uploads run at app level (lib/upload-store, lib/url-download-store) so
+// they survive closing the dialog, page navigation and hard refreshes.
 export function useUploadDialog() {
   const dialog = useDialog();
   return React.useCallback(() => {
+    // No ongoing upload? Reset the dialog to a fresh state.
+    resetIdle();
+    resetIdleDownloads();
     dialog.open({
       content: (close) => <UploadDialogContent onClose={close} />,
       size: "2xl",
@@ -53,9 +68,14 @@ export function UploadDialogContent({ onClose }: { onClose: () => void }) {
   const toast = useToast();
   const { confirm } = useDialog();
   const jobs = useUploads();
+  const urlJobs = useUrlDownloads();
+  const [tab, setTab] = React.useState("computer");
   const [categories, setCategories] = React.useState<Category[]>([]);
   const [uploadConfig, setUploadConfig] = React.useState<UploadConfig | null>(null);
   const [dragOver, setDragOver] = React.useState(false);
+  const [urlText, setUrlText] = React.useState("");
+  const [checking, setChecking] = React.useState(false);
+  const [starting, setStarting] = React.useState(false);
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
@@ -70,9 +90,12 @@ export function UploadDialogContent({ onClose }: { onClose: () => void }) {
   const hasPending = jobs.some((j) => j.status !== "done");
   const allDone = jobs.length > 0 && !hasPending;
 
+  const urlActive = urlJobs.some((j) => j.status === "downloading" || j.status === "checking");
+  const urlQueued = urlJobs.some((j) => j.status === "queued");
+  const allUrlDone = urlJobs.length > 0 && !urlActive && !urlQueued;
+
   const pickFiles = () => inputRef.current?.click();
 
-  // Adds files respecting the batch cap; warns when some were dropped.
   const addSelected = (files: File[]) => {
     const added = addFiles(Array.from(files));
     if (files.length > added) {
@@ -80,8 +103,6 @@ export function UploadDialogContent({ onClose }: { onClose: () => void }) {
     }
   };
 
-  // Removing an in-flight upload stops the transfer (destructive);
-  // queued/paused files are discarded immediately.
   const askRemove = (job: UploadJob) => {
     if (job.status === "uploading") {
       confirm({
@@ -97,104 +118,184 @@ export function UploadDialogContent({ onClose }: { onClose: () => void }) {
     }
   };
 
+  const handleCheckUrls = async () => {
+    setChecking(true);
+    try {
+      const { added, failed } = await checkUrls(urlText.split("\n"));
+      if (added > 0) setUrlText("");
+      if (failed > 0) toast.error(t("uploadUrlInvalid"));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("error"));
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  const handleStartUrls = () => {
+    setStarting(true);
+    startDownloads().finally(() => setStarting(false));
+  };
+
+  const urlLines = urlText.split("\n").map((l) => l.trim()).filter(Boolean).length;
+
   return (
     <div className="flex flex-col gap-3">
       <DialogHeader>
         <DialogTitle className="flex items-center gap-2">
           {t("uploadDialogTitle")}
-          {allDone ? (
+          {(allDone || allUrlDone) && (jobs.length > 0 || urlJobs.length > 0) ? (
             <CircleCheckIcon className="size-4 text-emerald-500" />
           ) : null}
         </DialogTitle>
-        {allDone ? (
-          <DialogDescription className="text-xs font-medium text-emerald-500">
-            {t("uploadAllComplete")}
-          </DialogDescription>
-        ) : (
-          <DialogDescription className="text-xs">
-            {jobs.length === 0
+        <DialogDescription className="text-xs">
+          {tab === "computer"
+            ? jobs.length === 0
               ? t("uploadOrClick", { max: formatBytes(maxSize) })
-              : t("uploadFilesSelected", { n: jobs.length })}
-          </DialogDescription>
-        )}
+              : t("uploadFilesSelected", { n: jobs.length })
+            : t("uploadUrlHint")}
+        </DialogDescription>
       </DialogHeader>
-      {hasPending ? (
-        <div className="flex justify-end">
-          <Button variant="outline" size="sm" onClick={pickFiles}>
-            <PlusIcon className="size-4" /> {t("uploadAddMore")}
-          </Button>
-        </div>
-      ) : null}
 
-      {jobs.length === 0 ? (
-        <div
-          className={`flex min-h-44 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-6 text-center shadow-sm transition-colors ${
+      <Tabs value={tab} onValueChange={setTab} className="flex flex-col gap-3">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="computer">
+            <UploadCloudIcon className="size-4" /> {t("uploadTabComputer")}
+          </TabsTrigger>
+          <TabsTrigger value="url">
+            <DownloadIcon className="size-4" /> {t("uploadTabUrl")}
+          </TabsTrigger>
+        </TabsList>
 
-            dragOver ? "border-primary bg-muted/40" : "border-border/60"
-          }`}
-          onDragOver={(e) => {
-            e.preventDefault();
-            setDragOver(true);
-          }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={(e) => {
-            e.preventDefault();
-            setDragOver(false);
-            addSelected(Array.from(e.dataTransfer.files));
-          }}
-          onClick={pickFiles}
-        >
-          <div className="flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-sm">
-            <UploadCloudIcon className="size-6" />
-          </div>
-          <div>
-            <p className="font-medium">{t("uploadDragDrop")}</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {t("uploadOrClick", { max: formatBytes(maxSize) })}
-            </p>
-          </div>
-        </div>
-      ) : null}
+        {/* Tab 1: upload from computer */}
+        <TabsContent value="computer" className="flex flex-col gap-3">
+          {jobs.length === 0 ? (
+            <div
+              className={`flex min-h-44 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-6 text-center transition-colors ${
+                dragOver ? "border-primary bg-muted/40" : "border-border/60"
+              }`}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragOver(true);
+              }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragOver(false);
+                addSelected(Array.from(e.dataTransfer.files));
+              }}
+              onClick={pickFiles}
+            >
+              <div className="flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <UploadCloudIcon className="size-6" />
+              </div>
+              <div>
+                <p className="font-medium">{t("uploadDragDrop")}</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {t("uploadOrClick", { max: formatBytes(maxSize) })}
+                </p>
+              </div>
+            </div>
+          ) : null}
 
-      <input
-        ref={inputRef}
-        type="file"
-        multiple
-        accept="video/*,.mkv,.webm,.m4v,.avi"
-        className="hidden"
-        onChange={(e) => {
-          if (e.target.files?.length) addSelected(Array.from(e.target.files));
-          e.target.value = "";
-        }}
-      />
+          <input
+            ref={inputRef}
+            type="file"
+            multiple
+            accept="video/*,.mkv,.webm,.m4v,.avi"
+            className="hidden"
+            onChange={(e) => {
+              if (e.target.files?.length) addSelected(Array.from(e.target.files));
+              e.target.value = "";
+            }}
+          />
 
-      {jobs.length > 0 ? (
-        <div className="flex max-h-72 flex-col gap-2 overflow-y-auto p-1 pr-2">
-          {jobs.map((job) => (
-            <UploadJobCard
-              key={job.id}
-              job={job}
-              categories={categories}
-              onRemove={() => askRemove(job)}
-            />
-          ))}
-        </div>
-      ) : null}
+          {hasPending ? (
+            <div className="flex justify-end">
+              <Button variant="outline" size="sm" onClick={pickFiles}>
+                <PlusIcon className="size-4" /> {t("uploadAddMore")}
+              </Button>
+            </div>
+          ) : null}
 
-      {hasPending ? (
+          {jobs.length > 0 ? (
+            <div className="flex max-h-72 flex-col gap-2 overflow-y-auto p-1 pr-2">
+              {jobs.map((job) => (
+                <UploadJobCard
+                  key={job.id}
+                  job={job}
+                  categories={categories}
+                  onRemove={() => askRemove(job)}
+                />
+              ))}
+            </div>
+          ) : null}
+        </TabsContent>
+
+        {/* Tab 2: download from URL */}
+        <TabsContent value="url" className="flex flex-col gap-3">
+          <Textarea
+            rows={4}
+            className="rounded-lg font-mono text-xs resize-none"
+            placeholder={t("uploadUrlPlaceholder")}
+            value={urlText}
+            onChange={(e) => setUrlText(e.target.value)}
+          />
+          {urlJobs.length > 0 ? (
+            <div className="flex max-h-72 flex-col gap-2 overflow-y-auto p-1 pr-2">
+              {urlJobs.map((job) => (
+                <UrlDownloadCard key={job.id} job={job} />
+              ))}
+            </div>
+          ) : null}
+        </TabsContent>
+      </Tabs>
+
+      {tab === "computer" ? (
+        jobs.length === 0 ? (
+          <DialogFooter>
+            <Button variant="outline" onClick={onClose}>
+              {t("close")}
+            </Button>
+          </DialogFooter>
+        ) : (
+          <DialogFooter>
+            <Button variant="outline" onClick={onClose}>
+              {t("cancel")}
+            </Button>
+            <Button onClick={startAll} disabled={activeCount === 0}>
+              <UploadCloudIcon className="size-4" />
+              {t("uploadStartN", { n: activeCount, s: activeCount > 1 ? "s" : "" })}
+            </Button>
+          </DialogFooter>
+        )
+      ) : urlJobs.length === 0 ? (
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={activeCount === 0 && jobs.length === 0}>
-            {t("cancel")}
+          <Button variant="outline" onClick={onClose}>
+            {t("close")}
           </Button>
-          <Button onClick={startAll} disabled={activeCount === 0}>
-            <UploadCloudIcon className="size-4" />
-            {t("uploadStartN", { n: activeCount, s: activeCount > 1 ? "s" : "" })}
+          <Button onClick={handleCheckUrls} disabled={checking || urlLines === 0}>
+            {checking ? <Loader2Icon className="size-4 animate-spin" /> : null}
+            {t("uploadCheckUrls")}
+          </Button>
+        </DialogFooter>
+      ) : allUrlDone ? (
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            {t("close")}
           </Button>
         </DialogFooter>
       ) : (
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
-            {t("close")}
+            {t("cancel")}
+          </Button>
+          <Button onClick={handleStartUrls} disabled={starting || urlActive}>
+            {starting || urlActive ? (
+              <Loader2Icon className="size-4 animate-spin" />
+            ) : (
+              <DownloadIcon className="size-4" />
+            )}
+            {urlActive ? t("uploadDownloading") : t("uploadStart")}
           </Button>
         </DialogFooter>
       )}
@@ -242,11 +343,11 @@ function UploadJobCard({
   }[job.status];
 
   return (
-    <Card className="overflow-hidden py-0 shadow-sm">
+    <Card className="overflow-hidden py-0">
       <CardContent className="flex flex-col gap-2.5 p-3">
         <div className="flex items-center gap-3">
           <div
-            className={`flex size-8 shrink-0 items-center justify-center rounded-lg shadow-sm ${status.tile}`}
+            className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${status.tile}`}
           >
             {status.icon}
           </div>
@@ -310,6 +411,78 @@ function UploadJobCard({
               </span>
             </div>
           </>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+}
+
+function UrlDownloadCard({ job }: { job: UrlDownloadJob }) {
+  const t = useT();
+
+  const status = {
+    done: {
+      tile: "bg-emerald-500/10 text-emerald-500",
+      icon: <CheckIcon className="size-4" />,
+      text: ` — ${t("uploadDone")}`,
+    },
+    failed: {
+      tile: "bg-red-500/10 text-red-500",
+      icon: <CircleAlertIcon className="size-4" />,
+      text: ` — ${job.error ?? t("error")}`,
+    },
+    downloading: {
+      tile: "bg-blue-500/10 text-blue-500",
+      icon: <DownloadIcon className="size-4" />,
+      text: ` — ${t("uploadInProgress")}`,
+    },
+    queued: {
+      tile: "bg-amber-500/10 text-amber-500",
+      icon: <TimerIcon className="size-4" />,
+      text: "",
+    },
+    checking: {
+      tile: "bg-amber-500/10 text-amber-500",
+      icon: <Loader2Icon className="size-4 animate-spin" />,
+      text: "",
+    },
+  }[job.status];
+
+  return (
+    <Card className="overflow-hidden py-0">
+      <CardContent className="flex flex-col gap-2.5 p-3">
+        <div className="flex items-center gap-3">
+          <div
+            className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${status.tile}`}
+          >
+            {status.icon}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium">{job.fileName}</p>
+            <p className="truncate text-xs text-muted-foreground">
+              {job.url}
+              {status.text}
+            </p>
+          </div>
+          {job.status === "queued" || job.status === "failed" ? (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => removeUrlDownload(job.id)}
+            >
+              <Trash2Icon className="size-4" />
+            </Button>
+          ) : null}
+        </div>
+
+        {job.status === "downloading" || job.status === "queued" ? (
+          <div className="flex items-center gap-3">
+            <Progress value={job.progress >= 0 ? job.progress : 0} className="h-1.5 flex-1" />
+            <span className="w-9 text-right text-xs text-muted-foreground tabular-nums">
+              {job.progress >= 0 ? `${job.progress}%` : "…"}
+            </span>
+          </div>
         ) : null}
       </CardContent>
     </Card>

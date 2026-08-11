@@ -93,6 +93,7 @@ func (s *Server) Handler() http.Handler {
 	s.registerSettingsRoutes(mux)
 	s.registerAclRoutes(mux)
 	s.registerEntryRoutes(mux, s.tusHandler)
+	s.registerFromURLRoutes(mux)
 	s.registerMediaRoutes(mux)
 	s.registerAnalyticsRoutes(mux)
 	s.registerUserRoutes(mux)

@@ -10,6 +10,7 @@ import {
   LanguagesIcon,
   LayoutDashboardIcon,
   ListChecksIcon,
+  Loader2Icon,
   LogOutIcon,
   MoonIcon,
   SettingsIcon,
@@ -50,6 +51,9 @@ import { useAuth } from "@/components/auth-provider"
 import { useChangePasswordDialog } from "@/components/change-password-dialog"
 import { useTheme } from "@/components/theme-provider"
 import { useDialog } from "@/hooks/use-dialog"
+import { useUploadDialog } from "@/components/upload-dialog"
+import { useUploads } from "@/lib/upload-store"
+import { useUrlDownloads } from "@/lib/url-download-store"
 import { displayName } from "@/lib/api"
 import { locales, useI18n, useT } from "@/lib/i18n"
 
@@ -143,6 +147,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarContent>
       {user ? (
         <SidebarFooter>
+          <UploadProgressCard />
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
@@ -237,5 +242,92 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarFooter>
       ) : null}
     </Sidebar>
+  )
+}
+
+// UploadProgressCard shows an ongoing upload/download with a circular
+// progress ring above the user card; clicking reopens the upload dialog.
+// The sidebar lives across page changes, so the card always reflects the
+// current state.
+function UploadProgressCard() {
+  const t = useT()
+  const openUpload = useUploadDialog()
+  const uploads = useUploads()
+  const urlJobs = useUrlDownloads()
+
+  const activeUploads = uploads.filter((j) =>
+    j.status === "uploading" || j.status === "queued" || j.status === "interrupted",
+  )
+  const activeUrls = urlJobs.filter((j) =>
+    j.status === "downloading" || j.status === "queued" || j.status === "checking",
+  )
+  const total = activeUploads.length + activeUrls.length
+  if (total === 0) return null
+
+  const sum = activeUploads.reduce((acc, j) => acc + (j.progress || 0), 0)
+  const urlUnknown = activeUrls.some((j) => j.progress < 0)
+  const percent = Math.round(sum / Math.max(1, total))
+
+  return (
+    <button
+      type="button"
+      onClick={openUpload}
+      className="mb-1 flex w-full items-center gap-2.5 rounded-lg border border-sidebar-border/60 bg-sidebar-accent/40 px-2.5 py-2 text-left transition-colors hover:bg-sidebar-accent"
+    >
+      <ProgressRing percent={percent} indeterminate={urlUnknown} />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-xs font-medium">
+          {t("uploadsInProgress", { n: total, s: total > 1 ? "s" : "" })}
+        </p>
+        <p className="truncate text-[11px] text-muted-foreground">
+          {activeUploads.length > 0
+            ? `${percent}%`
+            : activeUrls.length > 0
+              ? t("uploadDownloading")
+              : ""}
+        </p>
+      </div>
+    </button>
+  )
+}
+
+function ProgressRing({
+  percent,
+  indeterminate,
+}: {
+  percent: number
+  indeterminate: boolean
+}) {
+  const r = 13
+  const c = 2 * Math.PI * r
+  return (
+    <div className="relative size-8 shrink-0">
+      <svg viewBox="0 0 32 32" className="size-8 -rotate-90">
+        <circle
+          cx="16"
+          cy="16"
+          r={r}
+          fill="none"
+          strokeWidth="3.5"
+          className="stroke-sidebar-border"
+        />
+        {!indeterminate ? (
+          <circle
+            cx="16"
+            cy="16"
+            r={r}
+            fill="none"
+            strokeWidth="3.5"
+            strokeLinecap="round"
+            className="stroke-primary transition-all duration-300"
+            strokeDasharray={c}
+            strokeDashoffset={c * (1 - percent / 100)}
+          />
+        ) : null}
+      </svg>
+      {indeterminate ? (
+        <Loader2Icon className="absolute inset-0 m-auto size-4 animate-spin text-primary" />
+      ) : null}
+    </div>
   )
 }

@@ -1,4 +1,5 @@
-// Package jobs implements the pipeline job handlers: probe and transcode.
+// Package jobs implements the pipeline job handlers: probe, transcode and
+// URL-import download.
 package jobs
 
 import (
@@ -8,16 +9,19 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/parasetam0l/vod-app/internal/db"
 	"github.com/parasetam0l/vod-app/internal/media"
 	"github.com/parasetam0l/vod-app/internal/queue"
+	"github.com/parasetam0l/vod-app/internal/safeurl"
 	"github.com/parasetam0l/vod-app/internal/settings"
 	"github.com/parasetam0l/vod-app/internal/store"
 )
@@ -28,6 +32,17 @@ type Runner struct {
 	Queue    *queue.Queue
 	Settings *settings.Service
 	Log      *slog.Logger
+
+	// downloadSem serializes URL downloads (one at a time) within this
+	// worker process.
+	downloadSem chan struct{}
+}
+
+// EnsureDownloadSem lazily creates the download semaphore.
+func (r *Runner) EnsureDownloadSem() {
+	if r.downloadSem == nil {
+		r.downloadSem = make(chan struct{}, 1)
+	}
 }
 
 // Handle dispatches a claimed job to its handler.
@@ -37,6 +52,8 @@ func (r *Runner) Handle(ctx context.Context, job db.Job) error {
 		return r.Probe(ctx, job)
 	case "transcode":
 		return r.Transcode(ctx, job)
+	case "download":
+		return r.Download(ctx, job)
 	default:
 		return fmt.Errorf("unknown job type %q", job.Type)
 	}
@@ -44,6 +61,157 @@ func (r *Runner) Handle(ctx context.Context, job db.Job) error {
 
 func (r *Runner) media() *media.Manager {
 	return &media.Manager{Store: r.Store}
+}
+
+// Download fetches a remote video URL into the store and hands off to the
+// probe pipeline. SSRF-guarded, size-capped, sequential (one at a time),
+// with progress reported through the url_downloads table.
+func (r *Runner) Download(ctx context.Context, job db.Job) error {
+	if job.EntryID == nil {
+		return errors.New("download job without entry")
+	}
+	var params struct {
+		URL string `json:"url"`
+	}
+	if err := json.Unmarshal(job.Payload, &params); err != nil {
+		return err
+	}
+	e, err := db.EntryByID(ctx, r.Pool, *job.EntryID)
+	if err != nil {
+		return err
+	}
+	fail := func(msg string) error {
+		r.failEntry(ctx, e, "download failed: "+msg)
+		_ = db.DeleteURLDownload(ctx, r.Pool, e.ID)
+		return errors.New("download failed: " + msg)
+	}
+
+	u, err := safeurl.Validate(ctx, params.URL)
+	if err != nil {
+		return fail(err.Error())
+	}
+	ext := strings.ToLower(strings.TrimPrefix(path.Ext(u.Path), "."))
+	if ext == "" {
+		return fail("url has no file extension")
+	}
+	allowed := r.Settings.StringSlice("upload.allowed_extensions", []string{"mp4", "mov", "mkv", "webm", "m4v", "avi"})
+	extOK := false
+	for _, a := range allowed {
+		if ext == a {
+			extOK = true
+			break
+		}
+	}
+	if !extOK {
+		return fail("file extension ." + ext + " is not allowed")
+	}
+	maxSize := r.Settings.Int64("upload.max_size_bytes", 8<<30)
+
+	r.EnsureDownloadSem()
+	select {
+	case r.downloadSem <- struct{}{}:
+		defer func() { <-r.downloadSem }()
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+
+	// Re-validate every redirect hop (SSRF via redirect). A browser-like
+	// user-agent avoids CDN blocks on Go's default client UA.
+	client := &http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if _, err := safeurl.Validate(ctx, req.URL.String()); err != nil {
+				return err
+			}
+			if len(via) >= 5 {
+				return errors.New("too many redirects")
+			}
+			return nil
+		},
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, params.URL, nil)
+	if err != nil {
+		return fail(err.Error())
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; vod-app/0.1)")
+	resp, err := client.Do(req)
+	if err != nil {
+		return fail(err.Error())
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fail(fmt.Sprintf("remote server returned %s", resp.Status))
+	}
+	total := resp.ContentLength
+	if total > maxSize {
+		return fail("file exceeds the configured max upload size")
+	}
+
+	src, err := os.CreateTemp(os.TempDir(), "vod-download-*."+ext)
+	if err != nil {
+		return fail(err.Error())
+	}
+	defer os.Remove(src.Name())
+
+	lastUpdate := time.Time{}
+	var counted *countingWriter
+	counted = &countingWriter{next: src, onWrite: func(n int64) {
+		if total <= 0 || time.Since(lastUpdate) < time.Second {
+			return
+		}
+		lastUpdate = time.Now()
+		_ = db.UpdateURLDownloadProgress(ctx, r.Pool, e.ID, counted.n, total)
+	}}
+	written, err := io.Copy(counted, io.LimitReader(resp.Body, maxSize+1))
+	if err != nil {
+		return fail(err.Error())
+	}
+	if written > maxSize {
+		return fail("file exceeds the configured max upload size")
+	}
+	if err := src.Close(); err != nil {
+		return fail(err.Error())
+	}
+	if err := db.UpdateURLDownloadProgress(ctx, r.Pool, e.ID, written, written); err != nil {
+		r.Log.Warn("download progress update", "err", err)
+	}
+
+	key := store.OriginalKey(e.ID, ext)
+	f, err := os.Open(src.Name())
+	if err != nil {
+		return fail(err.Error())
+	}
+	err = r.Store.Put(ctx, key, f, written)
+	f.Close()
+	if err != nil {
+		return fail(err.Error())
+	}
+	if _, err := r.Pool.Exec(ctx, `
+		UPDATE entries SET status = 'probing', source_key = $1, source_size = $2, error = NULL, updated_at = now()
+		WHERE id = $3`, key, written, e.ID); err != nil {
+		return err
+	}
+	_ = db.DeleteURLDownload(ctx, r.Pool, e.ID)
+	if _, err := r.Queue.Enqueue(ctx, "probe", e.ID, map[string]any{}, 3); err != nil {
+		return err
+	}
+	r.Log.Info("url download finished, probe queued", "entry", e.ID, "bytes", written, "url", params.URL)
+	return nil
+}
+
+// countingWriter counts bytes while forwarding to an underlying writer.
+type countingWriter struct {
+	next    io.Writer
+	n       int64
+	onWrite func(n int64)
+}
+
+func (c *countingWriter) Write(p []byte) (int, error) {
+	n, err := c.next.Write(p)
+	c.n += int64(n)
+	if c.onWrite != nil {
+		c.onWrite(c.n)
+	}
+	return n, err
 }
 
 // spoolSource downloads the entry's source file to local disk.
