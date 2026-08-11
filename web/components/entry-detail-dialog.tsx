@@ -9,7 +9,10 @@ import { useAuth } from "@/components/auth-provider";
 import {
   BarChart3Icon,
   CaptionsIcon,
+  Check,
   CheckIcon,
+  Code2Icon,
+  Copy,
   CopyIcon,
   FilmIcon,
   ImageIcon,
@@ -19,6 +22,7 @@ import {
   PlayIcon,
   RotateCcwIcon,
   SaveIcon,
+  ShieldIcon,
   Trash2Icon,
   UploadIcon,
   VideoIcon,
@@ -215,7 +219,8 @@ export function EntryDetailDialog({
     { id: "flavors", label: t("tabFlavors"), icon: <VideoIcon className="size-4" /> },
     { id: "poster", label: t("tabPoster"), icon: <ImageIcon className="size-4" /> },
     { id: "subtitles", label: t("tabSubtitles"), icon: <CaptionsIcon className="size-4" /> },
-    { id: "playback", label: t("tabPlayback"), icon: <Link2Icon className="size-4" /> },
+    { id: "security", label: "Security", icon: <ShieldIcon className="size-4" /> },
+    { id: "embed", label: "Embed", icon: <Code2Icon className="size-4" /> },
     { id: "analytics", label: t("tabAnalytics"), icon: <BarChart3Icon className="size-4" /> },
   ];
 
@@ -676,14 +681,19 @@ export function EntryDetailDialog({
             </div>
           ) : null}
 
-          {active === "playback" ? (
+          {active === "security" ? (
             <div className="max-w-4xl">
-              <PlaybackTab
-                entry={entry}
+              <SecurityTab
                 aclId={aclId}
                 acls={acls}
                 onAclChange={setAclId}
               />
+            </div>
+          ) : null}
+
+          {active === "embed" ? (
+            <div className="max-w-4xl">
+              <EmbedTab publicId={entry.id} />
             </div>
           ) : null}
 
@@ -959,32 +969,26 @@ function SubtitlesTab({
   );
 }
 
-function PlaybackTab({
-  entry,
+function SecurityTab({
   aclId,
   acls,
   onAclChange,
 }: {
-  entry: EntryDetail;
   aclId: number | null;
   acls: DomainAcl[];
   onAclChange: (id: number | null) => void;
 }) {
   const t = useT();
-  const [copied, setCopied] = React.useState(false);
-
-  const embedUrl = `https://${typeof window !== "undefined" ? window.location.host : "localhost"}/embed/${entry.id}`;
-  const snippet = `<iframe src="${embedUrl}" width="640" height="360" frameborder="0" allowfullscreen></iframe>`;
 
   return (
     <Card className="rounded-2xl border shadow-xs">
       <CardHeader className="pb-4">
         <CardTitle className="text-base font-medium flex items-center gap-2">
-          <Link2Icon className="size-4 text-primary" />
-          {t("tabPlayback")}
+          <ShieldIcon className="size-4 text-primary" />
+          Security
         </CardTitle>
         <CardDescription>
-          Configure domain whitelist security policies and retrieve embed snippets.
+          Configure domain whitelist security policies to restrict where this video can be embedded.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
@@ -1000,32 +1004,117 @@ function PlaybackTab({
             onChange={(v) => onAclChange(v ? Number(v) : null)}
           />
         </div>
+      </CardContent>
+    </Card>
+  );
+}
 
-        <div className="flex flex-col gap-2.5">
-          <Label className="text-xs font-medium">{t("embedSnippet")}</Label>
-          <div className="relative overflow-hidden rounded-xl border bg-muted/60 p-4 font-mono text-xs text-foreground/90">
-            <pre className="overflow-x-auto whitespace-pre-wrap break-all pr-20">
-              {snippet}
-            </pre>
+function EmbedTab({ publicId }: { publicId: string }) {
+  const t = useT();
+  const [copiedDirect, setCopiedDirect] = React.useState(false);
+  const [copiedSnippet, setCopiedSnippet] = React.useState(false);
+
+  const origin = typeof window !== "undefined" ? window.location.origin : "http://localhost:8080";
+  const directUrl = `${origin}/embed/${publicId}`;
+  const snippet = `<iframe src="${directUrl}" width="640" height="360" frameborder="0" allowfullscreen></iframe>`;
+
+  const handleCopyDirect = () => {
+    navigator.clipboard.writeText(directUrl);
+    setCopiedDirect(true);
+    setTimeout(() => setCopiedDirect(false), 2000);
+  };
+
+  const handleCopySnippet = () => {
+    navigator.clipboard.writeText(snippet);
+    setCopiedSnippet(true);
+    setTimeout(() => setCopiedSnippet(false), 2000);
+  };
+
+  return (
+    <Card className="rounded-2xl border shadow-xs">
+      <CardHeader className="pb-4">
+        <CardTitle className="text-base font-medium flex items-center gap-2">
+          <Code2Icon className="size-4 text-primary" />
+          Embed
+        </CardTitle>
+        <CardDescription>
+          Share this video via direct URL link or embed iframe into your application.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        {/* Embedded Video Player Preview */}
+        <div className="relative aspect-video max-h-60 w-full overflow-hidden rounded-xl border border-border bg-black shadow-inner">
+          <iframe
+            src={`/embed/${publicId}`}
+            className="h-full w-full border-0"
+            allowFullScreen
+            title="Video preview"
+          />
+        </div>
+
+        {/* Gray Area 1: Direct Link */}
+        <div className="flex flex-col gap-2.5 rounded-xl border border-border/60 bg-muted/40 p-4">
+          <div className="flex items-center gap-2">
+            <Link2Icon className="size-4 text-primary shrink-0" />
+            <span className="text-xs font-semibold text-foreground">Direct Link</span>
+          </div>
+          <Input
+            readOnly
+            value={directUrl}
+            className="font-mono text-xs bg-background rounded-lg border shadow-2xs selection:bg-primary/20"
+            onFocus={(e) => e.target.select()}
+          />
+          <div className="flex justify-start">
             <Button
               variant="outline"
               size="sm"
-              className="absolute top-3 right-3 h-8 gap-1.5 text-xs rounded-lg bg-background shadow-xs"
-              onClick={() => {
-                navigator.clipboard.writeText(snippet);
-                setCopied(true);
-                setTimeout(() => setCopied(false), 1500);
-              }}
+              onClick={handleCopyDirect}
+              className="h-8 gap-1.5 text-xs rounded-lg bg-background shadow-2xs hover:bg-muted/60"
             >
-              {copied ? (
+              {copiedDirect ? (
                 <>
-                  <CheckIcon className="size-3.5 text-emerald-500" />
+                  <Check className="size-3.5 text-emerald-500" />
                   <span className="text-emerald-600 dark:text-emerald-400">{t("copied")}</span>
                 </>
               ) : (
                 <>
-                  <CopyIcon className="size-3.5" />
-                  <span>{t("copy")}</span>
+                  <Copy className="size-3.5" />
+                  <span>Copy Direct Link</span>
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+
+        {/* Gray Area 2: Embed Code */}
+        <div className="flex flex-col gap-2.5 rounded-xl border border-border/60 bg-muted/40 p-4">
+          <div className="flex items-center gap-2">
+            <Code2Icon className="size-4 text-primary shrink-0" />
+            <span className="text-xs font-semibold text-foreground">Embed Code</span>
+          </div>
+          <Textarea
+            readOnly
+            rows={3}
+            value={snippet}
+            className="font-mono text-xs bg-background resize-none rounded-lg border shadow-2xs selection:bg-primary/20"
+            onFocus={(e) => e.target.select()}
+          />
+          <div className="flex justify-start">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCopySnippet}
+              className="h-8 gap-1.5 text-xs rounded-lg bg-background shadow-2xs hover:bg-muted/60"
+            >
+              {copiedSnippet ? (
+                <>
+                  <Check className="size-3.5 text-emerald-500" />
+                  <span className="text-emerald-600 dark:text-emerald-400">{t("copied")}</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="size-3.5" />
+                  <span>Copy Embed Code</span>
                 </>
               )}
             </Button>
