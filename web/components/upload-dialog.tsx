@@ -97,9 +97,11 @@ export function UploadDialogContent({ onClose }: { onClose: () => void }) {
   const pickFiles = () => inputRef.current?.click();
 
   const addSelected = (files: File[]) => {
-    const added = addFiles(Array.from(files));
-    if (files.length > added) {
+    const { added, duplicates, overLimit } = addFiles(Array.from(files));
+    if (overLimit > 0) {
       toast.error(t("uploadBatchLimit", { n: MAX_BATCH }));
+    } else if (duplicates > 0 && added === 0) {
+      toast.error(t("uploadDuplicate"));
     }
   };
 

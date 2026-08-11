@@ -5,9 +5,11 @@
 package safeurl
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -83,8 +85,10 @@ var contentTypeExt = map[string]string{
 
 // Resolve follows the URL (redirects included, each hop SSRF-checked) to
 // discover the real file type. It returns the final URL and a suggested
-// extension derived from the final path, falling back to the response
-// Content-Type. Bounded by timeout.
+// extension derived from the final path, the response Content-Type, or a
+// magic-byte sniff of the content (octet-stream servers). Bounded by
+// timeout. A ranged GET is used instead of HEAD — some video servers hang
+// or reject HEAD requests.
 func Resolve(ctx context.Context, client *http.Client, raw string, timeout time.Duration) (*url.URL, string, error) {
 	u, err := Validate(ctx, raw)
 	if err != nil {
@@ -93,31 +97,23 @@ func Resolve(ctx context.Context, client *http.Client, raw string, timeout time.
 	probeCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	probe := func(method string) (*http.Response, error) {
-		req, err := http.NewRequestWithContext(probeCtx, method, u.String(), nil)
-		if err != nil {
-			return nil, err
-		}
-		req.Header.Set("User-Agent", userAgent)
-		if method == http.MethodGet {
-			req.Header.Set("Range", "bytes=0-1023")
-		}
-		return client.Do(req)
+	req, err := http.NewRequestWithContext(probeCtx, http.MethodGet, u.String(), nil)
+	if err != nil {
+		return nil, "", err
 	}
-
-	resp, err := probe(http.MethodHead)
-	if err == nil && resp.StatusCode < 500 {
-		defer resp.Body.Close()
-		return resolveFrom(resp.Request.URL, resp.Header.Get("Content-Type"))
-	}
-	// HEAD unsupported (405/501/…): probe with a ranged GET and abandon the
-	// body immediately.
-	resp, err = probe(http.MethodGet)
+	req.Header.Set("User-Agent", userAgent)
+	req.Header.Set("Range", "bytes=0-4095")
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, "", err
 	}
 	defer resp.Body.Close()
-	return resolveFrom(resp.Request.URL, resp.Header.Get("Content-Type"))
+	head := make([]byte, 0, 4096)
+	buf := make([]byte, 4096)
+	if n, _ := io.ReadFull(resp.Body, buf); n > 0 {
+		head = buf[:n]
+	}
+	return resolveFrom(resp.Request.URL, resp.Header.Get("Content-Type"), head)
 }
 
 // ResolveExt is Resolve returning only the discovered extension.
@@ -126,7 +122,7 @@ func ResolveExt(ctx context.Context, client *http.Client, raw string, timeout ti
 	return ext, err
 }
 
-func resolveFrom(final *url.URL, contentType string) (*url.URL, string, error) {
+func resolveFrom(final *url.URL, contentType string, head []byte) (*url.URL, string, error) {
 	ext := strings.ToLower(strings.TrimPrefix(path.Ext(final.Path), "."))
 	if ext != "" {
 		return final, ext, nil
@@ -137,5 +133,29 @@ func resolveFrom(final *url.URL, contentType string) (*url.URL, string, error) {
 			return final, e, nil
 		}
 	}
-	return final, "", errors.New("cannot determine file type from url or content-type")
+	if e := sniffExt(head); e != "" {
+		return final, e, nil
+	}
+	return final, "", errors.New("cannot determine file type from url, content-type or content")
+}
+
+// sniffExt detects the container from magic bytes: MP4/MOV (ftyp box),
+// Matroska/WebM (EBML), AVI (RIFF).
+func sniffExt(b []byte) string {
+	if len(b) >= 12 && string(b[4:8]) == "ftyp" {
+		if len(b) >= 12 && string(b[8:12]) == "qt  " {
+			return "mov"
+		}
+		return "mp4"
+	}
+	if len(b) >= 4 && b[0] == 0x1A && b[1] == 0x45 && b[2] == 0xDF && b[3] == 0xA3 {
+		if bytes.Contains(b, []byte("webm")) {
+			return "webm"
+		}
+		return "mkv"
+	}
+	if len(b) >= 12 && string(b[0:4]) == "RIFF" && string(b[8:12]) == "AVI " {
+		return "avi"
+	}
+	return ""
 }

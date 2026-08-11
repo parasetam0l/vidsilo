@@ -254,6 +254,7 @@ const en = {
   uploadInProgress: "Uploading…",
   uploadAllComplete: "All uploads complete.",
   uploadBatchLimit: "You can upload up to {n} files at once.",
+  uploadDuplicate: "The file you selected is already in the list.",
   uploadStopTitle: "Stop this upload?",
   uploadStopDesc:
     "The transfer stops and the partially uploaded file is discarded. The empty entry can be deleted from the Entries page.",

@@ -91,15 +91,24 @@ function defaultTitle(name: string) {
 
 export const MAX_BATCH = 10;
 
-export function addFiles(newFiles: File[]): number {
-  let added = 0;
+export interface AddFilesResult {
+  added: number;
+  duplicates: number;
+  overLimit: number;
+}
+
+export function addFiles(newFiles: File[]): AddFilesResult {
+  const result: AddFilesResult = { added: 0, duplicates: 0, overLimit: 0 };
   // Free slots: active (non-done, non-failed) jobs count against the cap.
   const active = jobs.filter(
     (j) => j.status !== "done" && j.status !== "failed",
   ).length;
   const slots = Math.max(0, MAX_BATCH - active);
   for (const f of newFiles) {
-    if (added >= slots) break;
+    if (result.added >= slots) {
+      result.overLimit++;
+      continue;
+    }
     // Resume: same file name+size with a stored tus upload URL.
     const resumable = jobs.find(
       (j) =>
@@ -116,7 +125,7 @@ export function addFiles(newFiles: File[]): number {
       );
       emit();
       persist();
-      added++;
+      result.added++;
       continue;
     }
     if (
@@ -128,7 +137,8 @@ export function addFiles(newFiles: File[]): number {
           j.status !== "failed",
       )
     ) {
-      continue; // already queued
+      result.duplicates++;
+      continue; // already in the list
     }
     const job: UploadJob = {
       id: crypto.randomUUID(),
@@ -143,11 +153,11 @@ export function addFiles(newFiles: File[]): number {
     files.set(job.id, f);
     void idbPut(job.id, f);
     jobs = [...jobs, job];
-    added++;
+    result.added++;
   }
   emit();
   persist();
-  return added;
+  return result;
 }
 
 export function updateJob(id: string, patch: Partial<UploadJob>) {
