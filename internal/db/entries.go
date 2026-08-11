@@ -18,7 +18,7 @@ func scanEntry(row pgx.Row) (Entry, error) {
 		&e.ID, &e.PublicID, &e.CategoryID, &e.UploadedBy,
 		&e.Title, &e.Description, &e.Status, &e.DurationMS,
 		&e.SourceKey, &e.SourceSize, &e.IsPublic,
-		&e.EmbedPolicy, &e.EmbedDomains,
+		&e.DomainACLID,
 		&e.PosterKey, &e.SpriteKey, &e.SpriteFrames, &e.Error,
 		&e.CreatedAt, &e.UpdatedAt,
 	)
@@ -29,7 +29,7 @@ const entryColumns = `
 	e.id, e.public_id::text, e.category_id, e.uploaded_by,
 	e.title, e.description, e.status, e.duration_ms,
 	coalesce(e.source_key, ''), e.source_size, e.is_public,
-	e.embed_policy, e.embed_domains,
+	e.domain_acl_id,
 	coalesce(e.poster_key, ''), coalesce(e.sprite_key, ''), coalesce(e.sprite_frames, 0), coalesce(e.error, ''),
 	e.created_at, e.updated_at`
 
@@ -89,8 +89,12 @@ func ListEntries(ctx context.Context, pool *pgxpool.Pool, f EntryFilter) (EntryL
 		args = append(args, arg)
 		conds = append(conds, fmt.Sprintf(cond, len(args)))
 	}
+	// qIdx tracks the argument index of the search term so the ORDER BY can
+	// rank results by pg_trgm similarity when searching (index-assisted).
+	qIdx := 0
 	if f.Q != "" {
 		add(`(e.title ILIKE '%%' || $%[1]d || '%%' OR e.description ILIKE '%%' || $%[1]d || '%%')`, f.Q)
+		qIdx = len(args)
 	}
 	if f.Status != "" {
 		add(`e.status = $%d`, f.Status)
@@ -120,10 +124,16 @@ func ListEntries(ctx context.Context, pool *pgxpool.Pool, f EntryFilter) (EntryL
 		return EntryList{}, err
 	}
 
+	orderBy := "e.created_at DESC"
+	if qIdx > 0 {
+		orderBy = fmt.Sprintf(
+			"greatest(coalesce(similarity(e.title, $%d), 0), coalesce(similarity(e.description, $%d), 0)) DESC, e.created_at DESC",
+			qIdx, qIdx)
+	}
 	offset := (f.Page - 1) * f.Limit
 	rows, err := pool.Query(ctx,
 		`SELECT `+entryColumns+` FROM entries e `+where+`
-		 ORDER BY e.created_at DESC
+		 ORDER BY `+orderBy+`
 		 LIMIT $`+fmt.Sprintf("%d", len(args)+1)+` OFFSET $`+fmt.Sprintf("%d", len(args)+2),
 		append(args, f.Limit, offset)...)
 	if err != nil {

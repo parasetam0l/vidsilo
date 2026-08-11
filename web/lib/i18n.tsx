@@ -35,6 +35,7 @@ const en = {
   navAnalytics: "Analytics",
   navCategories: "Categories",
   navFlavors: "Flavors",
+  navDomainAcls: "Domain ACL",
   navSettings: "Settings",
   navSignIn: "Sign in",
   langLabel: "Language",
@@ -186,13 +187,8 @@ const en = {
   subtitleUploaded: "Subtitle uploaded",
   deleteSubtitleTitle: "Delete subtitle?",
   deleteSubtitleDesc: "This removes the subtitle track from the entry.",
-  labelEmbedPolicy: "Embed policy",
-  embedDefault: "Default (global)",
-  embedAnywhere: "Anywhere",
-  embedSameOrigin: "Same origin",
-  embedAllowlist: "Allowlist",
-  allowedDomains: "Allowed domains (comma separated, subdomains match)",
-  savePolicy: "Save policy",
+  labelEmbedPolicy: "Embed security",
+  allowAll: "Allow All",
   embedSnippet: "Embed snippet",
   copy: "Copy",
   copied: "Copied",
@@ -265,6 +261,20 @@ const en = {
   deleteFlavorTitle: "Delete flavor?",
   deleteFlavorDesc: "This removes the quality preset. Existing output files are kept.",
 
+  // domain ACLs
+  aclNew: "New domain ACL",
+  aclEditTitle: "Edit domain ACL",
+  aclCreated: "Domain ACL created",
+  aclUpdated: "Domain ACL updated",
+  aclDeleteTitle: "Delete domain ACL?",
+  aclDeleteDesc:
+    "Entries using this ACL fall back to \"Allow All\" (embeds allowed anywhere).",
+  aclColTitle: "Title",
+  aclColWhitelist: "Whitelist",
+  aclColBlocklist: "Blocklist",
+  aclDomainsPlaceholder: "example.com\nsub.example.org",
+  aclEmpty: "No domain ACLs yet — create one to restrict where entries can be embedded.",
+
   // settings
   settingsRestart: "Restart required",
   settingsRestartDesc:
@@ -278,8 +288,6 @@ const en = {
   gTranscodingDesc: "Pipeline tuning — applies to newly processed entries",
   gAnalytics: "Analytics",
   gAnalyticsDesc: "Beacon collection and retention",
-  gPlayback: "Playback",
-  gPlaybackDesc: "Global default embed policy",
   gTls: "TLS",
   gTlsDesc: "Auto-HTTPS via Let's Encrypt — restart required",
   settingsSave: "Save {group}",

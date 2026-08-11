@@ -28,8 +28,6 @@ var defaultSettings = map[string]any{
 	"analytics.enabled":         true,
 	"analytics.retention_days":  30,
 	"analytics.flush_interval_s": 10,
-	"embed.default_policy":      "same-origin",
-	"embed.default_allowlist":   []string{},
 	"tls.mode":                  "off",
 	"tls.acme_domains":          []string{},
 	"tls.cert_dir":              "/data/certs",

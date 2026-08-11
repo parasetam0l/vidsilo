@@ -10,6 +10,11 @@ import (
 	"github.com/parasetam0l/vod-app/internal/store"
 )
 
+// entryAllowed decides whether an anonymous viewer may load an entry's
+// embed page / media. Authenticated sessions always pass; entries without a
+// domain ACL are "Allow All". A named ACL is evaluated blocklist-first
+// (deny wins), then whitelist (empty whitelist = allow the rest). Any ACL
+// resolution failure denies (fail closed).
 func (s *Server) entryAllowed(ctx context.Context, r *http.Request, e db.Entry) bool {
 	if u := userFromContext(ctx); u.ID > 0 {
 		return true // authenticated sessions always pass
@@ -17,33 +22,31 @@ func (s *Server) entryAllowed(ctx context.Context, r *http.Request, e db.Entry) 
 	if !e.IsPublic {
 		return false
 	}
-
-	policy := e.EmbedPolicy
-	domains := e.EmbedDomains
-	if policy == db.EmbedDefault {
-		policy = db.EmbedPolicy(s.settings.String("embed.default_policy", "same-origin"))
-		domains = s.settings.StringSlice("embed.default_allowlist", nil)
+	if e.DomainACLID == nil {
+		return true // Allow All
 	}
-
-	switch policy {
-	case db.EmbedAll:
-		return true
-	case db.EmbedSameOrigin:
-		return s.sameOriginRequest(r)
-	case db.EmbedAllowlist:
-		host := refererHost(r)
-		if host == "" {
+	acl, err := db.ACLByID(ctx, s.pool, *e.DomainACLID)
+	if err != nil {
+		return false
+	}
+	host := refererHost(r)
+	if host == "" {
+		return false
+	}
+	for _, d := range acl.Blocklist {
+		if host == d || strings.HasSuffix(host, "."+d) {
 			return false
 		}
-		for _, d := range domains {
-			if host == d || strings.HasSuffix(host, "."+d) {
-				return true
-			}
-		}
-		return false
-	default:
-		return false
 	}
+	if len(acl.Whitelist) == 0 {
+		return true
+	}
+	for _, d := range acl.Whitelist {
+		if host == d || strings.HasSuffix(host, "."+d) {
+			return true
+		}
+	}
+	return false
 }
 
 // refererHost extracts the host from Referer or Origin (anonymous embeds).
@@ -56,14 +59,6 @@ func refererHost(r *http.Request) string {
 		}
 	}
 	return ""
-}
-
-func (s *Server) sameOriginRequest(r *http.Request) bool {
-	host := refererHost(r)
-	if host == "" {
-		return false // direct navigation is not an embed
-	}
-	return host == r.Host
 }
 
 // optionalAuth resolves a valid session when one is present, leaving

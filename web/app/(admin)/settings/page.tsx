@@ -41,8 +41,6 @@ const labels: Record<string, string> = {
   "analytics.enabled": "Analytics enabled",
   "analytics.retention_days": "Retention (days)",
   "analytics.flush_interval_s": "Flush interval (s)",
-  "embed.default_policy": "Default embed policy",
-  "embed.default_allowlist": "Default allowlist (comma separated)",
   "tls.mode": "TLS mode",
   "tls.acme_domains": "ACME domains (comma separated)",
   "tls.cert_dir": "Certificate directory",
@@ -56,7 +54,6 @@ export default function SettingsPage() {
     { title: t("gStorage"), description: t("gStorageDesc"), keys: ["cache.enabled", "cache.max_bytes"] },
     { title: t("gTranscoding"), description: t("gTranscodingDesc"), keys: ["transcode.concurrency", "transcode.segment_seconds", "transcode.gop_seconds", "transcode.preset"] },
     { title: t("gAnalytics"), description: t("gAnalyticsDesc"), keys: ["analytics.enabled", "analytics.retention_days", "analytics.flush_interval_s"] },
-    { title: t("gPlayback"), description: t("gPlaybackDesc"), keys: ["embed.default_policy", "embed.default_allowlist"] },
     { title: t("gTls"), description: t("gTlsDesc"), keys: ["tls.mode", "tls.acme_domains", "tls.cert_dir"] },
   ];
   const [data, setData] = React.useState<SettingsResponse | null>(null);
@@ -126,7 +123,7 @@ export default function SettingsPage() {
           <CardContent className="grid gap-4 md:grid-cols-2">
             {g.keys.map((k) => {
               const isBool = typeof s[k] === "boolean";
-              const isEnum = k === "embed.default_policy" || k === "tls.mode";
+              const isEnum = k === "tls.mode";
               return (
                 <div key={k} className="flex flex-col gap-1.5">
                   <label className="text-sm font-medium">{labels[k] ?? k}</label>
@@ -144,13 +141,9 @@ export default function SettingsPage() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {k === "embed.default_policy"
-                          ? ["*", "same-origin", "allowlist"].map((o) => (
-                              <SelectItem key={o} value={o}>{o}</SelectItem>
-                            ))
-                          : ["off", "auto"].map((o) => (
-                              <SelectItem key={o} value={o}>{o}</SelectItem>
-                            ))}
+                        {["off", "auto"].map((o) => (
+                          <SelectItem key={o} value={o}>{o}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   ) : (

@@ -181,8 +181,6 @@ var Specs = map[string]KeySpec{
 	"analytics.enabled":          {Type: "bool"},
 	"analytics.retention_days":   {Type: "int"},
 	"analytics.flush_interval_s": {Type: "int"},
-	"embed.default_policy":       {Type: "enum", Enums: []string{"*", "same-origin", "allowlist"}},
-	"embed.default_allowlist":    {Type: "strings"},
 	"tls.mode":                   {Type: "enum", Enums: []string{"off", "auto"}, RestartRequired: true},
 	"tls.acme_domains":           {Type: "strings", RestartRequired: true},
 	"tls.cert_dir":               {Type: "string", RestartRequired: true},

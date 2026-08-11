@@ -100,8 +100,8 @@ export interface Entry {
   sourceKey: string;
   sourceSize: number | null;
   isPublic: boolean;
-  embedPolicy: "default" | "*" | "same-origin" | "allowlist";
-  embedDomains: string[];
+  /** null = "Allow All" (embed anywhere); otherwise references a DomainAcl. */
+  domainAclId: number | null;
   posterKey: string;
   spriteKey: string;
   spriteFrames: number;
@@ -138,6 +138,15 @@ export interface Category {
   slug: string;
   position: number;
   children?: Category[];
+}
+
+export interface DomainAcl {
+  id: number;
+  title: string;
+  whitelist: string[];
+  blocklist: string[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Flavor {

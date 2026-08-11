@@ -63,15 +63,6 @@ const (
 	StatusFailed      EntryStatus = "failed"
 )
 
-type EmbedPolicy string
-
-const (
-	EmbedDefault   EmbedPolicy = "default"
-	EmbedAll       EmbedPolicy = "*"
-	EmbedSameOrigin EmbedPolicy = "same-origin"
-	EmbedAllowlist EmbedPolicy = "allowlist"
-)
-
 type Entry struct {
 	// ID is the internal sequential id: used for FKs, jobs, analytics and
 	// storage keys only. Never exposed in API JSON.
@@ -86,8 +77,7 @@ type Entry struct {
 	SourceKey    string      `json:"sourceKey"`
 	SourceSize   *int64      `json:"sourceSize"`
 	IsPublic     bool        `json:"isPublic"`
-	EmbedPolicy  EmbedPolicy `json:"embedPolicy"`
-	EmbedDomains []string    `json:"embedDomains"`
+	DomainACLID  *int64      `json:"domainAclId"`
 	PosterKey    string      `json:"posterKey"`
 	SpriteKey    string      `json:"spriteKey"`
 	SpriteFrames int         `json:"spriteFrames"`

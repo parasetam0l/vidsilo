@@ -40,7 +40,7 @@ Horizontal scale: `DATABASE_URL` + shared storage (local: NFS — install warns;
 | Page | What it does |
 |---|---|
 | Dashboard | KPI cards, entries by status, recent uploads |
-| Entries | Search (ILIKE), status/category filters, pagination, bulk delete |
+| Entries | Search (pg_trgm ILIKE), status/category filters, pagination, bulk delete |
 | Entry detail | Metadata, sprite poster picker, subtitle upload, flavor ticks, playback ACL + embed snippet, analytics (SVG charts) |
 | Upload | Drag & drop, tus resumable, title/description/category — opens in a dialog from anywhere (sidebar, dashboard); uploads survive page changes and refreshes (resumable via IndexedDB + tus URLs) |
 | Users / Categories / Flavors / Settings | Admin CRUD (email + name/surname) + grouped settings (transcoding, storage, analytics, embed policy, TLS) |
@@ -70,7 +70,8 @@ Everything is admin-editable in the panel; only `DATABASE_URL` is required as en
 - **Backups**: `deploy/backup.sh` — `pg_dump` catalog + optional media tarball; cron example in the script header. `analytics_totals` survive retention; `secret.key` and S3 keys must be backed up (rotating logs everyone out).
 - **Bandwidth & concurrent viewers**: the dashboard "Bandwidth" card is **server-measured view traffic** — every byte served to viewers is counted in the media handler (zero extra requests) and batched into `analytics_totals`/`analytics_daily`. Plan your uplink: one 720p stream ≈ 1.5–2.5 Mbps ≈ 0.7–1.1 GB/hour, so 100 concurrent viewers ≈ 70–110 GB/hour. Serving is zero-copy (sendfile) with immutable segment caching, so repeat viewers are cheap, but outbound bandwidth — not CPU — is the binding constraint at scale; put a CDN in front of `/media/` (the immutable headers make it trivial) or add app nodes with the s3 driver.
 - **Restore order**: DB dump → media → start app/worker (migrations run automatically at boot).
-- **Storage migration**: `vod-app migrate --source-driver=local --source-data-dir=/old/data [--prune]` moves media between drivers/paths idempotently (see DESIGN.md §8a).
+- **Storage migration**: `vod-app migrate --source-driver=local --source-data-dir=/old/data [--prune]` moves media between drivers/paths idempotently (see DESIGN.md §8a). For **zero-downtime lazy promotion**, point `STORAGE_DRIVER` at the new store and set `FALLBACK_STORAGE_DRIVER` (+ `FALLBACK_*`) to the old one: misses are served from the legacy store and copied into the new one on demand; drop the fallback env once `migrate --prune` has drained it.
+- **Multi-node storage**: the local driver's transcode fast path writes directly into the store tree — in a multi-node deployment this requires `DATA_DIR` on a shared network mount (e.g. NFS). Without shared storage, use the s3 driver (or a single worker).
 - **Upgrades**: Docker: `docker compose pull && up -d`. Bare metal: replace the binary, `systemctl restart vod-app vod-worker`.
 - **TLS**: `tls.mode=auto` in the panel with `tls.acme_domains` (Let's Encrypt via autocert); requires public DNS + ports 80/443.
 - **Theme**: dark by default; light mode toggle in the sidebar (and on the login screen), remembered in localStorage, falls back to OS preference.

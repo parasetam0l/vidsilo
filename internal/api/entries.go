@@ -229,9 +229,9 @@ func (s *Server) handleEntryFlavors(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusAccepted)
 }
 
+// embedBody carries the entry's domain ACL reference: null means "Allow All".
 type embedBody struct {
-	Policy  db.EmbedPolicy `json:"policy"`
-	Domains []string       `json:"domains"`
+	DomainACLID *int64 `json:"domainAclId"`
 }
 
 func (s *Server) handleEntryEmbedGet(w http.ResponseWriter, r *http.Request) {
@@ -239,7 +239,7 @@ func (s *Server) handleEntryEmbedGet(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	writeJSON(w, http.StatusOK, embedBody{Policy: e.EmbedPolicy, Domains: e.EmbedDomains})
+	writeJSON(w, http.StatusOK, embedBody{DomainACLID: e.DomainACLID})
 }
 
 func (s *Server) handleEntryEmbedPatch(w http.ResponseWriter, r *http.Request) {
@@ -252,15 +252,16 @@ func (s *Server) handleEntryEmbedPatch(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "bad_request", "invalid JSON body")
 		return
 	}
-	if body.Policy != db.EmbedDefault && body.Policy != db.EmbedAll &&
-		body.Policy != db.EmbedSameOrigin && body.Policy != db.EmbedAllowlist {
-		writeError(w, http.StatusBadRequest, "bad_request", "invalid embed policy")
-		return
+	if body.DomainACLID != nil {
+		if _, err := db.ACLByID(r.Context(), s.pool, *body.DomainACLID); err != nil {
+			writeError(w, http.StatusBadRequest, "bad_request", "unknown domain acl")
+			return
+		}
 	}
 	if _, err := s.pool.Exec(r.Context(), `
-		UPDATE entries SET embed_policy = $1, embed_domains = $2, updated_at = now() WHERE id = $3`,
-		body.Policy, body.Domains, e.ID); err != nil {
-		s.internalError(w, r, "update embed policy", err)
+		UPDATE entries SET domain_acl_id = $1, updated_at = now() WHERE id = $2`,
+		body.DomainACLID, e.ID); err != nil {
+		s.internalError(w, r, "update entry acl", err)
 		return
 	}
 	writeJSON(w, http.StatusOK, body)

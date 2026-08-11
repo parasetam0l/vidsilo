@@ -25,6 +25,7 @@ import {
   ApiError,
   type AnalyticsResponse,
   type Category,
+  type DomainAcl,
   type EntryDetail,
   type Flavor,
 } from "@/lib/api";
@@ -76,7 +77,7 @@ export function useEntryDetailDialog() {
           <EntryDetailDialog publicId={publicId} onClose={close} />
         ),
         size: "5xl",
-        className: "p-0 overflow-hidden",
+        className: "p-0 overflow-hidden md:max-h-[500px]",
         dismissible: false,
         showCloseButton: true,
       });
@@ -101,6 +102,8 @@ export function EntryDetailDialog({
   const [categories, setCategories] = React.useState<Category[]>([]);
   const [ticked, setTicked] = React.useState<Set<number>>(new Set());
   const [analytics, setAnalytics] = React.useState<AnalyticsResponse | null>(null);
+  const [acls, setAcls] = React.useState<DomainAcl[]>([]);
+  const [aclId, setAclId] = React.useState<number | null>(null);
   const [reloadKey, setReloadKey] = React.useState(0);
   const [active, setActive] = React.useState("metadata");
 
@@ -110,6 +113,7 @@ export function EntryDetailDialog({
     api<EntryDetail>(`/api/entries/${publicId}`)
       .then((e) => {
         setEntry(e);
+        setAclId(e.domainAclId);
         setTicked(
           new Set(e.flavors.filter((f) => f.status !== "skipped").map((f) => f.flavorId)),
         );
@@ -117,6 +121,7 @@ export function EntryDetailDialog({
       .catch((err) => toast.error(err.message));
     api<Flavor[]>("/api/flavors").then(setFlavors).catch(() => {});
     api<Category[]>("/api/categories").then(setCategories).catch(() => {});
+    api<DomainAcl[]>("/api/acls").then(setAcls).catch(() => {});
     api<AnalyticsResponse>(`/api/entries/${publicId}/analytics`).then(setAnalytics).catch(() => {});
   }, [publicId, reloadKey, toast]);
 
@@ -150,7 +155,7 @@ export function EntryDetailDialog({
             </SidebarGroup>
           </SidebarContent>
         </Sidebar>
-        <main className="flex h-[480px] max-h-[70vh] flex-1 flex-col overflow-hidden">
+        <main className="flex h-[480px] flex-1 flex-col overflow-hidden">
           <div className="flex h-16 shrink-0 items-center justify-between gap-3 border-b px-4 pr-10">
             <div className="flex flex-col gap-2">
               <Skeleton className="h-4 w-48" />
@@ -173,17 +178,23 @@ export function EntryDetailDialog({
 
   const catName = categories.find((c) => c.id === entry.categoryId)?.name ?? "—";
 
-  const saveMetadata = async () => {
+  const saveAll = async () => {
     try {
-      const updated = await api<EntryDetail>(`/api/entries/${entry.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({
-          title: entry.title,
-          description: entry.description,
-          categoryId: entry.categoryId,
-          isPublic: entry.isPublic,
+      const [updated] = await Promise.all([
+        api<EntryDetail>(`/api/entries/${entry.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            title: entry.title,
+            description: entry.description,
+            categoryId: entry.categoryId,
+            isPublic: entry.isPublic,
+          }),
         }),
-      });
+        api<void>(`/api/entries/${entry.id}/embed`, {
+          method: "PATCH",
+          body: JSON.stringify({ domainAclId: aclId }),
+        }),
+      ]);
       setEntry(updated);
       toast.success(t("saved"));
     } catch (e) {
@@ -276,8 +287,8 @@ export function EntryDetailDialog({
         ))}
       </div>
 
-      <main className="flex h-[480px] max-h-[70vh] flex-1 flex-col overflow-hidden">
-        <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b px-4 pr-10">
+        <main className="flex h-[480px] flex-1 flex-col overflow-hidden">
+          <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b px-4 pr-10">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <h2 className="truncate text-base font-semibold tracking-tight">
@@ -296,6 +307,9 @@ export function EntryDetailDialog({
             </p>
           </div>
           <div className="flex shrink-0 gap-2">
+            <Button size="sm" onClick={saveAll}>
+              <Save className="size-3.5" /> {t("save")}
+            </Button>
             <Button variant="outline" size="sm" onClick={reprocess}>
               <RotateCcw className="size-3.5" /> {t("entryReprocess")}
             </Button>
@@ -380,9 +394,6 @@ export function EntryDetailDialog({
                     />
                     <Label>{t("labelPublic")}</Label>
                   </div>
-                  <Button onClick={saveMetadata}>
-                    <Save className="size-4" /> {t("save")}
-                  </Button>
                 </CardContent>
               </Card>
             </>
@@ -450,7 +461,14 @@ export function EntryDetailDialog({
 
           {active === "poster" ? <PosterPicker entry={entry} onPicked={reload} /> : null}
           {active === "subtitles" ? <SubtitlesTab entry={entry} onChanged={reload} /> : null}
-          {active === "playback" ? <PlaybackTab entry={entry} onChanged={reload} /> : null}
+          {active === "playback" ? (
+            <PlaybackTab
+              entry={entry}
+              aclId={aclId}
+              acls={acls}
+              onAclChange={setAclId}
+            />
+          ) : null}
           {active === "analytics" ? (
             analytics ? (
               <AnalyticsTab data={analytics} />
@@ -634,62 +652,43 @@ function SubtitlesTab({
 
 function PlaybackTab({
   entry,
-  onChanged,
+  aclId,
+  acls,
+  onAclChange,
 }: {
   entry: EntryDetail;
-  onChanged: () => void;
+  aclId: number | null;
+  acls: DomainAcl[];
+  onAclChange: (id: number | null) => void;
 }) {
   const t = useT();
-  const toast = useToast();
-  const [policy, setPolicy] = React.useState(entry.embedPolicy);
-  const [domains, setDomains] = React.useState(entry.embedDomains.join(", "));
   const [copied, setCopied] = React.useState(false);
 
   const embedUrl = `https://${typeof window !== "undefined" ? window.location.host : "localhost"}/embed/${entry.id}`;
   const snippet = `<iframe src="${embedUrl}" width="640" height="360" frameborder="0" allowfullscreen></iframe>`;
-
-  async function save() {
-    try {
-      await api(`/api/entries/${entry.id}/embed`, {
-        method: "PATCH",
-        body: JSON.stringify({
-          policy,
-          domains: domains.split(",").map((d) => d.trim()).filter(Boolean),
-        }),
-      });
-      toast.success(t("saved"));
-      onChanged();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : t("error"));
-    }
-  }
 
   return (
     <Card>
       <CardContent className="space-y-4 pt-6">
         <div className="flex flex-col gap-2">
           <Label>{t("labelEmbedPolicy")}</Label>
-          <Select value={policy} onValueChange={(v) => v && setPolicy(v)}>
+          <Select
+            value={aclId ? String(aclId) : ""}
+            onValueChange={(v) => onAclChange(v ? Number(v) : null)}
+          >
             <SelectTrigger className="w-64">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="default">{t("embedDefault")}</SelectItem>
-              <SelectItem value="*">{t("embedAnywhere")}</SelectItem>
-              <SelectItem value="same-origin">{t("embedSameOrigin")}</SelectItem>
-              <SelectItem value="allowlist">{t("embedAllowlist")}</SelectItem>
+              <SelectItem value="">{t("allowAll")}</SelectItem>
+              {acls.map((a) => (
+                <SelectItem key={a.id} value={String(a.id)}>
+                  {a.title}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
-        {policy === "allowlist" || policy === "default" ? (
-          <div className="flex flex-col gap-2">
-            <Label>{t("allowedDomains")}</Label>
-            <Input value={domains} onChange={(e) => setDomains(e.target.value)} />
-          </div>
-        ) : null}
-        <Button onClick={save}>
-          <Save className="size-4" /> {t("savePolicy")}
-        </Button>
         <div className="flex flex-col gap-2">
           <Label>{t("embedSnippet")}</Label>
           <pre className="overflow-x-auto rounded-lg border bg-muted/40 p-3 text-xs">
