@@ -204,7 +204,7 @@ export function UploadDialogContent({ onClose }: { onClose: () => void }) {
         </Button>
       </DialogHeader>
 
-      <div className="flex-1 overflow-y-auto p-5 min-h-0 space-y-4">
+      <div className="flex-1 overflow-y-auto px-4 py-5 min-h-0 space-y-4">
         <Tabs value={tab} onValueChange={setTab} className="flex flex-col gap-4 w-full min-w-0">
           <TabsList className="grid w-full grid-cols-2 min-w-0">
             <TabsTrigger value="computer" className="min-w-0 truncate">
