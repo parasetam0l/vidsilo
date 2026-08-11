@@ -42,16 +42,26 @@ func CategoryTree(ctx context.Context, pool *pgxpool.Pool) ([]Category, error) {
 	for i := range flat {
 		byID[flat[i].ID] = &flat[i]
 	}
-	roots := []Category{}
+	// Attach children to parents first: the root copies below must carry
+	// the nested children (copying before attaching loses them).
 	for i := range flat {
 		c := &flat[i]
 		if c.ParentID != nil {
 			if p, ok := byID[*c.ParentID]; ok {
 				p.Children = append(p.Children, *c)
-				continue
 			}
 		}
-		roots = append(roots, *c)
+	}
+	roots := []Category{}
+	for i := range flat {
+		c := &flat[i]
+		if c.ParentID == nil {
+			roots = append(roots, *c)
+			continue
+		}
+		if _, ok := byID[*c.ParentID]; !ok {
+			roots = append(roots, *c) // orphaned parent: keep as root
+		}
 	}
 	return roots, nil
 }

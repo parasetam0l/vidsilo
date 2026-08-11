@@ -44,6 +44,8 @@ const en = {
   langEnglish: "English",
   signOut: "Sign out",
   darkMode: "Dark mode",
+  lightMode: "Light mode",
+  appearance: "Appearance",
   editUserTitle: "Edit user",
   editCategoryTitle: "Edit category",
   userUpdated: "User updated",

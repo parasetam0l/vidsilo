@@ -10,9 +10,11 @@ const THEME_CHANGE_EVENT = "theme-change"
 const ThemeContext = React.createContext<{
   theme: Theme
   toggle: () => void
+  set: (t: Theme) => void
 }>({
   theme: "dark",
   toggle: () => {},
+  set: () => {},
 })
 
 function applyTheme(theme: Theme) {
@@ -47,15 +49,18 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     () => "dark",
   )
 
-  function toggle() {
-    const next: Theme = theme === "dark" ? "light" : "dark"
+  function set(next: Theme) {
     localStorage.setItem(STORAGE_KEY, next)
     applyTheme(next)
     window.dispatchEvent(new Event(THEME_CHANGE_EVENT))
   }
 
+  function toggle() {
+    set(theme === "dark" ? "light" : "dark")
+  }
+
   return (
-    <ThemeContext.Provider value={{ theme, toggle }}>
+    <ThemeContext.Provider value={{ theme, toggle, set }}>
       {children}
     </ThemeContext.Provider>
   )

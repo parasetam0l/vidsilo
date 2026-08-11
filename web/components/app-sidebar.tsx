@@ -2,12 +2,12 @@
 
 import {
   BarChartIcon,
-  CheckIcon,
   ChevronsUpDownIcon,
   ClapperboardIcon,
   KeyRoundIcon,
   FilmIcon,
   FolderTreeIcon,
+  LanguagesIcon,
   LayoutDashboardIcon,
   ListChecksIcon,
   LogOutIcon,
@@ -38,7 +38,12 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useAuth } from "@/components/auth-provider"
@@ -52,7 +57,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const router = useRouter()
   const t = useT()
   const { user, logout } = useAuth()
-  const { theme, toggle: toggleTheme } = useTheme()
+  const { theme, set: setTheme } = useTheme()
   const { locale, setLocale } = useI18n()
   const openChangePassword = useChangePasswordDialog()
 
@@ -168,28 +173,47 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   <KeyRoundIcon className="size-4" />
                   {t("changePassword")}
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={toggleTheme}>
-                  {theme === "dark" ? (
-                    <SunIcon className="size-4" />
-                  ) : (
-                    <MoonIcon className="size-4" />
-                  )}
-                  {t("darkMode")}
-                  {theme === "dark" ? (
-                    <CheckIcon className="ml-auto size-4" />
-                  ) : null}
-                </DropdownMenuItem>
-                {locales.map((l) => (
-                  <DropdownMenuItem
-                    key={l}
-                    onClick={() => setLocale(l)}
-                    className={locale === l ? "bg-accent text-accent-foreground" : undefined}
-                  >
-                    <span className="uppercase">{l}</span>
-                    {l === "en" ? t("langEnglish") : l}
-                    {locale === l ? <CheckIcon className="ml-auto size-4" /> : null}
-                  </DropdownMenuItem>
-                ))}
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    {theme === "dark" ? (
+                      <MoonIcon className="size-4" />
+                    ) : (
+                      <SunIcon className="size-4" />
+                    )}
+                    {t("appearance")}
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent sideOffset={8}>
+                    <DropdownMenuRadioGroup
+                      value={theme}
+                      onValueChange={(v) => setTheme(v as "dark" | "light")}
+                    >
+                      <DropdownMenuRadioItem value="light">
+                        <SunIcon className="size-4" /> {t("lightMode")}
+                      </DropdownMenuRadioItem>
+                      <DropdownMenuRadioItem value="dark">
+                        <MoonIcon className="size-4" /> {t("darkMode")}
+                      </DropdownMenuRadioItem>
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    <LanguagesIcon className="size-4" />
+                    {t("langLabel")}
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent sideOffset={8}>
+                    <DropdownMenuRadioGroup value={locale} onValueChange={setLocale}>
+                      {locales.map((l) => (
+                        <DropdownMenuRadioItem key={l} value={l}>
+                          <span className="uppercase">{l}</span>
+                          <span className="text-muted-foreground">
+                            {l === "en" ? t("langEnglish") : l}
+                          </span>
+                        </DropdownMenuRadioItem>
+                      ))}
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={handleLogout}
