@@ -113,7 +113,6 @@ type playInfo struct {
 	Sprite       string        `json:"sprite,omitempty"`
 	SpriteFrames int           `json:"spriteFrames"`
 	Subtitles    []subtitleOut `json:"subtitles"`
-	Source       string        `json:"source,omitempty"`
 	EmbedURL     string        `json:"embedUrl"`
 }
 
@@ -162,11 +161,6 @@ func (s *Server) handlePlayInfo(w http.ResponseWriter, r *http.Request) {
 				URL: "/media/" + strings.TrimPrefix(sub.VTTKey, "/"),
 			})
 		}
-	}
-	// Source URL only for authenticated editors (download prevention).
-	if u := userFromContext(r.Context()); u.ID > 0 &&
-		(u.Role == db.RoleAdmin || u.Role == db.RoleEditor) && e.SourceKey != "" {
-		out.Source = "/media/" + strings.TrimPrefix(e.SourceKey, "/")
 	}
 	writeJSON(w, http.StatusOK, out)
 }

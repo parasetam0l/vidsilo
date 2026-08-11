@@ -205,7 +205,6 @@ export interface PlayInfo {
   sprite?: string;
   spriteFrames: number;
   subtitles: { lang: string; label: string; url: string }[];
-  source?: string;
   embedUrl: string;
 }
 

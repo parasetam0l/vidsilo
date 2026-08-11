@@ -119,14 +119,14 @@ func (s *Server) mediaACL(next http.Handler) http.Handler {
 			writeError(w, http.StatusNotFound, "not_found", "not found")
 			return
 		}
-		// Original source files: authenticated editor+ only.
+		// Original source files are never served over HTTP — no download
+		// path exists for any role. The worker reads originals directly from
+		// the store, so blocking them here doesn't affect processing.
 		if isOriginalKey(key) {
-			u := userFromContext(r.Context())
-			if u.ID == 0 || (u.Role != db.RoleAdmin && u.Role != db.RoleEditor) {
-				writeError(w, http.StatusForbidden, "forbidden", "source files require editor access")
-				return
-			}
-		} else if !s.entryAllowed(r.Context(), r, e) {
+			writeError(w, http.StatusForbidden, "forbidden", "source files are not downloadable")
+			return
+		}
+		if !s.entryAllowed(r.Context(), r, e) {
 			writeError(w, http.StatusForbidden, "forbidden", "embedding not allowed for this domain")
 			return
 		}
