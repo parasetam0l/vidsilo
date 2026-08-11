@@ -18,8 +18,10 @@ import {
   ImageIcon,
   InfoIcon,
   Link2Icon,
+  Loader2,
   PencilLineIcon,
   PlayIcon,
+  PlusIcon,
   RotateCcwIcon,
   SaveIcon,
   ShieldIcon,
@@ -29,6 +31,7 @@ import {
   XIcon,
 } from "lucide-react";
 
+import { cn } from "@/lib/utils";
 import {
   api,
   type AnalyticsResponse,
@@ -43,6 +46,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { VODPlayer } from "@/components/vod-player";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -765,6 +769,165 @@ function PosterPicker({
   );
 }
 
+function UploadSubtitleDialog({
+  entryId,
+  onClose,
+  onChanged,
+}: {
+  entryId: string;
+  onClose: () => void;
+  onChanged: () => void;
+}) {
+  const t = useT();
+  const toast = useToast();
+  const [lang, setLang] = React.useState("en");
+  const [label, setLabel] = React.useState("");
+  const [file, setFile] = React.useState<File | null>(null);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const fileRef = React.useRef<HTMLInputElement>(null);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!file) return;
+
+    setIsSubmitting(true);
+    const form = new FormData();
+    form.append("file", file);
+    form.append("lang", lang || "en");
+    form.append("label", label || lang || "en");
+
+    try {
+      await api(`/api/entries/${entryId}/subtitles`, { method: "POST", body: form });
+      toast.success(t("subtitleUploaded") || "Subtitle track uploaded successfully.");
+      onChanged();
+      onClose();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("error"));
+      setIsSubmitting(false);
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col gap-5 p-1">
+      <DialogHeader>
+        <DialogTitle className="text-base font-semibold">Upload Subtitle Track</DialogTitle>
+        <DialogDescription className="text-xs text-muted-foreground">
+          Upload a WebVTT (.vtt) caption file to support multi-language playback.
+        </DialogDescription>
+      </DialogHeader>
+
+      <div className="space-y-4">
+        <div className="flex flex-col gap-1.5">
+          <Label className="text-xs font-medium text-foreground">Subtitle File (.vtt)</Label>
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".vtt"
+            className="hidden"
+            onChange={(e) => {
+              const selected = e.target.files?.[0];
+              if (selected) setFile(selected);
+            }}
+          />
+          <div
+            onClick={() => fileRef.current?.click()}
+            className={cn(
+              "flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-dashed p-3.5 transition-colors",
+              file
+                ? "border-primary/50 bg-primary/5 dark:bg-primary/10"
+                : "border-border hover:bg-muted/50"
+            )}
+          >
+            <div className="flex items-center gap-3 overflow-hidden">
+              <div
+                className={cn(
+                  "grid size-9 shrink-0 place-items-center rounded-lg transition-colors",
+                  file ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"
+                )}
+              >
+                <CaptionsIcon className="size-4" />
+              </div>
+              <div className="truncate">
+                {file ? (
+                  <>
+                    <p className="text-xs font-medium text-foreground truncate">{file.name}</p>
+                    <p className="text-[11px] text-muted-foreground">{formatBytes(file.size)}</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-xs font-medium text-foreground">Click to select .vtt file</p>
+                    <p className="text-[11px] text-muted-foreground">WebVTT caption format required</p>
+                  </>
+                )}
+              </div>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs rounded-lg shrink-0"
+            >
+              {file ? "Change" : "Browse"}
+            </Button>
+          </div>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs font-medium text-foreground">Language Code</Label>
+            <Input
+              className="rounded-lg text-xs"
+              placeholder="e.g. en, es, tr"
+              value={lang}
+              onChange={(e) => setLang(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs font-medium text-foreground">Display Label</Label>
+            <Input
+              className="rounded-lg text-xs"
+              placeholder="e.g. English (CC)"
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+            />
+          </div>
+        </div>
+      </div>
+
+      <DialogFooter className="gap-2 pt-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="rounded-lg text-xs"
+          onClick={onClose}
+          disabled={isSubmitting}
+        >
+          Cancel
+        </Button>
+        <Button
+          type="submit"
+          size="sm"
+          className="rounded-lg text-xs gap-1.5 min-w-[90px]"
+          disabled={!file || isSubmitting}
+        >
+          {isSubmitting ? (
+            <>
+              <Loader2 className="size-3.5 animate-spin" />
+              Uploading...
+            </>
+          ) : (
+            <>
+              <UploadIcon className="size-3.5" />
+              Save
+            </>
+          )}
+        </Button>
+      </DialogFooter>
+    </form>
+  );
+}
+
 function SubtitlesTab({
   entry,
   onChanged,
@@ -773,28 +936,40 @@ function SubtitlesTab({
   onChanged: () => void;
 }) {
   const t = useT();
-  const { confirm } = useDialog();
+  const dialog = useDialog();
   const toast = useToast();
-  const [lang, setLang] = React.useState("en");
-  const [label, setLabel] = React.useState("");
-  const fileRef = React.useRef<HTMLInputElement>(null);
 
-  async function uploadSubtitle(file: File) {
-    const form = new FormData();
-    form.append("file", file);
-    form.append("lang", lang);
-    form.append("label", label || lang);
-    try {
-      await api(`/api/entries/${entry.id}/subtitles`, { method: "POST", body: form });
-      toast.success(t("subtitleUploaded"));
-      onChanged();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : t("error"));
-    }
-  }
+  const handleOpenUpload = () => {
+    dialog.open({
+      content: (close) => (
+        <UploadSubtitleDialog entryId={entry.id} onClose={close} onChanged={onChanged} />
+      ),
+      size: "md",
+      className: "rounded-2xl border border-border/80 bg-background p-6 shadow-lg",
+      dismissible: true,
+      showCloseButton: true,
+    });
+  };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
+      {/* Top Header Row with Upload Subtitle Button */}
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h3 className="text-sm font-medium text-foreground">Subtitles & Captions</h3>
+          <p className="text-xs text-muted-foreground">Manage WebVTT caption tracks for multi-language playback.</p>
+        </div>
+        <Button
+          size="sm"
+          className="h-8 gap-1.5 text-xs rounded-lg shadow-xs"
+          onClick={handleOpenUpload}
+        >
+          <PlusIcon className="size-3.5" />
+          Upload Subtitle
+        </Button>
+      </div>
+
+      {/* Subtitles Table */}
       <div className="overflow-hidden rounded-xl border">
         <Table>
           <TableHeader className="bg-muted/50">
@@ -821,7 +996,7 @@ function SubtitlesTab({
                     size="icon-sm"
                     className="text-muted-foreground hover:text-destructive"
                     onClick={() => {
-                      confirm({
+                      dialog.confirm({
                         title: t("deleteSubtitleTitle"),
                         description: t("deleteSubtitleDesc"),
                         variant: "destructive",
@@ -849,47 +1024,6 @@ function SubtitlesTab({
             ) : null}
           </TableBody>
         </Table>
-      </div>
-
-      <div className="rounded-xl border bg-muted/30 p-4 space-y-3">
-        <span className="text-xs font-medium text-foreground">Upload Subtitle Track</span>
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="flex flex-col gap-1.5">
-            <Label className="text-xs text-muted-foreground">{t("labelLang")}</Label>
-            <Input
-              className="w-28 rounded-lg h-9 text-xs"
-              placeholder="e.g. en"
-              value={lang}
-              onChange={(e) => setLang(e.target.value)}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5 flex-1 min-w-[160px]">
-            <Label className="text-xs text-muted-foreground">{t("labelSubtitleLabel")}</Label>
-            <Input
-              className="rounded-lg h-9 text-xs"
-              placeholder="e.g. English (CC)"
-              value={label}
-              onChange={(e) => setLabel(e.target.value)}
-            />
-          </div>
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".vtt"
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) uploadSubtitle(f);
-            }}
-          />
-          <Button
-            className="rounded-lg h-9 gap-1.5 text-xs shadow-xs"
-            onClick={() => fileRef.current?.click()}
-          >
-            <UploadIcon className="size-3.5" />
-            {t("uploadVtt")}
-          </Button>
-        </div>
       </div>
     </div>
   );
