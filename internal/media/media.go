@@ -137,8 +137,13 @@ func (m *Manager) SpriteGrid(ctx context.Context, entryID int64, srcPath string,
 	if frames > MaxFrames {
 		frames = MaxFrames
 	}
-	vf := fmt.Sprintf("fps=10,select='not(mod(n,6))',scale=%d:%d,tile=%dx%d",
-		SpriteFrameW, SpriteFrameH, spriteCols, spriteCols)
+	// tile pads the last row (and with tile=WxH always emits a full grid), so
+	// crop the sheet down to the rows that actually hold frames — the stored
+	// frame count then matches the image exactly and the UI grid math holds.
+	rows := (frames + spriteCols - 1) / spriteCols
+	vf := fmt.Sprintf("fps=10,select='not(mod(n,6))',scale=%d:%d,tile=%dx%d,crop=%d:%d:0:0",
+		SpriteFrameW, SpriteFrameH, spriteCols, spriteCols,
+		SpriteFrameW*spriteCols, rows*SpriteFrameH)
 	spriteTmp, err := os.CreateTemp(m.TempDir, "vod-sprite-*.jpg")
 	if err != nil {
 		return 0, err
