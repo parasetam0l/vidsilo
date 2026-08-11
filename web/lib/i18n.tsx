@@ -18,6 +18,7 @@ const en = {
   save: "Save",
   saved: "Saved",
   cancel: "Cancel",
+  close: "Close",
   delete: "Delete",
   create: "Create",
   edit: "Edit",

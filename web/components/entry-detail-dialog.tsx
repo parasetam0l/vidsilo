@@ -21,6 +21,7 @@ import {
   Trash2Icon,
   UploadIcon,
   VideoIcon,
+  XIcon,
 } from "lucide-react";
 
 import {
@@ -30,9 +31,11 @@ import {
   type DomainAcl,
   type EntryDetail,
   type Flavor,
+  type PlayInfo,
 } from "@/lib/api";
 import { formatBytes, formatDate, formatDuration, formatGb, formatWatchHours } from "@/lib/format";
 import { StatusBadge } from "@/components/status-badge";
+import { VODPlayer } from "@/components/vod-player";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -110,6 +113,7 @@ export function EntryDetailDialog({
   } | null>(null);
   const [posterFrame, setPosterFrame] = React.useState(0);
   const [posterTouched, setPosterTouched] = React.useState(false);
+  const [preview, setPreview] = React.useState<PlayInfo | null>(null);
   const [reloadKey, setReloadKey] = React.useState(0);
   const [active, setActive] = React.useState("metadata");
 
@@ -126,6 +130,7 @@ export function EntryDetailDialog({
         setTicked(tick);
         setPosterFrame(0);
         setPosterTouched(false);
+        setPreview(null);
         setBase({
           title: e.title,
           description: e.description,
@@ -382,29 +387,47 @@ export function EntryDetailDialog({
           {active === "metadata" ? (
             <div className="space-y-6 max-w-4xl">
               {entry.status === "ready" && entry.posterKey ? (
-                <button
-                  type="button"
-                  className="group relative block w-full overflow-hidden rounded-2xl border bg-black/80 shadow-md text-left"
-                  onClick={() => window.open(`/play/${entry.id}`, "_blank", "noreferrer")}
-                  aria-label={t("entryWatch")}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={`/media/${entry.posterKey}?v=${encodeURIComponent(entry.updatedAt)}`}
-                    alt="poster"
-                    className="aspect-video max-h-60 w-full object-contain mx-auto transition-transform duration-300 group-hover:scale-102"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex items-end p-4">
-                    <span className="text-xs font-medium text-white/90 bg-black/40 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/10">
-                      {formatDuration(entry.durationMs)}
-                    </span>
+                preview ? (
+                  <div className="relative overflow-hidden rounded-2xl border bg-black/80 shadow-md">
+                    <VODPlayer info={preview} publicId={entry.id} autoplay />
+                    <button
+                      type="button"
+                      onClick={() => setPreview(null)}
+                      aria-label={t("close")}
+                      className="absolute top-3 right-3 grid size-8 place-items-center rounded-full bg-black/60 text-white/90 opacity-0 transition-opacity hover:bg-black/80 group-hover:opacity-100"
+                    >
+                      <XIcon className="size-4" />
+                    </button>
                   </div>
-                  <div className="absolute inset-0 grid place-items-center bg-black/0 transition-colors group-hover:bg-black/30">
-                    <span className="grid size-14 place-items-center rounded-full bg-white/90 text-black opacity-0 shadow-lg transition-all group-hover:opacity-100">
-                      <PlayIcon className="ml-0.5 size-6 fill-current" />
-                    </span>
-                  </div>
-                </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="group relative block w-full overflow-hidden rounded-2xl border bg-black/80 shadow-md text-left"
+                    onClick={() => {
+                      api<PlayInfo>(`/play/${entry.id}/playinfo.json`)
+                        .then(setPreview)
+                        .catch((e) => toast.error(e instanceof Error ? e.message : t("error")));
+                    }}
+                    aria-label={t("entryWatch")}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={`/media/${entry.posterKey}?v=${encodeURIComponent(entry.updatedAt)}`}
+                      alt="poster"
+                      className="aspect-video max-h-60 w-full object-contain mx-auto transition-transform duration-300 group-hover:scale-102"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex items-end p-4">
+                      <span className="text-xs font-medium text-white/90 bg-black/40 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/10">
+                        {formatDuration(entry.durationMs)}
+                      </span>
+                    </div>
+                    <div className="absolute inset-0 grid place-items-center bg-black/0 transition-colors group-hover:bg-black/30">
+                      <span className="grid size-14 place-items-center rounded-full bg-white/90 text-black opacity-0 shadow-lg transition-all group-hover:opacity-100">
+                        <PlayIcon className="ml-0.5 size-6 fill-current" />
+                      </span>
+                    </div>
+                  </button>
+                )
               ) : null}
 
               <Card className="rounded-2xl border shadow-xs">
@@ -684,7 +707,8 @@ function PosterPicker({
 
   const sprite = `/media/${entry.spriteKey}`;
   const cols = 10;
-  const rows = Math.ceil(entry.spriteFrames / cols);
+  const rows = Math.max(1, Math.ceil(entry.spriteFrames / cols));
+  const rowStep = rows > 1 ? 100 / (rows - 1) : 0;
 
   return (
     <Card className="rounded-2xl border shadow-xs">
@@ -704,7 +728,7 @@ function PosterPicker({
             style={{
               backgroundImage: `url(${sprite})`,
               backgroundSize: `${cols * 100}% ${rows * 100}%`,
-              backgroundPosition: `${(frame % cols) * (100 / (cols - 1))}% ${Math.floor(frame / cols) * (100 / (rows - 1))}%`,
+              backgroundPosition: `${(frame % cols) * (100 / (cols - 1))}% ${Math.floor(frame / cols) * rowStep}%`,
             }}
           />
         </div>

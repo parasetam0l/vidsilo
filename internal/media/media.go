@@ -115,7 +115,8 @@ const (
 )
 
 // SpriteGrid generates the sprite sheet from the source video, scanning the
-// first 10% (capped at 60s) into a 10x10 tile grid. Returns frame count.
+// first 10% (capped at 60s) into a 10-wide tile grid. Returns the true frame
+// count (never the padded cells of the last row).
 func (m *Manager) SpriteGrid(ctx context.Context, entryID int64, srcPath string, durationMs int64) (int, error) {
 	scanEnd := durationMs / 10
 	if scanEnd < 2000 {
@@ -124,10 +125,20 @@ func (m *Manager) SpriteGrid(ctx context.Context, entryID int64, srcPath string,
 	if scanEnd > 60000 {
 		scanEnd = 60000
 	}
-	// Sample every frame within the window via fps + tile to get ~100 cells.
-	// fps=10 over ≤60s gives ≤600 frames; we then thin with select.
-	selectFilter := "select='not(mod(n,6))'"
-	tile := fmt.Sprintf("scale=%d:%d,tile=%dx%d", SpriteFrameW, SpriteFrameH, spriteCols, spriteCols)
+	// Sample at exactly 10fps within the window, then keep every 6th frame:
+	// ~100 cells for a full 60s window. Because the count is deterministic
+	// (fps=10 → F frames → ceil(F/6) kept), the UI never sees the black
+	// padding cells that tile appends to the last row.
+	fpsFrames := (scanEnd + 99) / 100 // frames at 10fps over the window
+	frames := int((fpsFrames + 5) / 6) // every 6th kept by select
+	if frames < 1 {
+		frames = 1
+	}
+	if frames > MaxFrames {
+		frames = MaxFrames
+	}
+	vf := fmt.Sprintf("fps=10,select='not(mod(n,6))',scale=%d:%d,tile=%dx%d",
+		SpriteFrameW, SpriteFrameH, spriteCols, spriteCols)
 	spriteTmp, err := os.CreateTemp(m.TempDir, "vod-sprite-*.jpg")
 	if err != nil {
 		return 0, err
@@ -139,7 +150,7 @@ func (m *Manager) SpriteGrid(ctx context.Context, entryID int64, srcPath string,
 		"-ss", fmt.Sprintf("%dms", scanEnd/10),
 		"-i", srcPath,
 		"-t", fmt.Sprintf("%dms", scanEnd),
-		"-vf", selectFilter+","+tile,
+		"-vf", vf,
 		"-q:v", "4",
 		spriteTmp.Name())
 	if out, err := cmd.CombinedOutput(); err != nil {
@@ -148,27 +159,7 @@ func (m *Manager) SpriteGrid(ctx context.Context, entryID int64, srcPath string,
 	if err := putFile(ctx, m.Store, store.SpriteKey(entryID), spriteTmp.Name()); err != nil {
 		return 0, err
 	}
-	// Estimate rows from the produced image height.
-	frames := estimateSpriteFrames(spriteTmp.Name())
-	if frames < 1 {
-		frames = 1
-	}
 	return frames, nil
-}
-
-func estimateSpriteFrames(path string) int {
-	cmd := exec.Command("ffprobe", "-v", "error", "-select_streams", "v:0",
-		"-show_entries", "stream=height", "-of", "default=nw=1:nk=1", path)
-	out, err := cmd.Output()
-	if err != nil {
-		return 1
-	}
-	h, err := strconv.Atoi(strings.TrimSpace(string(out)))
-	if err != nil || h <= 0 {
-		return 1
-	}
-	rows := (h + SpriteFrameH - 1) / SpriteFrameH
-	return min(rows*spriteCols, MaxFrames)
 }
 
 // ExtractPosterFromSource pulls frame atMs from the source video (probe path).

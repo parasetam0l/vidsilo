@@ -295,12 +295,15 @@ export function VODPlayer({
     return `${m}:${String(s).padStart(2, "0")}`;
   };
 
+  const scrubCols = 10;
+  const scrubRows = Math.max(1, Math.ceil(info.spriteFrames / scrubCols));
+  const scrubRowStep = scrubRows > 1 ? 100 / (scrubRows - 1) : 0;
   const scrubberStyle: React.CSSProperties | undefined =
     scrubFrame != null && info.sprite
       ? {
           backgroundImage: `url(${info.sprite})`,
-          backgroundSize: "1000% 1000%",
-          backgroundPosition: `${(scrubFrame % 10) * 11.111}% ${Math.floor(scrubFrame / 10) * 11.111}%`,
+          backgroundSize: `${scrubCols * 100}% ${scrubRows * 100}%`,
+          backgroundPosition: `${(scrubFrame % scrubCols) * (100 / (scrubCols - 1))}% ${Math.floor(scrubFrame / scrubCols) * scrubRowStep}%`,
         }
       : undefined;
 
