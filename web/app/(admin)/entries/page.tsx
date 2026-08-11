@@ -274,7 +274,7 @@ export default function EntriesPage() {
                 <TableHead>{t("colDuration")}</TableHead>
                 <TableHead>{t("colSize")}</TableHead>
                 <TableHead className="text-right">{t("colUploaded")}</TableHead>
-                <TableHead>{t("colAccess")}</TableHead>
+                <TableHead>{t("colVisibility")}</TableHead>
                 <TableHead className="w-10" />
               </TableRow>
             </TableHeader>

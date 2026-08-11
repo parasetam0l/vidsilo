@@ -237,7 +237,7 @@ export function EntryDetailDialog({
     }
     if (entry.accessDenied !== base.accessDenied) {
       items.push(
-        `${t("chgAccess")}: ${base.accessDenied ? t("accessDenied") : t("accessAllowed")} → ${entry.accessDenied ? t("accessDenied") : t("accessAllowed")}`,
+        `${t("chgVisibility")}: ${base.accessDenied ? t("accessDenied") : t("accessAllowed")} → ${entry.accessDenied ? t("accessDenied") : t("accessAllowed")}`,
       );
     }
     if (aclId !== base.domainAclId) {
