@@ -9,14 +9,12 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { useUploads } from "@/lib/upload-store";
 import { useUrlDownloads } from "@/lib/url-download-store";
-import { useUploadDialog } from "@/components/upload-dialog";
 import { useT } from "@/lib/i18n";
 
 export function UploadNotifications() {
   const t = useT();
   const toast = useToast();
   const router = useRouter();
-  const openUploadDialog = useUploadDialog();
   const jobs = useUploads();
   const urlJobs = useUrlDownloads();
   const doneIds = React.useRef<Set<string>>(new Set());
@@ -42,9 +40,8 @@ export function UploadNotifications() {
       wasActive.current = false;
       toast.success(t("uploadAllComplete"));
       router.refresh();
-      openUploadDialog();
     }
-  }, [isCurrentlyActive, jobs.length, urlJobs.length, toast, t, router, openUploadDialog]);
+  }, [isCurrentlyActive, jobs.length, urlJobs.length, toast, t, router]);
 
   React.useEffect(() => {
     // First run: jobs already done (persisted across refreshes) are history,

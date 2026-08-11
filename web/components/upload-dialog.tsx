@@ -237,15 +237,20 @@ export function UploadDialogContent({ onClose }: { onClose: () => void }) {
           ) : null}
         </DialogTitle>
         <DialogDescription className="text-xs">
-          {anyActive
-            ? t("uploadInProgressDesc")
-            : allDone || allUrlDone
-              ? t("uploadAllComplete")
-              : tab === "computer"
-                ? jobs.length === 0
-                  ? t("uploadOrClick", { max: formatBytes(maxSize) })
-                  : t("uploadFilesSelected", { n: jobs.length })
-                : t("uploadUrlHint")}
+          {anyActive ? (
+            <span className="flex items-center gap-1.5 font-medium text-amber-600 dark:text-amber-400">
+              <InfoIcon className="size-3.5 shrink-0" />
+              {t("uploadInProgressDesc")}
+            </span>
+          ) : allDone || allUrlDone ? (
+            t("uploadAllComplete")
+          ) : tab === "computer" ? (
+            jobs.length === 0
+              ? t("uploadOrClick", { max: formatBytes(maxSize) })
+              : t("uploadFilesSelected", { n: jobs.length })
+          ) : (
+            t("uploadUrlHint")
+          )}
         </DialogDescription>
         <Button
           variant="ghost"
