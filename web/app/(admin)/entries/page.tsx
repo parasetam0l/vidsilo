@@ -5,6 +5,9 @@ import {
   ChevronLeft,
   ChevronRight,
   FilmIcon,
+  LinkIcon,
+  MoreHorizontalIcon,
+  PencilIcon,
   RotateCcw,
   Search,
   Trash2,
@@ -21,6 +24,7 @@ import { EmptyState } from "@/components/empty-state";
 import { EntryThumb } from "@/components/entry-thumb";
 import { useUploadDialog } from "@/components/upload-dialog";
 import { useEntryDetailDialog } from "@/components/entry-detail-dialog";
+import { useEmbedDialog } from "@/components/embed-dialog";
 import { useUploads } from "@/lib/upload-store";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -42,6 +46,14 @@ import {
 } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export default function EntriesPage() {
   const t = useT();
@@ -49,6 +61,7 @@ export default function EntriesPage() {
   const toast = useToast();
   const openUpload = useUploadDialog();
   const openEntryDetail = useEntryDetailDialog();
+  const openEmbed = useEmbedDialog();
   const [list, setList] = React.useState<EntryList | null>(null);
   const [q, setQ] = React.useState("");
   const [status, setStatus] = React.useState("");
@@ -120,7 +133,7 @@ export default function EntriesPage() {
     load();
   }
 
-  function askDelete() {
+  function askBulkDelete() {
     confirm({
       title: t("entriesDeleteTitle", { n: selected.size }),
       description: t("entriesDeleteDesc"),
@@ -128,6 +141,26 @@ export default function EntriesPage() {
       confirmLabel: t("delete"),
       cancelLabel: t("cancel"),
       onConfirm: bulkDelete,
+    });
+  }
+
+  function askDelete(e: Entry) {
+    confirm({
+      title: t("entriesDeleteTitle", { n: 1 }),
+      description: t("entryDeleteDesc"),
+      variant: "destructive",
+      confirmLabel: t("delete"),
+      cancelLabel: t("cancel"),
+      onConfirm: async () => {
+        try {
+          await api<void>(`/api/entries/${e.id}`, { method: "DELETE" });
+          toast.success(t("deleted"));
+          load();
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : t("error"));
+          throw err;
+        }
+      },
     });
   }
 
@@ -198,7 +231,7 @@ export default function EntriesPage() {
             <Button variant="outline" onClick={askReprocess}>
               <RotateCcw className="size-4" /> {t("entriesReprocessN", { n: selected.size })}
             </Button>
-            <Button variant="destructive" onClick={askDelete}>
+            <Button variant="destructive" onClick={askBulkDelete}>
               <Trash2 className="size-4" /> {t("entriesDeleteN", { n: selected.size })}
             </Button>
           </>
@@ -228,6 +261,7 @@ export default function EntriesPage() {
                 <TableHead>{t("colDuration")}</TableHead>
                 <TableHead>{t("colSize")}</TableHead>
                 <TableHead className="text-right">{t("colUploaded")}</TableHead>
+                <TableHead className="w-10" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -252,7 +286,7 @@ export default function EntriesPage() {
                   </TableCell>
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-3">
-                      <EntryThumb posterKey={e.posterKey} />
+                      <EntryThumb posterKey={e.posterKey} updatedAt={e.updatedAt} />
                       <button
                         type="button"
                         className="max-w-full truncate text-left hover:underline"
@@ -276,6 +310,13 @@ export default function EntriesPage() {
                   </TableCell>
                   <TableCell className="text-right text-muted-foreground">
                     {formatDate(e.createdAt)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <RowActions
+                      onOpen={() => openEntryDetail(e.id)}
+                      onEmbed={() => openEmbed(e.id)}
+                      onDelete={() => askDelete(e)}
+                    />
                   </TableCell>
                 </TableRow>
               ))}
@@ -352,5 +393,45 @@ export default function EntriesPage() {
         </div>
       ) : null}
     </div>
+  );
+}
+
+function RowActions({
+  onOpen,
+  onEmbed,
+  onDelete,
+}: {
+  onOpen: () => void;
+  onEmbed: () => void;
+  onDelete: () => void;
+}) {
+  const t = useT();
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button variant="ghost" size="icon" aria-label={t("colActions")}>
+            <MoreHorizontalIcon className="size-4" />
+          </Button>
+        }
+      />
+      <DropdownMenuContent align="end">
+        <DropdownMenuGroup>
+          <DropdownMenuItem onClick={onOpen}>
+            <PencilIcon className="size-4" /> {t("actOpen")}
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={onEmbed}>
+            <LinkIcon className="size-4" /> {t("actEmbed")}
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={onDelete}
+            className="text-destructive focus:text-destructive focus:bg-destructive/10"
+          >
+            <Trash2 className="size-4" /> {t("delete")}
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

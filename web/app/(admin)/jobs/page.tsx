@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/empty-state";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -68,6 +69,17 @@ export default function JobsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
+              {jobs === null
+                ? [1, 2, 3, 4, 5].map((i) => (
+                    <TableRow key={i}>
+                      {[1, 2, 3, 4, 5, 6, 7].map((j) => (
+                        <TableCell key={j}>
+                          <Skeleton className="h-4 w-full max-w-24" />
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                : null}
               {(jobs ?? []).map((j) => (
                 <TableRow key={j.id}>
                   <TableCell>

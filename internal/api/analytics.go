@@ -11,7 +11,8 @@ import (
 func (s *Server) registerAnalyticsRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/analytics/play", s.handleAnalyticsPlay)
 	mux.HandleFunc("POST /api/analytics/watch", s.handleAnalyticsWatch)
-	mux.Handle("GET /api/entries/{id}/analytics", s.requireRole(roleEditor, roleAdmin)(http.HandlerFunc(s.handleEntryAnalytics)))
+	mux.Handle("GET /api/entries/{publicId}/analytics", s.requireRole(roleEditor, roleAdmin)(http.HandlerFunc(s.handleEntryAnalytics)))
+	mux.Handle("GET /api/analytics/summary", s.requireRole(roleEditor, roleAdmin)(http.HandlerFunc(s.handleAnalyticsSummary)))
 }
 
 type beacon struct {

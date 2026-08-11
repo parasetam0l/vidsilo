@@ -62,6 +62,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { SvgChart } from "@/components/svg-chart";
 
 // Opens the entry detail in a sidebar-13 style dialog: an icon section nav
@@ -128,7 +129,47 @@ export function EntryDetailDialog({
     { id: "analytics", label: t("tabAnalytics"), icon: <BarChartIcon className="size-4" /> },
   ];
 
-  if (!entry) return <p className="text-sm text-muted-foreground">{t("loading")}</p>;
+  if (!entry) {
+    return (
+      <SidebarProvider className="items-start">
+        <Sidebar collapsible="none" className="hidden w-48 border-r md:flex">
+          <SidebarContent>
+            <SidebarGroup>
+              <SidebarGroupContent>
+                <SidebarMenu className="gap-1 p-2">
+                  {[1, 2, 3, 4, 5, 6].map((i) => (
+                    <SidebarMenuItem key={i}>
+                      <div className="flex h-8 items-center gap-2 px-2">
+                        <Skeleton className="size-4" />
+                        <Skeleton className="h-3 w-20" />
+                      </div>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </SidebarContent>
+        </Sidebar>
+        <main className="flex h-[480px] max-h-[70vh] flex-1 flex-col overflow-hidden">
+          <div className="flex h-16 shrink-0 items-center justify-between gap-3 border-b px-4 pr-10">
+            <div className="flex flex-col gap-2">
+              <Skeleton className="h-4 w-48" />
+              <Skeleton className="h-3 w-64" />
+            </div>
+            <div className="flex gap-2">
+              <Skeleton className="h-7 w-24" />
+              <Skeleton className="h-7 w-20" />
+              <Skeleton className="h-7 w-20" />
+            </div>
+          </div>
+          <div className="flex-1 space-y-4 overflow-hidden p-4">
+            <Skeleton className="h-40 w-full rounded-xl" />
+            <Skeleton className="h-32 w-full rounded-xl" />
+          </div>
+        </main>
+      </SidebarProvider>
+    );
+  }
 
   const catName = categories.find((c) => c.id === entry.categoryId)?.name ?? "—";
 
@@ -235,7 +276,7 @@ export function EntryDetailDialog({
         ))}
       </div>
 
-      <main className="flex h-[560px] max-h-[70vh] flex-1 flex-col overflow-hidden">
+      <main className="flex h-[480px] max-h-[70vh] flex-1 flex-col overflow-hidden">
         <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b px-4 pr-10">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
@@ -285,7 +326,7 @@ export function EntryDetailDialog({
               {entry.status === "ready" && entry.posterKey ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={`/media/${entry.posterKey}`}
+                  src={`/media/${entry.posterKey}?v=${encodeURIComponent(entry.updatedAt)}`}
                   alt="poster"
                   className="aspect-video w-full max-w-xl rounded-xl border object-cover"
                 />

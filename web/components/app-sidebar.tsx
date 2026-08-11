@@ -1,6 +1,7 @@
 "use client"
 
 import {
+  BarChartIcon,
   CheckIcon,
   ChevronsUpDownIcon,
   ClapperboardIcon,
@@ -68,6 +69,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       items: [
         { title: t("navUsers"), url: "/users", icon: UsersIcon },
         { title: t("navJobs"), url: "/jobs", icon: ListChecksIcon },
+        { title: t("navAnalytics"), url: "/analytics", icon: BarChartIcon },
         { title: t("navFlavors"), url: "/flavors", icon: SlidersHorizontalIcon },
         { title: t("navSettings"), url: "/settings", icon: SettingsIcon },
       ],
