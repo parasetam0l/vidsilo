@@ -43,6 +43,8 @@ const en = {
   langLabel: "Language",
   langEnglish: "English",
   signOut: "Sign out",
+  signOutTitle: "Sign out?",
+  signOutDesc: "You will be signed out of this session.",
   darkMode: "Dark mode",
   lightMode: "Light mode",
   appearance: "Appearance",

@@ -49,6 +49,7 @@ import {
 import { useAuth } from "@/components/auth-provider"
 import { useChangePasswordDialog } from "@/components/change-password-dialog"
 import { useTheme } from "@/components/theme-provider"
+import { useDialog } from "@/hooks/use-dialog"
 import { displayName } from "@/lib/api"
 import { locales, useI18n, useT } from "@/lib/i18n"
 
@@ -56,6 +57,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
   const router = useRouter()
   const t = useT()
+  const { confirm } = useDialog()
   const { user, logout } = useAuth()
   const { theme, set: setTheme } = useTheme()
   const { locale, setLocale } = useI18n()
@@ -86,6 +88,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   async function handleLogout() {
     await logout()
     router.push("/login")
+  }
+
+  function askLogout() {
+    confirm({
+      title: t("signOutTitle"),
+      description: t("signOutDesc"),
+      confirmLabel: t("signOut"),
+      cancelLabel: t("cancel"),
+      onConfirm: handleLogout,
+    })
   }
 
   const initials = user
@@ -216,7 +228,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 </DropdownMenuSub>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  onClick={handleLogout}
+                  onClick={askLogout}
                   className="text-destructive focus:text-destructive focus:bg-destructive/10"
                 >
                   <LogOutIcon className="size-4" />
