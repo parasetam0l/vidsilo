@@ -250,7 +250,7 @@ export default function EntriesPage() {
                 <TableHead>{t("colCategory")}</TableHead>
                 <TableHead>{t("colDuration")}</TableHead>
                 <TableHead>{t("colSize")}</TableHead>
-                <TableHead className="text-right">{t("colUploaded")}</TableHead>
+                <TableHead>{t("colUploaded")}</TableHead>
                 <TableHead>{t("colVisibility")}</TableHead>
                 <TableHead className="w-10" />
               </TableRow>
@@ -268,7 +268,11 @@ export default function EntriesPage() {
                   ))
                 : null}
               {(list?.items ?? []).map((e: Entry) => (
-                <TableRow key={e.id} className="transition-colors hover:bg-muted/40">
+                <TableRow
+                  key={e.id}
+                  className="cursor-pointer transition-colors hover:bg-muted/40"
+                  onClick={() => openEntryDetail(e.id)}
+                >
                   <TableCell>
                     <Checkbox
                       checked={selected.has(e.id)}
@@ -317,7 +321,10 @@ export default function EntriesPage() {
                       ) : null}
                     </div>
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell
+                    className="text-right"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <RowActions
                       onOpen={() => openEntryDetail(e.id)}
                       onEmbed={() => openEmbed(e.id)}
@@ -415,7 +422,7 @@ function RowActions({
       <DropdownMenuContent align="end">
         <DropdownMenuGroup>
           <DropdownMenuItem onClick={onOpen}>
-            <PencilIcon className="size-4" /> {t("actOpen")}
+            <PencilIcon className="size-4" /> {t("edit")}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={onEmbed}>
             <LinkIcon className="size-4" /> {t("actEmbed")}

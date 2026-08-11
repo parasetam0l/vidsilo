@@ -99,13 +99,11 @@ export default function DomainAclsPage() {
           <span className="text-xs text-emerald-700 dark:text-emerald-300 font-medium">Whitelisted Domains:</span>
           <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">{totalWhitelist}</span>
         </div>
-        {totalBlocklist > 0 ? (
-          <div className="flex items-center gap-2 rounded-xl border bg-red-500/10 border-red-500/20 px-3.5 py-2 shadow-2xs">
-            <ShieldXIcon className="size-4 text-red-500" />
-            <span className="text-xs text-red-700 dark:text-red-300 font-medium">Blocklisted Domains:</span>
-            <span className="text-sm font-bold text-red-600 dark:text-red-400 tabular-nums">{totalBlocklist}</span>
-          </div>
-        ) : null}
+        <div className="flex items-center gap-2 rounded-xl border bg-red-500/10 border-red-500/20 px-3.5 py-2 shadow-2xs">
+          <ShieldXIcon className="size-4 text-red-500" />
+          <span className="text-xs text-red-700 dark:text-red-300 font-medium">Blocklisted Domains:</span>
+          <span className="text-sm font-bold text-red-600 dark:text-red-400 tabular-nums">{totalBlocklist}</span>
+        </div>
       </div>
 
       <Card className="overflow-hidden py-0 ">
