@@ -54,7 +54,7 @@ export default function AnalyticsPage() {
 
   if (!data) {
     return (
-      <div className="flex flex-1 flex-col gap-4 p-4">
+      <div className="flex flex-1 flex-col gap-4 px-4 pb-4 pt-0">
         <div className="grid gap-4 md:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
             <Skeleton key={i} className="h-28 rounded-xl" />
@@ -105,13 +105,13 @@ export default function AnalyticsPage() {
   ];
 
   return (
-    <div className="flex flex-1 flex-col gap-4 p-4">
+    <div className="flex flex-1 flex-col gap-4 px-4 pb-4 pt-0">
       {/* KPI Cards */}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {cards.map((c) => (
           <Card
             key={c.title}
-            className="relative overflow-hidden shadow-sm transition-shadow hover:shadow-md"
+            className="relative overflow-hidden transition-shadow hover:shadow-md"
           >
             <div
               className={`pointer-events-none absolute -top-10 -right-10 size-28 rounded-full blur-3xl ${c.blob}`}
@@ -121,7 +121,7 @@ export default function AnalyticsPage() {
                 {c.title}
               </CardTitle>
               <div
-                className={`flex size-9 shrink-0 items-center justify-center rounded-lg shadow-sm ${c.tile}`}
+                className={`flex size-9 shrink-0 items-center justify-center rounded-lg `}
               >
                 <c.icon className="size-4.5" />
               </div>
@@ -136,7 +136,7 @@ export default function AnalyticsPage() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="shadow-sm">
+        <Card className="">
           <CardHeader>
             <CardTitle className="text-base font-semibold tracking-tight">{t("chartPlays")}</CardTitle>
           </CardHeader>
@@ -144,7 +144,7 @@ export default function AnalyticsPage() {
             <SvgChart points={plays} />
           </CardContent>
         </Card>
-        <Card className="shadow-sm">
+        <Card className="">
           <CardHeader>
             <CardTitle className="text-base font-semibold tracking-tight">{t("chartWatch")}</CardTitle>
           </CardHeader>
@@ -154,7 +154,7 @@ export default function AnalyticsPage() {
         </Card>
       </div>
 
-      <Card className="overflow-hidden py-0 shadow-sm">
+      <Card className="overflow-hidden py-0 ">
         <CardHeader className="py-4">
           <CardTitle className="text-base font-semibold tracking-tight">{t("analyticsTopEntries")}</CardTitle>
         </CardHeader>

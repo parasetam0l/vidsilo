@@ -101,7 +101,7 @@ export default function SettingsPage() {
 
   if (!data) {
     return (
-      <div className="flex flex-1 flex-col gap-4 p-4 md:flex-row">
+      <div className="flex flex-1 flex-col gap-4 px-4 pb-4 pt-0 md:flex-row">
         <Skeleton className="h-64 w-full md:w-60 rounded-xl" />
         <Skeleton className="h-96 flex-1 rounded-xl" />
       </div>
@@ -158,7 +158,7 @@ export default function SettingsPage() {
   const activeGroup = groups.find((g) => g.id === activeTab) ?? groups[0];
 
   return (
-    <div className="flex flex-1 flex-col gap-4 p-4">
+    <div className="flex flex-1 flex-col gap-4 px-4 pb-4 pt-0">
       <div className="flex flex-col gap-6 md:flex-row">
         {/* Navigation Sidebar */}
         <div className="w-full shrink-0 md:w-60">
@@ -189,7 +189,7 @@ export default function SettingsPage() {
 
         {/* Content Pane */}
         <div className="flex-1">
-          <Card className="relative overflow-hidden shadow-sm">
+          <Card className="relative overflow-hidden ">
             <div className="pointer-events-none absolute -top-12 -right-12 size-40 rounded-full bg-primary/10 blur-3xl" />
             <CardHeader className="border-b pb-4">
               <div className="flex items-center gap-3">

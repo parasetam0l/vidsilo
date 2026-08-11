@@ -105,17 +105,17 @@ export default function JobsPage() {
   ];
 
   return (
-    <div className="flex flex-1 flex-col gap-4 p-4">
+    <div className="flex flex-1 flex-col gap-4 px-4 pb-4 pt-0">
       {/* KPI Cards */}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {jobs === null
           ? [1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-28 rounded-xl" />)
           : kpis.map((kpi) => (
-              <Card key={kpi.title} className="relative overflow-hidden shadow-sm transition-shadow hover:shadow-md">
+              <Card key={kpi.title} className="relative overflow-hidden  transition-shadow hover:shadow-md">
                 <div className={`pointer-events-none absolute -top-10 -right-10 size-28 rounded-full blur-3xl ${kpi.blob}`} />
                 <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
                   <CardTitle className="text-sm font-medium text-muted-foreground">{kpi.title}</CardTitle>
-                  <div className={`flex size-9 shrink-0 items-center justify-center rounded-lg shadow-sm ${kpi.tile}`}>
+                  <div className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${kpi.tile}`}>
                     <kpi.icon className={`size-4.5 ${kpi.title === t("jobRunning") && running > 0 ? "animate-spin" : ""}`} />
                   </div>
                 </CardHeader>
@@ -127,7 +127,7 @@ export default function JobsPage() {
             ))}
       </div>
 
-      <Card className="overflow-hidden py-0 shadow-sm">
+      <Card className="overflow-hidden py-0 ">
         <CardContent className="p-0">
           <Table>
             <TableHeader className="bg-muted/50">

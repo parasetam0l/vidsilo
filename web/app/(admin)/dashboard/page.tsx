@@ -192,10 +192,10 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-1 flex-col gap-4 px-4 pb-4 pt-0">
       {data.totalEntries === 0 ? (
-        <Card className="relative overflow-hidden border-dashed shadow-sm">
+        <Card className="relative overflow-hidden border-dashed ">
           <div className="pointer-events-none absolute -top-16 -left-16 size-48 rounded-full bg-primary/10 blur-3xl" />
           <CardContent className="flex flex-col items-center gap-4 py-12 text-center">
-            <div className="flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-sm">
+            <div className="flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary ">
               <ClapperboardIcon className="size-7" />
             </div>
             <div>
@@ -217,7 +217,7 @@ export default function DashboardPage() {
         {kpis.map((kpi) => (
           <Card
             key={kpi.title}
-            className="relative overflow-hidden shadow-sm transition-shadow hover:shadow-md"
+            className="relative overflow-hidden transition-shadow hover:shadow-md"
           >
             <div
               className={`pointer-events-none absolute -top-10 -right-10 size-28 rounded-full blur-3xl ${kpi.blob}`}
@@ -241,7 +241,7 @@ export default function DashboardPage() {
                 ) : null}
               </CardTitle>
               <div
-                className={`flex size-9 shrink-0 items-center justify-center rounded-lg shadow-sm ${kpi.tile}`}
+                className={`flex size-9 shrink-0 items-center justify-center rounded-lg `}
               >
                 <kpi.icon className="size-4.5" />
               </div>
@@ -262,7 +262,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="relative overflow-hidden shadow-sm">
+        <Card className="relative overflow-hidden ">
           <div className="pointer-events-none absolute -top-10 -right-10 size-32 rounded-full bg-blue-500/10 blur-3xl" />
           <CardHeader className="flex flex-row items-center justify-between pb-3">
             <CardTitle className="text-base font-semibold tracking-tight">{t("dashByStatus")}</CardTitle>
@@ -317,7 +317,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="relative overflow-hidden py-0 shadow-sm">
+        <Card className="relative overflow-hidden py-0 ">
           <div className="pointer-events-none absolute -top-10 -right-10 size-32 rounded-full bg-violet-500/10 blur-3xl" />
           <CardHeader className="py-4">
             <CardTitle className="text-base font-semibold tracking-tight">{t("dashRecent")}</CardTitle>

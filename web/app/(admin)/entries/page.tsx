@@ -178,7 +178,7 @@ export default function EntriesPage() {
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-4 p-4">
+    <div className="flex flex-1 flex-col gap-4 px-4 pb-4 pt-0">
       <Card className="p-3 shadow-xs">
         <div className="flex flex-wrap items-center gap-2.5">
           <div className="relative flex-1 min-w-48">
@@ -228,7 +228,7 @@ export default function EntriesPage() {
         </div>
       </Card>
 
-      <Card className="overflow-hidden py-0 shadow-sm">
+      <Card className="overflow-hidden py-0 ">
         <CardContent className="p-0">
           <Table>
             <TableHeader className="bg-muted/50">
