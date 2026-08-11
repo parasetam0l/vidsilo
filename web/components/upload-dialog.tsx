@@ -129,7 +129,8 @@ export function UploadDialogContent({ onClose }: { onClose: () => void }) {
       {jobs.length === 0 ? (
         <div
           className={`flex min-h-44 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-6 text-center shadow-sm transition-colors ${
-            dragOver ? "border-primary bg-muted/40" : "border-muted"
+
+            dragOver ? "border-primary bg-muted/40" : "border-border/60"
           }`}
           onDragOver={(e) => {
             e.preventDefault();
