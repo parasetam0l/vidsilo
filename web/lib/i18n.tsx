@@ -240,6 +240,8 @@ const en = {
   uploadStart: "Start upload",
   uploadDialogTitle: "Upload videos",
   uploadInProgressTitle: "Uploading…",
+  uploadInProgressDesc:
+    "Transfers keep running after you close this dialog.",
   uploadCancelAll: "Cancel All",
   uploadCancelAllTitle: "Cancel everything?",
   uploadCancelAllDesc:

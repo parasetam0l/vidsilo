@@ -12,6 +12,7 @@ import {
   PlusIcon,
   TimerIcon,
   Trash2Icon,
+  TriangleAlertIcon,
   UploadCloudIcon,
 } from "lucide-react";
 
@@ -201,7 +202,7 @@ export function UploadDialogContent({ onClose }: { onClose: () => void }) {
         </DialogTitle>
         <DialogDescription className="text-xs">
           {anyActive
-            ? t("uploadBackgroundNote")
+            ? t("uploadInProgressDesc")
             : tab === "computer"
               ? jobs.length === 0
                 ? t("uploadOrClick", { max: formatBytes(maxSize) })
@@ -213,6 +214,12 @@ export function UploadDialogContent({ onClose }: { onClose: () => void }) {
       {anyActive ? (
         /* In-flight view: no tabs — just a title and real per-file progress. */
         <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-4 py-5">
+          {urlJobs.some((j) => j.status === "downloading" || j.status === "checking") ? (
+            <p className="flex items-center gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-medium text-amber-600 dark:text-amber-400">
+              <TriangleAlertIcon className="size-3.5 shrink-0" />
+              {t("uploadBackgroundNote")}
+            </p>
+          ) : null}
           {jobs.map((job) => (
             <UploadJobCard
               key={job.id}
@@ -323,8 +330,8 @@ export function UploadDialogContent({ onClose }: { onClose: () => void }) {
             </div>
           ) : null}
           {urlActive ? (
-            <p className="flex items-center gap-1.5 rounded-lg border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-xs font-medium text-blue-600 dark:text-blue-400">
-              <InfoIcon className="size-3.5 shrink-0" />
+            <p className="flex items-center gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-medium text-amber-600 dark:text-amber-400">
+              <TriangleAlertIcon className="size-3.5 shrink-0" />
               {t("uploadBackgroundNote")}
             </p>
           ) : null}
