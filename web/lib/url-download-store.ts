@@ -224,6 +224,12 @@ export function removeUrlDownload(id: string) {
   persist();
 }
 
+export function clearAllUrlDownloads() {
+  jobs = [];
+  emit();
+  persist();
+}
+
 export function __resetUrlDownloadStore() {
   jobs = [];
   emit();

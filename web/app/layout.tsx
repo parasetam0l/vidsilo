@@ -44,9 +44,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <ThemeProvider>
             <I18nProvider>
               <AuthProvider>
-                <DialogProvider>{children}</DialogProvider>
+                <DialogProvider>
+                  {children}
+                  <UploadNotifications />
+                </DialogProvider>
               </AuthProvider>
-              <UploadNotifications />
               <Toaster />
             </I18nProvider>
           </ThemeProvider>

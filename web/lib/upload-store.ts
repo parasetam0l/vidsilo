@@ -277,6 +277,18 @@ export function resetIdle() {
   }
 }
 
+// clearAllUploads resets all upload jobs and memory state.
+export function clearAllUploads() {
+  for (const [id, upload] of activeUploads.entries()) {
+    upload.abort();
+  }
+  activeUploads.clear();
+  jobs = [];
+  files.clear();
+  emit();
+  persist();
+}
+
 // Test helper: clears the in-memory store (localStorage untouched).
 export function __resetUploadStore() {
   jobs = [];
