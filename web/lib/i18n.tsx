@@ -167,7 +167,7 @@ const en = {
   entryDeleteDesc:
     "The entry and all its media (original file, quality presets, posters, analytics) will be permanently removed.",
   reprocessHint:
-    "Re-runs probing and transcoding with the currently ticked flavors. Only visible to admins.",
+    "Re-runs probing and transcoding with the currently ticked flavors.",
   tabMetadata: "Metadata",
   tabFlavors: "Flavors",
   tabPoster: "Poster",
