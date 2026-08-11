@@ -96,11 +96,12 @@ export function UploadDialogContent({ onClose }: { onClose: () => void }) {
   const hasPending = jobs.some((j) => j.status !== "done");
   const allDone = jobs.length > 0 && !hasPending;
 
-  // Any non-terminal work in either queue puts the dialog in the
-  // "uploading" view (tabs hidden, per-file progress).
+  // Any genuinely running work puts the dialog in the "uploading" view
+  // (tabs hidden, per-file progress). Queued-but-not-started files keep the
+  // normal tabbed view until the user clicks Start.
   const anyActive =
-    jobs.some((j) => j.status !== "done" && j.status !== "failed") ||
-    urlJobs.some((j) => j.status !== "done" && j.status !== "failed");
+    jobs.some((j) => j.status === "uploading") ||
+    urlJobs.some((j) => j.status === "downloading" || j.status === "checking");
 
   const urlActive = urlJobs.some((j) => j.status === "downloading" || j.status === "checking");
   const urlQueued = urlJobs.some((j) => j.status === "queued");
