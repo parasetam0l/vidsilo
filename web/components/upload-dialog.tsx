@@ -37,6 +37,7 @@ import {
   removeUrlDownload,
   resetIdleDownloads,
   startDownloads,
+  updateUrlDownload,
   useUrlDownloads,
   type UrlDownloadJob,
 } from "@/lib/url-download-store";
@@ -288,7 +289,7 @@ export function UploadDialogContent({ onClose }: { onClose: () => void }) {
             {urlJobs.length > 0 ? (
               <div className="flex flex-col gap-3 min-w-0">
                 {urlJobs.map((job) => (
-                  <UrlDownloadCard key={job.id} job={job} />
+                  <UrlDownloadCard key={job.id} job={job} categories={categories} />
                 ))}
               </div>
             ) : null}
@@ -483,8 +484,15 @@ function UploadJobCard({
   );
 }
 
-function UrlDownloadCard({ job }: { job: UrlDownloadJob }) {
+function UrlDownloadCard({
+  job,
+  categories,
+}: {
+  job: UrlDownloadJob;
+  categories: Category[];
+}) {
   const t = useT();
+  const [expanded, setExpanded] = React.useState(false);
 
   const status = {
     done: {
@@ -515,7 +523,7 @@ function UrlDownloadCard({ job }: { job: UrlDownloadJob }) {
   }[job.status];
 
   return (
-    <Card className="overflow-hidden py-0">
+    <Card className="overflow-hidden py-0 border border-border/60 transition-all">
       <CardContent className="flex flex-col gap-2.5 p-3">
         <div className="flex items-center gap-3">
           <div
@@ -524,30 +532,73 @@ function UrlDownloadCard({ job }: { job: UrlDownloadJob }) {
             {status.icon}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium">{job.fileName}</p>
+            <p className="truncate text-sm font-medium">{job.title || job.fileName}</p>
             <p className="truncate text-xs text-muted-foreground">
               {job.url}
               {status.text}
             </p>
           </div>
-          {job.status === "queued" || job.status === "failed" ? (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-              onClick={() => removeUrlDownload(job.id)}
-            >
-              <Trash2Icon className="size-4" />
-            </Button>
-          ) : null}
+          <div className="flex items-center gap-1">
+            {job.status !== "done" ? (
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className={`text-muted-foreground hover:text-foreground ${
+                  expanded ? "bg-muted text-foreground" : ""
+                }`}
+                onClick={() => setExpanded(!expanded)}
+                title={expanded ? "Hide details" : "Edit title / category"}
+              >
+                <PencilIcon className="size-3.5" />
+              </Button>
+            ) : null}
+            {job.status === "queued" || job.status === "failed" ? (
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                onClick={() => removeUrlDownload(job.id)}
+                title="Remove file"
+              >
+                <Trash2Icon className="size-3.5" />
+              </Button>
+            ) : null}
+          </div>
         </div>
 
         {job.status === "downloading" || job.status === "queued" ? (
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 pt-0.5">
             <Progress value={job.progress >= 0 ? job.progress : 0} className="h-1.5 flex-1" />
             <span className="w-9 text-right text-xs text-muted-foreground tabular-nums">
               {job.progress >= 0 ? `${job.progress}%` : "…"}
             </span>
+          </div>
+        ) : null}
+
+        {expanded && job.status !== "done" ? (
+          <div className="flex flex-col gap-2.5 pt-2 border-t border-border/40">
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs">{t("labelTitle")}</Label>
+              <Input
+                className="h-8 w-full text-sm"
+                value={job.title ?? ""}
+                disabled={job.status === "downloading"}
+                onChange={(e) => updateUrlDownload(job.id, { title: e.target.value })}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs">{t("labelCategory")}</Label>
+              <Select
+                options={[
+                  { value: "", label: t("none") },
+                  ...categories.map((c) => ({ value: String(c.id), label: c.name })),
+                ]}
+                className="h-8 w-full"
+                value={job.category ?? ""}
+                disabled={job.status === "downloading"}
+                onChange={(v) => updateUrlDownload(job.id, { category: v ?? "" })}
+              />
+            </div>
           </div>
         ) : null}
       </CardContent>

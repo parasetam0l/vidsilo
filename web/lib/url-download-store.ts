@@ -18,6 +18,8 @@ export interface UrlDownloadJob {
   id: string;
   url: string;
   fileName: string;
+  title?: string;
+  category?: string;
   status: UrlDownloadStatus;
   progress: number; // 0..100, -1 = indeterminate
   error?: string;
@@ -81,6 +83,10 @@ function update(id: string, patch: Partial<UrlDownloadJob>) {
   persist();
 }
 
+export function updateUrlDownload(id: string, patch: Partial<UrlDownloadJob>) {
+  update(id, patch);
+}
+
 // resetIdle clears the list when nothing is active (called on dialog open).
 export function resetIdleDownloads() {
   const active = jobs.some((j) =>
@@ -117,12 +123,15 @@ export async function checkUrls(lines: string[]): Promise<{ added: number; faile
       continue;
     }
     if (existing.has(r.url)) continue;
+    const name = r.fileName ?? r.url;
     jobs = [
       ...jobs,
       {
         id: crypto.randomUUID(),
         url: r.url,
-        fileName: r.fileName ?? r.url,
+        fileName: name,
+        title: name.replace(/\.[^.]+$/, ""),
+        category: "",
         status: "queued",
         progress: 0,
       },
@@ -167,6 +176,15 @@ async function submitOne(job: UrlDownloadJob) {
     return;
   }
   update(job.id, { entryId: r.entryId });
+  if (r.entryId && (job.title || job.category)) {
+    const patchBody: Record<string, unknown> = {};
+    if (job.title) patchBody.title = job.title;
+    if (job.category) patchBody.categoryId = Number(job.category);
+    api(`/api/entries/${r.entryId}`, {
+      method: "PATCH",
+      body: JSON.stringify(patchBody),
+    }).catch(() => {});
+  }
   // Wait for this download to finish (its row disappears from the active
   // list) before starting the next one.
   await waitForEntry(r.entryId!, job);
