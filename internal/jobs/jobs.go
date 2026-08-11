@@ -90,9 +90,17 @@ func (r *Runner) Download(ctx context.Context, job db.Job) error {
 	if err != nil {
 		return fail(err.Error())
 	}
+	client := safeurl.Client()
 	ext := strings.ToLower(strings.TrimPrefix(path.Ext(u.Path), "."))
 	if ext == "" {
-		return fail("url has no file extension")
+		// No extension in the path: follow the URL to learn the real type.
+		ext, err = safeurl.ResolveExt(ctx, client, params.URL, 15*time.Second)
+		if err != nil {
+			return fail(err.Error())
+		}
+	}
+	if ext == "" {
+		return fail("cannot determine file type")
 	}
 	allowed := r.Settings.StringSlice("upload.allowed_extensions", []string{"mp4", "mov", "mkv", "webm", "m4v", "avi"})
 	extOK := false
@@ -115,19 +123,8 @@ func (r *Runner) Download(ctx context.Context, job db.Job) error {
 		return ctx.Err()
 	}
 
-	// Re-validate every redirect hop (SSRF via redirect). A browser-like
-	// user-agent avoids CDN blocks on Go's default client UA.
-	client := &http.Client{
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			if _, err := safeurl.Validate(ctx, req.URL.String()); err != nil {
-				return err
-			}
-			if len(via) >= 5 {
-				return errors.New("too many redirects")
-			}
-			return nil
-		},
-	}
+	// A browser-like user-agent avoids CDN blocks on Go's default client UA;
+	// every redirect hop is re-validated by safeurl.Client (SSRF).
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, params.URL, nil)
 	if err != nil {
 		return fail(err.Error())

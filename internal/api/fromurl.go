@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/parasetam0l/vod-app/internal/db"
 	"github.com/parasetam0l/vod-app/internal/safeurl"
@@ -28,19 +29,32 @@ type urlCheckItem struct {
 }
 
 // checkURL validates scheme, SSRF safety and extension against the allowed
-// upload extensions. Returns the suggested file name.
+// upload extensions. URLs whose path carries no extension are followed
+// (redirects included) to discover the type. Returns the suggested file name.
 func (s *Server) checkURL(raw string) (fileName string, err error) {
 	u, err := safeurl.Validate(context.Background(), raw)
 	if err != nil {
 		return "", err
 	}
 	name := path.Base(u.Path)
+	ext := strings.ToLower(strings.TrimPrefix(path.Ext(name), "."))
+	if ext == "" {
+		// No extension in the path: follow the URL to learn the real type.
+		final, resolvedExt, err := safeurl.Resolve(context.Background(), safeurl.Client(), raw, 10*time.Second)
+		if err != nil {
+			return "", err
+		}
+		ext = resolvedExt
+		name = path.Base(final.Path)
+		if !strings.HasSuffix(name, "."+ext) {
+			name += "." + ext
+		}
+	}
 	if name == "" || name == "." || name == "/" {
 		return "", errors.New("url has no file name")
 	}
-	ext := strings.ToLower(strings.TrimPrefix(path.Ext(name), "."))
 	if ext == "" {
-		return "", errors.New("file name has no extension")
+		return "", errors.New("cannot determine file type")
 	}
 	allowed := s.settings.StringSlice("upload.allowed_extensions", []string{"mp4", "mov", "mkv", "webm", "m4v", "avi"})
 	for _, a := range allowed {
