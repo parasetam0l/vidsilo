@@ -374,7 +374,11 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     (key: MessageKey, vars?: Record<string, string | number>) => {
       let out: string = messages[locale][key] ?? messages.en[key];
       if (vars) {
-        for (const [k, v] of Object.entries(vars)) {
+        const enrichedVars =
+          vars.n !== undefined && vars.s === undefined
+            ? { ...vars, s: Number(vars.n) === 1 ? "" : "s" }
+            : vars;
+        for (const [k, v] of Object.entries(enrichedVars)) {
           out = out.replaceAll(`{${k}}`, String(v));
         }
       }

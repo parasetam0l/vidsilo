@@ -57,6 +57,7 @@ export function useUploadDialog() {
     dialog.open({
       content: (close) => <UploadDialogContent onClose={close} />,
       size: "2xl",
+      className: "max-h-[85vh] flex flex-col min-w-0 overflow-hidden",
       dismissible: false,
       showCloseButton: true,
     });
@@ -220,7 +221,7 @@ export function UploadDialogContent({ onClose }: { onClose: () => void }) {
           ) : null}
 
           {jobs.length > 0 ? (
-            <div className="flex max-h-72 flex-col gap-2 overflow-y-auto p-1 pr-2">
+            <div className="flex max-h-[460px] flex-col gap-2.5 overflow-y-auto p-1.5 pr-2 rounded-xl border border-border/60 bg-muted/20">
               {jobs.map((job) => (
                 <UploadJobCard
                   key={job.id}
@@ -243,7 +244,7 @@ export function UploadDialogContent({ onClose }: { onClose: () => void }) {
             onChange={(e) => setUrlText(e.target.value)}
           />
           {urlJobs.length > 0 ? (
-            <div className="flex max-h-72 flex-col gap-2 overflow-y-auto p-1 pr-2 min-w-0">
+            <div className="flex max-h-[460px] flex-col gap-2.5 overflow-y-auto p-1.5 pr-2 min-w-0 rounded-xl border border-border/60 bg-muted/20">
               {urlJobs.map((job) => (
                 <UrlDownloadCard key={job.id} job={job} />
               ))}
