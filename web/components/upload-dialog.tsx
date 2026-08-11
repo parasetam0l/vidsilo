@@ -7,6 +7,7 @@ import {
   CircleCheckIcon,
   DownloadIcon,
   Loader2Icon,
+  PencilIcon,
   PlusIcon,
   TimerIcon,
   Trash2Icon,
@@ -358,6 +359,7 @@ function UploadJobCard({
   onRemove: () => void;
 }) {
   const t = useT();
+  const [expanded, setExpanded] = React.useState(false);
 
   const status = {
     done: {
@@ -388,7 +390,7 @@ function UploadJobCard({
   }[job.status];
 
   return (
-    <Card className="overflow-hidden py-0">
+    <Card className="overflow-hidden py-0 border border-border/60 transition-all">
       <CardContent className="flex flex-col gap-2.5 p-3">
         <div className="flex items-center gap-3">
           <div
@@ -403,20 +405,45 @@ function UploadJobCard({
               {status.text}
             </p>
           </div>
-          {job.status !== "done" ? (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-              onClick={onRemove}
-            >
-              <Trash2Icon className="size-4" />
-            </Button>
-          ) : null}
+          <div className="flex items-center gap-1">
+            {job.status !== "done" ? (
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className={`text-muted-foreground hover:text-foreground ${
+                  expanded ? "bg-muted text-foreground" : ""
+                }`}
+                onClick={() => setExpanded(!expanded)}
+                title={expanded ? "Hide details" : "Edit title / category"}
+              >
+                <PencilIcon className="size-3.5" />
+              </Button>
+            ) : null}
+            {job.status !== "done" ? (
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                onClick={onRemove}
+                title="Remove file"
+              >
+                <Trash2Icon className="size-3.5" />
+              </Button>
+            ) : null}
+          </div>
         </div>
 
-        {job.status !== "done" ? (
-          <>
+        {job.status === "uploading" ? (
+          <div className="flex items-center gap-3 pt-0.5">
+            <Progress value={job.progress} className="h-1.5 flex-1" />
+            <span className="w-9 text-right text-xs text-muted-foreground tabular-nums">
+              {job.progress}%
+            </span>
+          </div>
+        ) : null}
+
+        {expanded && job.status !== "done" ? (
+          <div className="flex flex-col gap-2.5 pt-2 border-t border-border/40">
             <div className="flex flex-col gap-1">
               <Label className="text-xs">{t("labelTitle")}</Label>
               <Input
@@ -449,13 +476,7 @@ function UploadJobCard({
                 onChange={(e) => updateJob(job.id, { description: e.target.value })}
               />
             </div>
-            <div className="flex items-center gap-3">
-              <Progress value={job.progress} className="h-1.5 flex-1" />
-              <span className="w-9 text-right text-xs text-muted-foreground tabular-nums">
-                {job.progress}%
-              </span>
-            </div>
-          </>
+          </div>
         ) : null}
       </CardContent>
     </Card>
