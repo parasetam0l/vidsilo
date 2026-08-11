@@ -39,7 +39,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -115,27 +114,6 @@ export default function EntriesPage() {
       else next.add(id);
       return next;
     });
-  }
-
-  // Quick allow/deny toggle from the accessibility column: sends the full
-  // row body so no other field is touched.
-  async function toggleAccess(e: Entry, allowed: boolean) {
-    try {
-      await api<Entry>(`/api/entries/${e.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({
-          title: e.title,
-          description: e.description,
-          categoryId: e.categoryId,
-          isPublic: e.isPublic,
-          domainAclId: e.domainAclId,
-          accessDenied: !allowed,
-        }),
-      });
-      load();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("error"));
-    }
   }
 
   async function bulkDelete() {
@@ -326,24 +304,18 @@ export default function EntriesPage() {
                     {formatDate(e.createdAt)}
                   </TableCell>
                   <TableCell>
-                    <div className="flex flex-col items-start gap-1">
+                    <div className="flex flex-wrap items-center gap-1">
                       <Badge
                         variant={e.isPublic ? "outline" : "secondary"}
                         className="text-[10px] capitalize"
                       >
                         {e.isPublic ? t("visibilityPublic") : t("visibilityPrivate")}
                       </Badge>
-                      <div className="flex items-center gap-1.5">
-                        <Switch
-                          checked={!e.accessDenied}
-                          onCheckedChange={(v) => toggleAccess(e, v)}
-                        />
-                        <span
-                          className={`text-xs ${e.accessDenied ? "font-medium text-destructive" : "text-muted-foreground"}`}
-                        >
-                          {e.accessDenied ? t("accessDenied") : t("accessAllowed")}
-                        </span>
-                      </div>
+                      {e.accessDenied ? (
+                        <Badge variant="destructive" className="text-[10px]">
+                          {t("accessDenied")}
+                        </Badge>
+                      ) : null}
                     </div>
                   </TableCell>
                   <TableCell className="text-right">
