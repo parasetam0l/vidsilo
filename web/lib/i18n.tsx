@@ -268,10 +268,7 @@ const en = {
   uploadStopDesc:
     "The transfer stops and the partially uploaded file is discarded. The empty entry can be deleted from the Entries page.",
   uploadStop: "Stop upload",
-  uploadDiscardTitle: "Discard unstarted uploads?",
-  uploadDiscardDesc: "Closing now will discard selected files. Are you sure you want to close?",
-  uploadDiscardConfirm: "Discard & Close",
-  uploadDiscardCancel: "Keep Editing",
+  uploadsInProgress: "{n} upload{s} in progress",
 
   // users
   usersTitle: "Users",
@@ -309,6 +306,8 @@ const en = {
   labelAudioBitrate: "Audio bitrate (kbps)",
   labelPreset: "Preset",
   saveFlavor: "Save flavor",
+  flavorEnabled: "Flavor enabled",
+  flavorDisabled: "Flavor disabled",
   deleteFlavorTitle: "Delete flavor?",
   deleteFlavorDesc: "This removes the quality preset. Existing output files are kept.",
 

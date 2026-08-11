@@ -8,7 +8,6 @@ import {
   ClockIcon,
   RotateCcwIcon,
   FilmIcon,
-  ActivityIcon,
   ListChecksIcon,
   Loader2Icon,
 } from "lucide-react";
@@ -41,7 +40,7 @@ export default function JobsPage() {
   const { data: jobs = null } = useQuery({
     queryKey: ["jobs"],
     queryFn: () => api<JobActivity[]>("/api/jobs"),
-    refetchInterval: (query) =>
+    refetchInterval: () =>
       document.visibilityState === "visible" ? 5_000 : false,
   });
 
@@ -161,7 +160,9 @@ export default function JobsPage() {
                     </div>
                   </TableCell>
                   <TableCell className="font-medium">
-                    {j.entryTitle || "—"}
+                    <span className="line-clamp-2 max-w-[250px] min-w-0 whitespace-normal break-words">
+                      {j.entryTitle || "—"}
+                    </span>
                     {j.progress ? (
                       <p className="mt-0.5 flex items-center gap-1 text-xs font-normal text-muted-foreground">
                         {j.status === "running" ? (

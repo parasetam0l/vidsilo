@@ -13,7 +13,6 @@ import {
   TimerIcon,
   Trash2Icon,
   UploadCloudIcon,
-  XIcon,
 } from "lucide-react";
 
 import { api, type Category, type UploadConfig } from "@/lib/api";
@@ -183,35 +182,6 @@ export function UploadDialogContent({ onClose }: { onClose: () => void }) {
 
   const urlLines = urlText.split("\n").map((l) => l.trim()).filter(Boolean).length;
 
-  const handleCloseAttempt = () => {
-    const hasUnstartedFiles = jobs.some((j) => j.status === "queued" || j.status === "interrupted");
-    const hasUnstartedUrls = urlJobs.some((j) => j.status === "queued") || urlText.trim().length > 0;
-    const isUploading = jobs.some((j) => j.status === "uploading") || urlJobs.some((j) => j.status === "downloading");
-
-    if ((hasUnstartedFiles || hasUnstartedUrls) && !isUploading) {
-      confirm({
-        title: t("uploadDiscardTitle"),
-        description: t("uploadDiscardDesc"),
-        variant: "destructive",
-        confirmLabel: t("uploadDiscardConfirm"),
-        cancelLabel: t("uploadDiscardCancel"),
-        onConfirm: () => {
-          clearAllUploads();
-          clearAllUrlDownloads();
-          resetIdle();
-          resetIdleDownloads();
-          onClose();
-        },
-      });
-    } else {
-      if (!isUploading) {
-        resetIdle();
-        resetIdleDownloads();
-      }
-      onClose();
-    }
-  };
-
   return (
     <div className="flex flex-col max-h-[85vh] w-full min-w-0 overflow-hidden">
       <DialogHeader className="p-5 pb-4 border-b border-border/40 shrink-0 relative pr-12">
@@ -237,14 +207,6 @@ export function UploadDialogContent({ onClose }: { onClose: () => void }) {
                 : t("uploadFilesSelected", { n: jobs.length })
               : t("uploadUrlHint")}
         </DialogDescription>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          className="absolute right-4 top-4 text-muted-foreground hover:text-foreground rounded-lg"
-          onClick={handleCloseAttempt}
-        >
-          <XIcon className="size-4" />
-        </Button>
       </DialogHeader>
 
       {anyActive ? (

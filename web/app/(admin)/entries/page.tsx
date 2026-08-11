@@ -81,7 +81,7 @@ export default function EntriesPage() {
       return api<EntryList>(`/api/entries?${params}`);
     },
     // Refetch while visible so other users' work and dialog edits show up.
-    refetchInterval: (query) =>
+    refetchInterval: () =>
       document.visibilityState === "visible" ? 10_000 : false,
   });
 

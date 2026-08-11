@@ -83,10 +83,15 @@ export default function FlavorsPage() {
         method: "PATCH",
         body: JSON.stringify({ ...f, enabled: !f.enabled }),
       }),
-    onSuccess: () => {
+    onSuccess: (_data, f) => {
       queryClient.invalidateQueries({ queryKey: ["flavors"] });
+      toast.success(f.enabled ? t("flavorDisabled") : t("flavorEnabled"));
     },
-    onError: (err: Error) => toast.error(err.message),
+    onError: (err: Error) => {
+      // Revert: refetch the server truth so the switch snaps back.
+      queryClient.invalidateQueries({ queryKey: ["flavors"] });
+      toast.error(err.message);
+    },
   });
 
   const removeFlavor = useMutation({

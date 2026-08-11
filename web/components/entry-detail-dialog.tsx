@@ -10,11 +10,8 @@ import {
   BarChart3Icon,
   CaptionsIcon,
   Check,
-  CheckIcon,
   Code2Icon,
   Copy,
-  CopyIcon,
-  FilmIcon,
   ImageIcon,
   InfoIcon,
   Link2Icon,
@@ -47,7 +44,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { VODPlayer } from "@/components/vod-player";
 import { EmbedPreview } from "@/components/embed-preview";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

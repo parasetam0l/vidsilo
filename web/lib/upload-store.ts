@@ -294,7 +294,7 @@ export function clearUploads() {
 
 // clearAllUploads resets all upload jobs and memory state.
 export function clearAllUploads() {
-  for (const [id, upload] of activeUploads.entries()) {
+  for (const [, upload] of activeUploads.entries()) {
     upload.abort();
   }
   activeUploads.clear();

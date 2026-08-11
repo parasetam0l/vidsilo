@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { PencilIcon, ShieldCheckIcon, Trash2, UserCheckIcon, UserRoundIcon, UsersIcon, UserXIcon } from "lucide-react";
+import { PencilIcon, ShieldCheckIcon, Trash2, UserCheckIcon, UsersIcon, UserXIcon } from "lucide-react";
 
 import { api, ApiError, displayName, type Role, type User } from "@/lib/api";
 import { useT } from "@/lib/i18n";
