@@ -115,22 +115,25 @@ const (
 )
 
 // SpriteGrid generates the sprite sheet from the source video, scanning the
-// first 10% (capped at 60s) into a 10-wide tile grid. Returns the true frame
-// count (never the padded cells of the last row).
+// whole video (or its first 60s) into a 10-wide tile grid of ≤100 cells.
+// Returns the true frame count (never the padded cells of the last row).
 func (m *Manager) SpriteGrid(ctx context.Context, entryID int64, srcPath string, durationMs int64) (int, error) {
-	scanEnd := durationMs / 10
-	if scanEnd < 2000 {
-		scanEnd = 2000
-	}
+	scanEnd := durationMs
 	if scanEnd > 60000 {
 		scanEnd = 60000
 	}
-	// Sample at exactly 10fps within the window, then keep every 6th frame:
-	// ~100 cells for a full 60s window. Because the count is deterministic
-	// (fps=10 → F frames → ceil(F/6) kept), the UI never sees the black
-	// padding cells that tile appends to the last row.
-	fpsFrames := (scanEnd + 99) / 100 // frames at 10fps over the window
-	frames := int((fpsFrames + 5) / 6) // every 6th kept by select
+	if scanEnd < 2000 {
+		scanEnd = 2000
+	}
+	// Sample at exactly 10fps across the window and thin adaptively so the
+	// sheet never exceeds MaxFrames cells: short videos keep every frame
+	// (a 6s clip gets 60 poster options), longer ones thin to ~100.
+	fpsFrames := (min(scanEnd, durationMs) + 99) / 100 // frames at 10fps in the window
+	step := int64(1)
+	if fpsFrames > MaxFrames {
+		step = (fpsFrames + MaxFrames - 1) / MaxFrames
+	}
+	frames := int((fpsFrames + step - 1) / step)
 	if frames < 1 {
 		frames = 1
 	}
@@ -141,8 +144,8 @@ func (m *Manager) SpriteGrid(ctx context.Context, entryID int64, srcPath string,
 	// crop the sheet down to the rows that actually hold frames — the stored
 	// frame count then matches the image exactly and the UI grid math holds.
 	rows := (frames + spriteCols - 1) / spriteCols
-	vf := fmt.Sprintf("fps=10,select='not(mod(n,6))',scale=%d:%d,tile=%dx%d,crop=%d:%d:0:0",
-		SpriteFrameW, SpriteFrameH, spriteCols, spriteCols,
+	vf := fmt.Sprintf("fps=10,select='not(mod(n,%d))',scale=%d:%d,tile=%dx%d,crop=%d:%d:0:0",
+		step, SpriteFrameW, SpriteFrameH, spriteCols, spriteCols,
 		SpriteFrameW*spriteCols, rows*SpriteFrameH)
 	spriteTmp, err := os.CreateTemp(m.TempDir, "vod-sprite-*.jpg")
 	if err != nil {
@@ -152,7 +155,6 @@ func (m *Manager) SpriteGrid(ctx context.Context, entryID int64, srcPath string,
 	defer os.Remove(spriteTmp.Name())
 
 	cmd := exec.CommandContext(ctx, "ffmpeg", "-y",
-		"-ss", fmt.Sprintf("%dms", scanEnd/10),
 		"-i", srcPath,
 		"-t", fmt.Sprintf("%dms", scanEnd),
 		"-vf", vf,
