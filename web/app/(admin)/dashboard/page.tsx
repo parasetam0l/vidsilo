@@ -37,7 +37,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Separator } from "@/components/ui/separator";
 
 import { EntryThumb } from "@/components/entry-thumb";
 
@@ -192,7 +191,6 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-1 flex-col gap-4 px-4 pb-4 pt-0">
-      <Separator className="w-full" />
       {data.totalEntries === 0 ? (
         <Card className="relative overflow-hidden border-dashed shadow-sm">
           <div className="pointer-events-none absolute -top-16 -left-16 size-48 rounded-full bg-primary/10 blur-3xl" />
