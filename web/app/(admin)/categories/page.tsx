@@ -16,6 +16,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { EmptyState } from "@/components/empty-state";
+import { DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -267,9 +268,9 @@ function CategoryFormContent({
 
   return (
     <form className="flex flex-col gap-4" onSubmit={submit} noValidate>
-      <h2 className="text-lg font-semibold tracking-tight">
-        {editing ? t("editCategoryTitle") : t("newCategory")}
-      </h2>
+      <DialogHeader>
+        <DialogTitle>{editing ? t("editCategoryTitle") : t("newCategory")}</DialogTitle>
+      </DialogHeader>
       <div className="flex flex-col gap-1.5">
         <Label className="text-xs font-medium">{t("colName")}</Label>
         <Input
@@ -297,14 +298,14 @@ function CategoryFormContent({
           placeholder={t("parentNone")}
         />
       </div>
-      <div className="flex justify-end gap-2 border-t pt-3">
-        <Button type="button" variant="outline" className="rounded-lg text-xs" onClick={onClose} disabled={saveCategory.isPending}>
+      <DialogFooter>
+        <Button type="button" variant="outline" onClick={onClose} disabled={saveCategory.isPending}>
           {t("cancel")}
         </Button>
-        <Button type="submit" className="rounded-lg text-xs" disabled={saveCategory.isPending}>
+        <Button type="submit" disabled={saveCategory.isPending}>
           {saveCategory.isPending ? t("loading") : t("save")}
         </Button>
-      </div>
+      </DialogFooter>
     </form>
   );
 }

@@ -19,6 +19,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { EmptyState } from "@/components/empty-state";
+import { DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select } from "@/components/ui/select";
 import {
   Table,
@@ -255,11 +256,9 @@ function UserFormContent({
 
   return (
     <form className="flex flex-col gap-4" onSubmit={submit} noValidate>
-      <div>
-        <h2 className="text-lg font-semibold tracking-tight">
-          {editing ? t("editUserTitle") : t("newUserTitle")}
-        </h2>
-      </div>
+      <DialogHeader>
+        <DialogTitle>{editing ? t("editUserTitle") : t("newUserTitle")}</DialogTitle>
+      </DialogHeader>
       <div className="flex flex-col gap-1.5">
         <Label className="text-xs font-medium">{t("loginEmail")}</Label>
         <Input
@@ -308,14 +307,14 @@ function UserFormContent({
           <Switch checked={disabled} onCheckedChange={setDisabled} />
         </div>
       ) : null}
-      <div className="flex justify-end gap-2 border-t pt-3">
-        <Button type="button" variant="outline" className="rounded-lg text-xs" onClick={onClose} disabled={saveUser.isPending}>
+      <DialogFooter>
+        <Button type="button" variant="outline" onClick={onClose} disabled={saveUser.isPending}>
           {t("cancel")}
         </Button>
-        <Button type="submit" className="rounded-lg text-xs" disabled={saveUser.isPending}>
+        <Button type="submit" disabled={saveUser.isPending}>
           {saveUser.isPending ? t("loading") : t("save")}
         </Button>
-      </div>
+      </DialogFooter>
     </form>
   );
 }

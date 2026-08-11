@@ -8,15 +8,16 @@ import { useDialog } from "@/hooks/use-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export function useEmbedDialog() {
   const dialog = useDialog();
   return React.useCallback(
     (publicId: string) => {
       dialog.open({
-        content: () => <EmbedDialogContent publicId={publicId} />,
+        content: (close) => <EmbedDialogContent publicId={publicId} onClose={close} />,
         size: "xl",
-        className: "p-6 sm:max-w-[640px] max-h-[85vh] flex flex-col overflow-y-auto rounded-2xl border border-border/80 shadow-2xl bg-background",
+        className: "p-4 sm:max-w-[640px] max-h-[85vh] flex flex-col overflow-y-auto rounded-2xl border border-border/80 bg-background",
         dismissible: true,
         showCloseButton: true,
       });
@@ -25,7 +26,7 @@ export function useEmbedDialog() {
   );
 }
 
-function EmbedDialogContent({ publicId }: { publicId: string }) {
+function EmbedDialogContent({ publicId, onClose }: { publicId: string; onClose: () => void }) {
   const t = useT();
   const [copiedDirect, setCopiedDirect] = React.useState(false);
   const [copiedSnippet, setCopiedSnippet] = React.useState(false);
@@ -47,15 +48,13 @@ function EmbedDialogContent({ publicId }: { publicId: string }) {
   };
 
   return (
-    <div className="flex flex-col gap-5 pr-2">
-      <div className="pr-8">
-        <h2 className="text-lg font-semibold tracking-tight text-foreground">
-          {t("embedTitle")}
-        </h2>
-        <p className="text-xs text-muted-foreground mt-0.5">
+    <div className="flex flex-col gap-4">
+      <DialogHeader>
+        <DialogTitle>{t("embedTitle")}</DialogTitle>
+        <DialogDescription>
           Share this video via direct URL link or embed iframe into your application.
-        </p>
-      </div>
+        </DialogDescription>
+      </DialogHeader>
 
       {/* Embedded Video Player Preview */}
       <div className="relative aspect-video max-h-56 w-full shrink-0 overflow-hidden rounded-xl border border-border bg-black shadow-inner">
@@ -84,7 +83,7 @@ function EmbedDialogContent({ publicId }: { publicId: string }) {
             variant="outline"
             size="sm"
             onClick={handleCopyDirect}
-            className="h-8 gap-1.5 text-xs rounded-lg bg-background shadow-2xs hover:bg-muted/60"
+            className="h-8"
           >
             {copiedDirect ? (
               <>
@@ -119,7 +118,7 @@ function EmbedDialogContent({ publicId }: { publicId: string }) {
             variant="outline"
             size="sm"
             onClick={handleCopySnippet}
-            className="h-8 gap-1.5 text-xs rounded-lg bg-background shadow-2xs hover:bg-muted/60"
+            className="h-8"
           >
             {copiedSnippet ? (
               <>
@@ -135,6 +134,11 @@ function EmbedDialogContent({ publicId }: { publicId: string }) {
           </Button>
         </div>
       </div>
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose}>
+          {t("close")}
+        </Button>
+      </DialogFooter>
     </div>
   );
 }

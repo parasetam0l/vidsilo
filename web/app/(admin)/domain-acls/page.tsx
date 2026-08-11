@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { EmptyState } from "@/components/empty-state";
+import { DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -246,9 +247,9 @@ function AclFormContent({
 
   return (
     <form className="flex flex-col gap-4" onSubmit={submit} noValidate>
-      <h2 className="text-lg font-semibold tracking-tight">
-        {editing ? t("aclEditTitle") : t("aclNew")}
-      </h2>
+      <DialogHeader>
+        <DialogTitle>{editing ? t("aclEditTitle") : t("aclNew")}</DialogTitle>
+      </DialogHeader>
       <div className="flex flex-col gap-1.5">
         <Label className="text-xs font-medium">{t("aclColTitle")}</Label>
         <Input className="rounded-lg" value={title} onChange={(e) => setTitle(e.target.value)} />
@@ -273,14 +274,14 @@ function AclFormContent({
           onChange={(e) => setBlocklist(e.target.value)}
         />
       </div>
-      <div className="flex justify-end gap-2 border-t pt-3">
-        <Button type="button" variant="outline" className="rounded-lg text-xs" onClick={onClose} disabled={saveAcl.isPending}>
+      <DialogFooter>
+        <Button type="button" variant="outline" onClick={onClose} disabled={saveAcl.isPending}>
           {t("cancel")}
         </Button>
-        <Button type="submit" className="rounded-lg text-xs" disabled={saveAcl.isPending || !title.trim()}>
+        <Button type="submit" disabled={saveAcl.isPending || !title.trim()}>
           {saveAcl.isPending ? t("loading") : t("save")}
         </Button>
-      </div>
+      </DialogFooter>
     </form>
   );
 }

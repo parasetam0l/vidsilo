@@ -16,6 +16,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { EmptyState } from "@/components/empty-state";
+import { DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -268,9 +269,9 @@ function FlavorFormContent({
 
   return (
     <form className="flex flex-col gap-4" onSubmit={submit} noValidate>
-      <h2 className="text-lg font-semibold tracking-tight">
-        {editing ? t("editFlavorTitle") : t("newFlavorTitle")}
-      </h2>
+      <DialogHeader>
+        <DialogTitle>{editing ? t("editFlavorTitle") : t("newFlavorTitle")}</DialogTitle>
+      </DialogHeader>
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-medium">{t("colName")}</label>
@@ -362,14 +363,14 @@ function FlavorFormContent({
           />
         </div>
       </div>
-      <div className="flex justify-end gap-2 border-t pt-3">
-        <Button type="button" variant="outline" className="rounded-lg text-xs" onClick={onClose} disabled={saveFlavor.isPending}>
+      <DialogFooter>
+        <Button type="button" variant="outline" onClick={onClose} disabled={saveFlavor.isPending}>
           {t("cancel")}
         </Button>
-        <Button type="submit" className="rounded-lg text-xs gap-1.5" disabled={saveFlavor.isPending}>
+        <Button type="submit" disabled={saveFlavor.isPending}>
           <Save className="size-3.5" /> {saveFlavor.isPending ? t("loading") : t("saveFlavor")}
         </Button>
-      </div>
+      </DialogFooter>
     </form>
   );
 }

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useDialog } from "@/hooks/use-dialog";
+import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { changePasswordSchema, fieldErrors, type FieldErrors } from "@/lib/validators";
 import { FormError } from "@/components/form-error";
 
@@ -64,12 +65,10 @@ function ChangePasswordContent() {
 
   return (
     <form className="flex flex-col gap-4" onSubmit={submit} noValidate>
-      <div>
-        <h2 className="text-lg font-semibold tracking-tight">
-          {t("changePasswordTitle")}
-        </h2>
-        <p className="text-sm text-muted-foreground">{t("changePasswordDesc")}</p>
-      </div>
+      <DialogHeader>
+        <DialogTitle>{t("changePasswordTitle")}</DialogTitle>
+        <DialogDescription>{t("changePasswordDesc")}</DialogDescription>
+      </DialogHeader>
       <div className="flex flex-col gap-1.5">
         <Label>{t("currentPassword")}</Label>
         <Input
@@ -109,9 +108,11 @@ function ChangePasswordContent() {
         />
         <FormError message={errors.confirm} />
       </div>
-      <Button type="submit" disabled={busy}>
-        {busy ? t("loading") : t("save")}
-      </Button>
+      <DialogFooter>
+        <Button type="submit" disabled={busy}>
+          {busy ? t("loading") : t("save")}
+        </Button>
+      </DialogFooter>
     </form>
   );
 }

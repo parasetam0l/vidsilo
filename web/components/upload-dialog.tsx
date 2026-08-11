@@ -15,6 +15,7 @@ import { api, type Category, type UploadConfig } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import { useDialog } from "@/hooks/use-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   MAX_BATCH,
   addFiles,
@@ -39,7 +40,7 @@ export function useUploadDialog() {
   const dialog = useDialog();
   return React.useCallback(() => {
     dialog.open({
-      content: () => <UploadDialogContent />,
+      content: (close) => <UploadDialogContent onClose={close} />,
       size: "2xl",
       dismissible: false,
       showCloseButton: true,
@@ -47,7 +48,7 @@ export function useUploadDialog() {
   }, [dialog]);
 }
 
-export function UploadDialogContent() {
+export function UploadDialogContent({ onClose }: { onClose: () => void }) {
   const t = useT();
   const toast = useToast();
   const { confirm } = useDialog();
@@ -98,27 +99,32 @@ export function UploadDialogContent() {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-2 pr-8">
-        <div>
-          <h2 className="text-base font-semibold tracking-tight">{t("uploadDialogTitle")}</h2>
+      <DialogHeader>
+        <DialogTitle className="flex items-center gap-2">
+          {t("uploadDialogTitle")}
           {allDone ? (
-            <p className="flex items-center gap-1 text-xs font-medium text-emerald-500">
-              <CircleCheckIcon className="size-3.5" /> {t("uploadAllComplete")}
-            </p>
-          ) : (
-            <p className="text-xs text-muted-foreground">
-              {jobs.length === 0
-                ? t("uploadOrClick", { max: formatBytes(maxSize) })
-                : t("uploadFilesSelected", { n: jobs.length })}
-            </p>
-          )}
-        </div>
-        {hasPending ? (
+            <CircleCheckIcon className="size-4 text-emerald-500" />
+          ) : null}
+        </DialogTitle>
+        {allDone ? (
+          <DialogDescription className="text-xs font-medium text-emerald-500">
+            {t("uploadAllComplete")}
+          </DialogDescription>
+        ) : (
+          <DialogDescription className="text-xs">
+            {jobs.length === 0
+              ? t("uploadOrClick", { max: formatBytes(maxSize) })
+              : t("uploadFilesSelected", { n: jobs.length })}
+          </DialogDescription>
+        )}
+      </DialogHeader>
+      {hasPending ? (
+        <div className="flex justify-end">
           <Button variant="outline" size="sm" onClick={pickFiles}>
             <PlusIcon className="size-4" /> {t("uploadAddMore")}
           </Button>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
 
       {jobs.length === 0 ? (
         <div
@@ -175,11 +181,22 @@ export function UploadDialogContent() {
       ) : null}
 
       {hasPending ? (
-        <Button className="w-full" onClick={startAll} disabled={activeCount === 0}>
-          <UploadCloudIcon className="size-4" />
-          {t("uploadStartN", { n: activeCount, s: activeCount > 1 ? "s" : "" })}
-        </Button>
-      ) : null}
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={activeCount === 0 && jobs.length === 0}>
+            {t("cancel")}
+          </Button>
+          <Button onClick={startAll} disabled={activeCount === 0}>
+            <UploadCloudIcon className="size-4" />
+            {t("uploadStartN", { n: activeCount, s: activeCount > 1 ? "s" : "" })}
+          </Button>
+        </DialogFooter>
+      ) : (
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            {t("close")}
+          </Button>
+        </DialogFooter>
+      )}
     </div>
   );
 }
