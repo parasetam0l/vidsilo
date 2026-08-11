@@ -96,6 +96,7 @@ const en = {
   jobQueued: "In Queue",
   jobDone: "Done",
   jobProbe: "Probe",
+  jobPosterSprite: "Poster & Sprite",
   jobTranscode: "Transcode",
   jobRetry: "Retry",
   jobRetried: "Job requeued",

@@ -8,6 +8,7 @@ import {
   ClockIcon,
   RotateCcwIcon,
   FilmIcon,
+  ImageIcon,
   ListChecksIcon,
   Loader2Icon,
 } from "lucide-react";
@@ -162,20 +163,18 @@ export default function JobsPage() {
                           {j.label}
                         </Badge>
                       ) : null}
+                      {j.type === "probe" && j.progress ? (
+                        <Badge variant="outline" className="gap-1 font-mono text-xs text-amber-600 dark:text-amber-400 border-amber-500/30">
+                          <ImageIcon className="size-3" />
+                          {t("jobPosterSprite")}
+                        </Badge>
+                      ) : null}
                     </div>
                   </TableCell>
                   <TableCell className="font-medium">
                     <span className="line-clamp-2 max-w-[250px] min-w-0 whitespace-normal break-words">
                       {j.entryTitle || "—"}
                     </span>
-                    {j.progress ? (
-                      <p className="mt-0.5 flex items-center gap-1 text-xs font-normal text-muted-foreground">
-                        {j.status === "running" ? (
-                          <Loader2Icon className="size-3 animate-spin text-primary" />
-                        ) : null}
-                        {j.progress}
-                      </p>
-                    ) : null}
                   </TableCell>
                   <TableCell>
                     <JobStatusBadge status={j.status} />
