@@ -116,6 +116,7 @@ const en = {
   dashByStatus: "Entries by status",
   dashNoEntries: "No entries yet — upload your first video.",
   dashRecent: "Recent uploads",
+  dashRecentDesc: "The latest videos added to your catalog, with quick access to their details.",
   colTitle: "Title",
   colStatus: "Status",
   statusUploading: "Uploading",

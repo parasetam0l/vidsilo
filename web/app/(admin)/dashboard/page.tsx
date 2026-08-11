@@ -345,7 +345,12 @@ export default function DashboardPage() {
         <Card className="relative flex flex-col justify-between overflow-hidden">
           <div className="pointer-events-none absolute -top-10 -right-10 size-32 rounded-full bg-violet-500/10 blur-3xl" />
           <CardHeader className="flex flex-row items-center justify-between pb-3">
-            <CardTitle className="text-base font-semibold tracking-tight">{t("dashRecent")}</CardTitle>
+            <div className="flex flex-col gap-0.5">
+              <CardTitle className="text-base font-semibold tracking-tight">{t("dashRecent")}</CardTitle>
+              <CardDescription className="text-xs text-muted-foreground">
+                {t("dashRecentDesc")}
+              </CardDescription>
+            </div>
             <Link
               href="/entries"
               className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-primary transition-colors"
