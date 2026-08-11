@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { PencilIcon, Save, SlidersHorizontalIcon, Trash2, VideoIcon } from "lucide-react";
+import { PencilIcon, Save, SlidersHorizontalIcon, Trash2, VideoIcon, CheckCircle2Icon, XCircleIcon } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 import { api, type Flavor } from "@/lib/api";
@@ -116,8 +116,31 @@ export default function FlavorsPage() {
     });
   }
 
+  const total = flavors.length;
+  const enabledCount = flavors.filter((f) => f.enabled).length;
+  const disabledCount = total - enabledCount;
+
   return (
     <div className="flex flex-1 flex-col gap-4 p-4">
+      {/* Top summary strip */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2 rounded-xl border bg-card px-3.5 py-2 shadow-2xs">
+          <SlidersHorizontalIcon className="size-4 text-primary" />
+          <span className="text-xs text-muted-foreground">Total Presets:</span>
+          <span className="text-sm font-bold text-foreground tabular-nums">{total}</span>
+        </div>
+        <div className="flex items-center gap-2 rounded-xl border bg-emerald-500/10 border-emerald-500/20 px-3.5 py-2 shadow-2xs">
+          <CheckCircle2Icon className="size-4 text-emerald-500" />
+          <span className="text-xs text-emerald-700 dark:text-emerald-300 font-medium">Enabled for Encoding:</span>
+          <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">{enabledCount}</span>
+        </div>
+        <div className="flex items-center gap-2 rounded-xl border bg-muted/40 px-3.5 py-2 shadow-2xs">
+          <XCircleIcon className="size-4 text-muted-foreground" />
+          <span className="text-xs text-muted-foreground">Disabled:</span>
+          <span className="text-sm font-bold text-muted-foreground tabular-nums">{disabledCount}</span>
+        </div>
+      </div>
+
       <Card className="overflow-hidden py-0 shadow-sm">
         <CardContent className="p-0">
           <Table>
@@ -134,28 +157,40 @@ export default function FlavorsPage() {
             </TableHeader>
             <TableBody>
               {flavors.map((f) => (
-                <TableRow key={f.id}>
+                <TableRow
+                  key={f.id}
+                  className={`transition-colors hover:bg-muted/40 ${!f.enabled ? "opacity-60" : ""}`}
+                >
                   <TableCell>
                     <Switch checked={f.enabled} onCheckedChange={() => toggle(f)} />
                   </TableCell>
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-3">
-                      <Avatar className="size-7 rounded-lg">
-                        <AvatarFallback className="rounded-lg">
-                          <VideoIcon className="size-3.5" />
+                      <Avatar className="size-8 rounded-lg">
+                        <AvatarFallback className="rounded-lg bg-primary/10 text-primary">
+                          <VideoIcon className="size-4" />
                         </AvatarFallback>
                       </Avatar>
-                      {f.name}
+                      <span className="font-semibold text-foreground">{f.name}</span>
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline">{f.codec}</Badge>
+                    <Badge
+                      variant="outline"
+                      className={`font-mono text-xs uppercase ${
+                        f.codec === "h265"
+                          ? "bg-violet-500/10 text-violet-500 border-violet-500/30"
+                          : "bg-blue-500/10 text-blue-500 border-blue-500/30"
+                      }`}
+                    >
+                      {f.codec}
+                    </Badge>
                   </TableCell>
-                  <TableCell>{f.height}p</TableCell>
-                  <TableCell className="text-muted-foreground">
+                  <TableCell className="font-mono text-sm">{f.height}p</TableCell>
+                  <TableCell className="text-xs font-mono text-muted-foreground">
                     {f.videoMode === "crf" ? `crf ${f.crf}` : `${f.videoBitrate}k`} · {f.preset}
                   </TableCell>
-                  <TableCell className="text-muted-foreground">{f.audioBitrate}k</TableCell>
+                  <TableCell className="text-xs font-mono text-muted-foreground">{f.audioBitrate}k</TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="icon" onClick={() => openEdit(f)}>
                       <PencilIcon className="size-4" />
@@ -245,17 +280,18 @@ function FlavorFormContent({
       </h2>
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium">{t("colName")}</label>
-          <Input value={draft.name} onChange={(e) => set({ name: e.target.value })} />
+          <label className="text-xs font-medium">{t("colName")}</label>
+          <Input className="rounded-lg" value={draft.name} onChange={(e) => set({ name: e.target.value })} />
           <FormError message={errors.name} />
         </div>
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium">{t("colFlavor")}</label>
-          <Input value={draft.label} onChange={(e) => set({ label: e.target.value })} />
+          <label className="text-xs font-medium">{t("colFlavor")}</label>
+          <Input className="rounded-lg" value={draft.label} onChange={(e) => set({ label: e.target.value })} />
         </div>
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium">{t("colCodec")}</label>
+          <label className="text-xs font-medium">{t("colCodec")}</label>
           <Select
+            className="rounded-lg"
             options={[
               { value: "h264", label: t("codecH264") },
               { value: "h265", label: t("codecH265") },
@@ -265,8 +301,9 @@ function FlavorFormContent({
           />
         </div>
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium">{t("colHeight")} (px)</label>
+          <label className="text-xs font-medium">{t("colHeight")} (px)</label>
           <Input
+            className="rounded-lg"
             type="number"
             value={draft.height}
             onChange={(e) => set({ height: Number(e.target.value) })}
@@ -274,8 +311,9 @@ function FlavorFormContent({
           <FormError message={errors.height} />
         </div>
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium">{t("videoMode")}</label>
+          <label className="text-xs font-medium">{t("videoMode")}</label>
           <Select
+            className="rounded-lg"
             options={[
               { value: "crf", label: t("vmodeCrf") },
               { value: "bitrate", label: t("vmodeBitrate") },
@@ -286,8 +324,9 @@ function FlavorFormContent({
         </div>
         {draft.videoMode === "crf" ? (
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium">{t("labelCrf")}</label>
+            <label className="text-xs font-medium">{t("labelCrf")}</label>
             <Input
+              className="rounded-lg"
               type="number"
               step="0.5"
               value={draft.crf ?? 23}
@@ -297,8 +336,9 @@ function FlavorFormContent({
           </div>
         ) : (
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium">{t("labelBitrate")}</label>
+            <label className="text-xs font-medium">{t("labelBitrate")}</label>
             <Input
+              className="rounded-lg"
               type="number"
               value={draft.videoBitrate ?? 0}
               onChange={(e) => set({ videoBitrate: Number(e.target.value) })}
@@ -307,8 +347,9 @@ function FlavorFormContent({
           </div>
         )}
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium">{t("labelAudioBitrate")}</label>
+          <label className="text-xs font-medium">{t("labelAudioBitrate")}</label>
           <Input
+            className="rounded-lg"
             type="number"
             value={draft.audioBitrate}
             onChange={(e) => set({ audioBitrate: Number(e.target.value) })}
@@ -316,8 +357,9 @@ function FlavorFormContent({
           <FormError message={errors.audioBitrate} />
         </div>
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium">{t("labelPreset")}</label>
+          <label className="text-xs font-medium">{t("labelPreset")}</label>
           <Select
+            className="rounded-lg"
             options={["ultrafast", "superfast", "veryfast", "faster", "fast", "medium"].map((p) => ({
               value: p,
               label: p,
@@ -327,12 +369,12 @@ function FlavorFormContent({
           />
         </div>
       </div>
-      <div className="flex justify-end gap-2">
-        <Button type="button" variant="outline" onClick={onClose} disabled={busy}>
+      <div className="flex justify-end gap-2 border-t pt-3">
+        <Button type="button" variant="outline" className="rounded-lg text-xs" onClick={onClose} disabled={busy}>
           {t("cancel")}
         </Button>
-        <Button type="submit" disabled={busy}>
-          <Save className="size-4" /> {busy ? t("loading") : t("saveFlavor")}
+        <Button type="submit" className="rounded-lg text-xs gap-1.5" disabled={busy}>
+          <Save className="size-3.5" /> {busy ? t("loading") : t("saveFlavor")}
         </Button>
       </div>
     </form>

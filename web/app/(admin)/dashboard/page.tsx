@@ -38,6 +38,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
+import { EntryThumb } from "@/components/entry-thumb";
+
 interface Kpi {
   title: string;
   value: string;
@@ -95,6 +97,14 @@ function Sparkline({
     </svg>
   );
 }
+
+const statusColors: Record<string, string> = {
+  ready: "bg-emerald-500",
+  transcoding: "bg-amber-500",
+  probing: "bg-amber-400",
+  uploading: "bg-blue-500",
+  failed: "bg-red-500",
+};
 
 export default function DashboardPage() {
   const t = useT();
@@ -177,6 +187,8 @@ export default function DashboardPage() {
     },
   ];
 
+  const totalStatusCount = Object.values(data.entriesByStatus).reduce((a, b) => a + b, 0);
+
   return (
     <div className="flex flex-1 flex-col gap-4 p-4">
       {data.totalEntries === 0 ? (
@@ -250,32 +262,65 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-base">{t("dashByStatus")}</CardTitle>
+        <Card className="relative overflow-hidden shadow-sm">
+          <div className="pointer-events-none absolute -top-10 -right-10 size-32 rounded-full bg-blue-500/10 blur-3xl" />
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <CardTitle className="text-base font-semibold tracking-tight">{t("dashByStatus")}</CardTitle>
+            <span className="text-xs font-medium text-muted-foreground tabular-nums">
+              {totalStatusCount} total
+            </span>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             {Object.keys(data.entriesByStatus).length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {Object.entries(data.entriesByStatus).map(([status, count]) => (
-                  <div
-                    key={status}
-                    className="flex items-center gap-2 rounded-lg border bg-card px-3 py-1.5 text-sm shadow-sm"
-                  >
-                    <StatusBadge status={status as never} />
-                    <span className="font-medium tabular-nums">{count}</span>
-                  </div>
-                ))}
-              </div>
+              <>
+                {/* Segmented status distribution bar */}
+                <div className="flex h-3 w-full overflow-hidden rounded-full bg-muted/60 p-0.5">
+                  {Object.entries(data.entriesByStatus).map(([status, count]) => {
+                    const pct = (count / (totalStatusCount || 1)) * 100;
+                    return (
+                      <div
+                        key={status}
+                        style={{ width: `${pct}%` }}
+                        className={`h-full transition-all ${statusColors[status] ?? "bg-primary"}`}
+                        title={`${status}: ${count} (${pct.toFixed(1)}%)`}
+                      />
+                    );
+                  })}
+                </div>
+
+                {/* Status tiles grid */}
+                <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+                  {Object.entries(data.entriesByStatus).map(([status, count]) => {
+                    const pct = totalStatusCount > 0 ? Math.round((count / totalStatusCount) * 100) : 0;
+                    return (
+                      <div
+                        key={status}
+                        className="flex flex-col justify-between gap-2 rounded-xl border bg-card/60 p-3 shadow-2xs transition-all hover:bg-muted/40 hover:shadow-xs"
+                      >
+                        <div className="flex items-center justify-between gap-1">
+                          <StatusBadge status={status as never} />
+                          <span className="text-[11px] font-medium text-muted-foreground tabular-nums">
+                            {pct}%
+                          </span>
+                        </div>
+                        <div className="text-2xl font-bold tracking-tight tabular-nums text-foreground">
+                          {count}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
             ) : (
               <EmptyState icon={FilmIcon} description={t("dashStatusEmpty")} />
             )}
           </CardContent>
         </Card>
 
-        <Card className="overflow-hidden py-0 shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-base">{t("dashRecent")}</CardTitle>
+        <Card className="relative overflow-hidden py-0 shadow-sm">
+          <div className="pointer-events-none absolute -top-10 -right-10 size-32 rounded-full bg-violet-500/10 blur-3xl" />
+          <CardHeader className="py-4">
+            <CardTitle className="text-base font-semibold tracking-tight">{t("dashRecent")}</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             {(data.recent ?? []).length > 0 ? (
@@ -284,25 +329,28 @@ export default function DashboardPage() {
                   <TableRow className="hover:bg-transparent">
                     <TableHead>{t("colTitle")}</TableHead>
                     <TableHead>{t("colStatus")}</TableHead>
-                    <TableHead>{t("colDuration")}</TableHead>
+                    <TableHead className="text-right">{t("colDuration")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {(data.recent ?? []).map((e: Entry) => (
-                    <TableRow key={e.id}>
-                      <TableCell>
-                        <button
-                          type="button"
-                          className="max-w-full truncate text-left hover:underline"
-                          onClick={() => openEntryDetail(e.id)}
-                        >
-                          {e.title || t("untitled")}
-                        </button>
+                    <TableRow key={e.id} className="group transition-colors hover:bg-muted/40">
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-3">
+                          <EntryThumb posterKey={e.posterKey} updatedAt={e.updatedAt} />
+                          <button
+                            type="button"
+                            className="max-w-full truncate text-left font-medium hover:underline text-foreground"
+                            onClick={() => openEntryDetail(e.id)}
+                          >
+                            {e.title || t("untitled")}
+                          </button>
+                        </div>
                       </TableCell>
                       <TableCell>
                         <StatusBadge status={e.status} />
                       </TableCell>
-                      <TableCell className="text-muted-foreground">
+                      <TableCell className="text-right text-xs font-mono text-muted-foreground tabular-nums">
                         {formatDuration(e.durationMs)}
                       </TableCell>
                     </TableRow>
@@ -326,3 +374,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+

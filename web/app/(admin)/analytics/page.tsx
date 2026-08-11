@@ -1,7 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { BarChartIcon } from "lucide-react";
+import {
+  ActivityIcon,
+  BarChartIcon,
+  ClockIcon,
+  PlayIcon,
+  UsersIcon,
+  FilmIcon,
+} from "lucide-react";
 
 import { api } from "@/lib/api";
 import { useT } from "@/lib/i18n";
@@ -67,24 +74,62 @@ export default function AnalyticsPage() {
   ).map((p) => ({ label: p.day, value: p.value }));
 
   const cards = [
-    { title: t("statPlays"), value: String(data.totals.plays) },
-    { title: t("statViewers"), value: String(data.totals.entries) },
-    { title: t("statWatchTime"), value: `${formatWatchHours(data.totals.watchSeconds)} h` },
-    { title: t("statBandwidth"), value: `${formatGb(data.totals.bytes)} GB` },
+    {
+      title: t("statPlays"),
+      value: String(data.totals.plays),
+      icon: PlayIcon,
+      tile: "bg-blue-500/10 text-blue-500",
+      blob: "bg-blue-500/15",
+    },
+    {
+      title: t("statViewers"),
+      value: String(data.totals.entries),
+      icon: UsersIcon,
+      tile: "bg-violet-500/10 text-violet-500",
+      blob: "bg-violet-500/15",
+    },
+    {
+      title: t("statWatchTime"),
+      value: `${formatWatchHours(data.totals.watchSeconds)} h`,
+      icon: ClockIcon,
+      tile: "bg-emerald-500/10 text-emerald-500",
+      blob: "bg-emerald-500/15",
+    },
+    {
+      title: t("statBandwidth"),
+      value: `${formatGb(data.totals.bytes)} GB`,
+      icon: ActivityIcon,
+      tile: "bg-amber-500/10 text-amber-500",
+      blob: "bg-amber-500/15",
+    },
   ];
 
   return (
     <div className="flex flex-1 flex-col gap-4 p-4">
-      <div className="grid gap-4 md:grid-cols-4">
+      {/* KPI Cards */}
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {cards.map((c) => (
-          <Card key={c.title} className="shadow-sm">
-            <CardHeader>
+          <Card
+            key={c.title}
+            className="relative overflow-hidden shadow-sm transition-shadow hover:shadow-md"
+          >
+            <div
+              className={`pointer-events-none absolute -top-10 -right-10 size-28 rounded-full blur-3xl ${c.blob}`}
+            />
+            <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 {c.title}
               </CardTitle>
+              <div
+                className={`flex size-9 shrink-0 items-center justify-center rounded-lg shadow-sm ${c.tile}`}
+              >
+                <c.icon className="size-4.5" />
+              </div>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-semibold tabular-nums">{c.value}</div>
+            <CardContent className="relative">
+              <div className="text-3xl font-semibold tracking-tight tabular-nums">
+                {c.value}
+              </div>
             </CardContent>
           </Card>
         ))}
@@ -93,7 +138,7 @@ export default function AnalyticsPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="shadow-sm">
           <CardHeader>
-            <CardTitle className="text-base">{t("chartPlays")}</CardTitle>
+            <CardTitle className="text-base font-semibold tracking-tight">{t("chartPlays")}</CardTitle>
           </CardHeader>
           <CardContent>
             <SvgChart points={plays} />
@@ -101,7 +146,7 @@ export default function AnalyticsPage() {
         </Card>
         <Card className="shadow-sm">
           <CardHeader>
-            <CardTitle className="text-base">{t("chartWatch")}</CardTitle>
+            <CardTitle className="text-base font-semibold tracking-tight">{t("chartWatch")}</CardTitle>
           </CardHeader>
           <CardContent>
             <SvgChart points={watch} />
@@ -110,8 +155,8 @@ export default function AnalyticsPage() {
       </div>
 
       <Card className="overflow-hidden py-0 shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-base">{t("analyticsTopEntries")}</CardTitle>
+        <CardHeader className="py-4">
+          <CardTitle className="text-base font-semibold tracking-tight">{t("analyticsTopEntries")}</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           {(data.topEntries ?? []).length > 0 ? (
@@ -126,23 +171,28 @@ export default function AnalyticsPage() {
               </TableHeader>
               <TableBody>
                 {(data.topEntries ?? []).map((e) => (
-                  <TableRow key={e.publicId}>
+                  <TableRow key={e.publicId} className="transition-colors hover:bg-muted/40">
                     <TableCell className="font-medium">
-                      <button
-                        type="button"
-                        className="max-w-full truncate text-left hover:underline"
-                        onClick={() => openEntryDetail(e.publicId)}
-                      >
-                        {e.title || t("untitled")}
-                      </button>
+                      <div className="flex items-center gap-2.5">
+                        <div className="flex size-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                          <FilmIcon className="size-3.5" />
+                        </div>
+                        <button
+                          type="button"
+                          className="max-w-full truncate text-left font-medium hover:underline text-foreground"
+                          onClick={() => openEntryDetail(e.publicId)}
+                        >
+                          {e.title || t("untitled")}
+                        </button>
+                      </div>
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">
+                    <TableCell className="text-right tabular-nums font-semibold text-foreground">
                       {e.plays}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
                       {formatWatchHours(e.watchSeconds)} h
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
                       {formatGb(e.bytes)} GB
                     </TableCell>
                   </TableRow>

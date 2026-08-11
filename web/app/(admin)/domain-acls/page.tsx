@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { PencilIcon, ShieldIcon, Trash2 } from "lucide-react";
+import { PencilIcon, ShieldCheckIcon, ShieldIcon, ShieldXIcon, Trash2 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 import { api, type DomainAcl } from "@/lib/api";
@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { EmptyState } from "@/components/empty-state";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -85,8 +86,33 @@ export default function DomainAclsPage() {
     });
   }
 
+  const total = acls.length;
+  const totalWhitelist = acls.reduce((acc, a) => acc + a.whitelist.length, 0);
+  const totalBlocklist = acls.reduce((acc, a) => acc + a.blocklist.length, 0);
+
   return (
     <div className="flex flex-1 flex-col gap-4 p-4">
+      {/* Top summary strip */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2 rounded-xl border bg-card px-3.5 py-2 shadow-2xs">
+          <ShieldIcon className="size-4 text-primary" />
+          <span className="text-xs text-muted-foreground">ACL Profiles:</span>
+          <span className="text-sm font-bold text-foreground tabular-nums">{total}</span>
+        </div>
+        <div className="flex items-center gap-2 rounded-xl border bg-emerald-500/10 border-emerald-500/20 px-3.5 py-2 shadow-2xs">
+          <ShieldCheckIcon className="size-4 text-emerald-500" />
+          <span className="text-xs text-emerald-700 dark:text-emerald-300 font-medium">Whitelisted Domains:</span>
+          <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">{totalWhitelist}</span>
+        </div>
+        {totalBlocklist > 0 ? (
+          <div className="flex items-center gap-2 rounded-xl border bg-red-500/10 border-red-500/20 px-3.5 py-2 shadow-2xs">
+            <ShieldXIcon className="size-4 text-red-500" />
+            <span className="text-xs text-red-700 dark:text-red-300 font-medium">Blocklisted Domains:</span>
+            <span className="text-sm font-bold text-red-600 dark:text-red-400 tabular-nums">{totalBlocklist}</span>
+          </div>
+        ) : null}
+      </div>
+
       <Card className="overflow-hidden py-0 shadow-sm">
         <CardContent className="p-0">
           <Table>
@@ -100,22 +126,50 @@ export default function DomainAclsPage() {
             </TableHeader>
             <TableBody>
               {acls.map((a) => (
-                <TableRow key={a.id}>
+                <TableRow key={a.id} className="transition-colors hover:bg-muted/40">
                   <TableCell className="font-medium">
-                    <span className="flex items-center gap-2.5">
-                      <Avatar className="size-7 rounded-lg">
-                        <AvatarFallback className="rounded-lg">
-                          <ShieldIcon className="size-3.5" />
+                    <div className="flex items-center gap-3">
+                      <Avatar className="size-8 rounded-lg">
+                        <AvatarFallback className="rounded-lg bg-primary/10 text-primary">
+                          <ShieldIcon className="size-4" />
                         </AvatarFallback>
                       </Avatar>
-                      {a.title}
-                    </span>
+                      <span className="font-semibold text-foreground">{a.title}</span>
+                    </div>
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {a.whitelist.length > 0 ? a.whitelist.join(", ") : "—"}
+                  <TableCell>
+                    {a.whitelist.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {a.whitelist.map((d, i) => (
+                          <Badge
+                            key={i}
+                            variant="outline"
+                            className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-xs font-mono"
+                          >
+                            {d}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {a.blocklist.length > 0 ? a.blocklist.join(", ") : "—"}
+                  <TableCell>
+                    {a.blocklist.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {a.blocklist.map((d, i) => (
+                          <Badge
+                            key={i}
+                            variant="outline"
+                            className="bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/30 text-xs font-mono"
+                          >
+                            {d}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
                   </TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="icon" onClick={() => openEdit(a)}>
@@ -203,32 +257,34 @@ function AclFormContent({
         {editing ? t("aclEditTitle") : t("aclNew")}
       </h2>
       <div className="flex flex-col gap-1.5">
-        <Label>{t("aclColTitle")}</Label>
-        <Input value={title} onChange={(e) => setTitle(e.target.value)} />
+        <Label className="text-xs font-medium">{t("aclColTitle")}</Label>
+        <Input className="rounded-lg" value={title} onChange={(e) => setTitle(e.target.value)} />
       </div>
       <div className="flex flex-col gap-1.5">
-        <Label>{t("aclColWhitelist")}</Label>
+        <Label className="text-xs font-medium">{t("aclColWhitelist")}</Label>
         <Textarea
           rows={3}
+          className="rounded-lg font-mono text-xs resize-none"
           placeholder={t("aclDomainsPlaceholder")}
           value={whitelist}
           onChange={(e) => setWhitelist(e.target.value)}
         />
       </div>
       <div className="flex flex-col gap-1.5">
-        <Label>{t("aclColBlocklist")}</Label>
+        <Label className="text-xs font-medium">{t("aclColBlocklist")}</Label>
         <Textarea
           rows={3}
+          className="rounded-lg font-mono text-xs resize-none"
           placeholder={t("aclDomainsPlaceholder")}
           value={blocklist}
           onChange={(e) => setBlocklist(e.target.value)}
         />
       </div>
-      <div className="flex justify-end gap-2">
-        <Button type="button" variant="outline" onClick={onClose} disabled={busy}>
+      <div className="flex justify-end gap-2 border-t pt-3">
+        <Button type="button" variant="outline" className="rounded-lg text-xs" onClick={onClose} disabled={busy}>
           {t("cancel")}
         </Button>
-        <Button type="submit" disabled={busy || !title.trim()}>
+        <Button type="submit" className="rounded-lg text-xs" disabled={busy || !title.trim()}>
           {busy ? t("loading") : t("save")}
         </Button>
       </div>

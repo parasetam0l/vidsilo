@@ -1,7 +1,16 @@
 "use client";
 
 import * as React from "react";
-import { CircleCheckIcon, CircleAlertIcon, ClockIcon, RotateCcwIcon, FilmIcon } from "lucide-react";
+import {
+  CircleCheckIcon,
+  CircleAlertIcon,
+  ClockIcon,
+  RotateCcwIcon,
+  FilmIcon,
+  ActivityIcon,
+  ListChecksIcon,
+  Loader2Icon,
+} from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 import { api, type JobActivity } from "@/lib/api";
@@ -10,7 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { formatDate } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -53,8 +62,71 @@ export default function JobsPage() {
     }
   }
 
+  const list = jobs ?? [];
+  const total = list.length;
+  const running = list.filter((j) => j.status === "running").length;
+  const queued = list.filter((j) => j.status === "queued").length;
+  const failed = list.filter((j) => j.status === "failed").length;
+  const done = list.filter((j) => j.status === "done").length;
+
+  const kpis = [
+    {
+      title: "Total Jobs",
+      value: String(total),
+      hint: `${done} completed`,
+      icon: ListChecksIcon,
+      tile: "bg-blue-500/10 text-blue-500",
+      blob: "bg-blue-500/15",
+    },
+    {
+      title: t("jobRunning"),
+      value: String(running),
+      hint: "Active background encoding",
+      icon: Loader2Icon,
+      tile: "bg-emerald-500/10 text-emerald-500",
+      blob: "bg-emerald-500/15",
+    },
+    {
+      title: t("jobQueued"),
+      value: String(queued),
+      hint: "Waiting for worker pool",
+      icon: ClockIcon,
+      tile: "bg-amber-500/10 text-amber-500",
+      blob: "bg-amber-500/15",
+    },
+    {
+      title: t("statusFailed"),
+      value: String(failed),
+      hint: "Requires attention or retry",
+      icon: CircleAlertIcon,
+      tile: "bg-red-500/10 text-red-500",
+      blob: "bg-red-500/15",
+    },
+  ];
+
   return (
     <div className="flex flex-1 flex-col gap-4 p-4">
+      {/* KPI Cards */}
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {jobs === null
+          ? [1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-28 rounded-xl" />)
+          : kpis.map((kpi) => (
+              <Card key={kpi.title} className="relative overflow-hidden shadow-sm transition-shadow hover:shadow-md">
+                <div className={`pointer-events-none absolute -top-10 -right-10 size-28 rounded-full blur-3xl ${kpi.blob}`} />
+                <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">{kpi.title}</CardTitle>
+                  <div className={`flex size-9 shrink-0 items-center justify-center rounded-lg shadow-sm ${kpi.tile}`}>
+                    <kpi.icon className={`size-4.5 ${kpi.title === t("jobRunning") && running > 0 ? "animate-spin" : ""}`} />
+                  </div>
+                </CardHeader>
+                <CardContent className="relative">
+                  <div className="text-3xl font-semibold tracking-tight tabular-nums">{kpi.value}</div>
+                  <p className="mt-1 text-xs text-muted-foreground">{kpi.hint}</p>
+                </CardContent>
+              </Card>
+            ))}
+      </div>
+
       <Card className="overflow-hidden py-0 shadow-sm">
         <CardContent className="p-0">
           <Table>
@@ -82,15 +154,15 @@ export default function JobsPage() {
                   ))
                 : null}
               {(jobs ?? []).map((j) => (
-                <TableRow key={j.id}>
+                <TableRow key={j.id} className="transition-colors hover:bg-muted/40">
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <Avatar className="size-8 rounded-lg">
-                        <AvatarFallback className="rounded-lg">
+                        <AvatarFallback className="rounded-lg bg-primary/10 text-primary">
                           <FilmIcon className="size-4" />
                         </AvatarFallback>
                       </Avatar>
-                      <Badge variant="outline">
+                      <Badge variant="outline" className="font-mono text-xs uppercase">
                         {j.type === "probe" ? t("jobProbe") : t("jobTranscode")}
                       </Badge>
                     </div>
@@ -104,15 +176,15 @@ export default function JobsPage() {
                   <TableCell className="text-muted-foreground tabular-nums">
                     {j.attempts}
                   </TableCell>
-                  <TableCell className="max-w-64 truncate text-muted-foreground">
+                  <TableCell className="max-w-64 truncate text-xs font-mono text-muted-foreground">
                     {j.error || "—"}
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
+                  <TableCell className="text-muted-foreground text-xs">
                     {formatDate(j.createdAt)}
                   </TableCell>
                   <TableCell className="text-right">
                     {j.status === "failed" ? (
-                      <Button variant="outline" size="sm" onClick={() => retry(j)}>
+                      <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs shadow-2xs" onClick={() => retry(j)}>
                         <RotateCcwIcon className="size-3.5" /> {t("jobRetry")}
                       </Button>
                     ) : null}
@@ -138,25 +210,33 @@ function JobStatusBadge({ status }: { status: JobActivity["status"] }) {
   const t = useT();
   if (status === "failed") {
     return (
-      <Badge variant="outline" className="bg-red-500/15 text-red-500">
+      <Badge variant="outline" className="gap-1.5 bg-red-500/15 text-red-500 border-red-500/30">
         <CircleAlertIcon className="size-3" /> {t("statusFailed")}
       </Badge>
     );
   }
   if (status === "done") {
     return (
-      <Badge variant="outline" className="bg-emerald-500/15 text-emerald-500">
+      <Badge variant="outline" className="gap-1.5 bg-emerald-500/15 text-emerald-500 border-emerald-500/30">
         <CircleCheckIcon className="size-3" /> {t("jobDone")}
       </Badge>
     );
   }
+  if (status === "running") {
+    return (
+      <Badge variant="outline" className="gap-1.5 bg-blue-500/15 text-blue-500 border-blue-500/30">
+        <span className="relative flex size-2">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" />
+          <span className="relative inline-flex size-2 rounded-full bg-blue-500" />
+        </span>
+        {t("jobRunning")}
+      </Badge>
+    );
+  }
   return (
-    <Badge
-      variant="outline"
-      className={status === "running" ? "bg-blue-500/15 text-blue-500" : "bg-amber-500/15 text-amber-500"}
-    >
+    <Badge variant="outline" className="gap-1.5 bg-amber-500/15 text-amber-500 border-amber-500/30">
       <ClockIcon className="size-3" />
-      {status === "running" ? t("jobRunning") : t("jobQueued")}
+      {t("jobQueued")}
     </Badge>
   );
 }

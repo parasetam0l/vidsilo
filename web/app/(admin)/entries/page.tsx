@@ -182,52 +182,54 @@ export default function EntriesPage() {
 
   return (
     <div className="flex flex-1 flex-col gap-4 p-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 min-w-48">
-          <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            className="pl-9"
-            placeholder={t("entriesSearch")}
-            value={q}
-            onChange={(e) => {
-              setQ(e.target.value);
-              setPage(1);
-            }}
+      <Card className="p-3 shadow-xs">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="relative flex-1 min-w-48">
+            <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              className="pl-9 rounded-lg"
+              placeholder={t("entriesSearch")}
+              value={q}
+              onChange={(e) => {
+                setQ(e.target.value);
+                setPage(1);
+              }}
+            />
+          </div>
+          <Select
+            options={[
+              { value: "", label: t("entriesAllStatuses") },
+              { value: "uploading", label: t("statusUploading") },
+              { value: "probing", label: t("statusProbing") },
+              { value: "transcoding", label: t("statusTranscoding") },
+              { value: "ready", label: t("statusReady") },
+              { value: "failed", label: t("statusFailed") },
+            ]}
+            className="w-40 rounded-lg"
+            value={status}
+            onChange={(v) => { setStatus(v ?? ""); setPage(1); }}
           />
+          <Select
+            options={[
+              { value: "", label: t("entriesAllCategories") },
+              ...categories.map((c) => ({ value: String(c.id), label: c.name })),
+            ]}
+            className="w-40 rounded-lg"
+            value={category}
+            onChange={(v) => { setCategory(v ?? ""); setPage(1); }}
+          />
+          {selected.size > 0 ? (
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" className="h-9 gap-1.5 rounded-lg text-xs" onClick={askReprocess}>
+                <RotateCcw className="size-3.5" /> {t("entriesReprocessN", { n: selected.size })}
+              </Button>
+              <Button variant="destructive" size="sm" className="h-9 gap-1.5 rounded-lg text-xs" onClick={askBulkDelete}>
+                <Trash2 className="size-3.5" /> {t("entriesDeleteN", { n: selected.size })}
+              </Button>
+            </div>
+          ) : null}
         </div>
-        <Select
-          options={[
-            { value: "", label: t("entriesAllStatuses") },
-            { value: "uploading", label: t("statusUploading") },
-            { value: "probing", label: t("statusProbing") },
-            { value: "transcoding", label: t("statusTranscoding") },
-            { value: "ready", label: t("statusReady") },
-            { value: "failed", label: t("statusFailed") },
-          ]}
-          className="w-40"
-          value={status}
-          onChange={(v) => { setStatus(v ?? ""); setPage(1); }}
-        />
-        <Select
-          options={[
-            { value: "", label: t("entriesAllCategories") },
-            ...categories.map((c) => ({ value: String(c.id), label: c.name })),
-          ]}
-          className="w-40"
-          value={category}
-          onChange={(v) => { setCategory(v ?? ""); setPage(1); }}
-        />
-        {selected.size > 0 ? (
-          <>
-            <Button variant="outline" onClick={askReprocess}>
-              <RotateCcw className="size-4" /> {t("entriesReprocessN", { n: selected.size })}
-            </Button>
-            <Button variant="destructive" onClick={askBulkDelete}>
-              <Trash2 className="size-4" /> {t("entriesDeleteN", { n: selected.size })}
-            </Button>
-          </>
-        ) : null}
-      </div>
+      </Card>
 
       <Card className="overflow-hidden py-0 shadow-sm">
         <CardContent className="p-0">
@@ -269,7 +271,7 @@ export default function EntriesPage() {
                   ))
                 : null}
               {(list?.items ?? []).map((e: Entry) => (
-                <TableRow key={e.id}>
+                <TableRow key={e.id} className="transition-colors hover:bg-muted/40">
                   <TableCell>
                     <Checkbox
                       checked={selected.has(e.id)}
