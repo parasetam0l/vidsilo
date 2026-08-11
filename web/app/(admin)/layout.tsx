@@ -62,9 +62,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pageTitle = pageTitles[pathname] ?? t("appTitle");
 
   // Translatable window title per page: "Dashboard | VOD Admin".
+  // The <title> element is React-managed (RSC payload) and gets re-asserted
+  // on re-renders (e.g. the auth loading transition), so re-apply the title
+  // after every commit, deferred past React's head sync.
   React.useEffect(() => {
-    document.title = `${pageTitle} | ${t("appTitle")}`;
-  }, [pageTitle, t]);
+    const id = window.setTimeout(() => {
+      document.title = `${pageTitle} | ${t("appTitle")}`;
+    }, 0);
+    return () => window.clearTimeout(id);
+  });
 
   // Unauthenticated visitors are sent to the login page, returning to the
   // page they tried to open after signing in.

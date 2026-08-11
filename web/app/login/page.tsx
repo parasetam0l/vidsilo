@@ -48,9 +48,16 @@ function LoginForm() {
   const toast = useToast();
 
   React.useEffect(() => {
-    document.title = `${t("loginTitle")} | ${t("appTitle")}`;
+    // The <title> element is React-managed; re-apply after every commit.
+    const id = window.setTimeout(() => {
+      document.title = `${t("loginTitle")} | ${t("appTitle")}`;
+    }, 0);
+    return () => window.clearTimeout(id);
+  });
+
+  React.useEffect(() => {
     if (user) router.replace(next);
-  }, [user, router, next, t]);
+  }, [user, router, next]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();

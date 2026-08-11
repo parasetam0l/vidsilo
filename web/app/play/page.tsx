@@ -41,12 +41,15 @@ export default function PlayPage() {
       });
   }, [uuid, toast]);
 
-  // Kaia-style dynamic title: set from the loaded video.
+  // Kaia-style dynamic title: set from the loaded video. The <title> element
+  // is React-managed, so re-apply it deferred past each commit.
   React.useEffect(() => {
-    if (info?.title) {
+    if (!info?.title) return;
+    const id = window.setTimeout(() => {
       document.title = `${info.title} | ${t("appTitle")}`;
-    }
-  }, [info?.title, t]);
+    }, 0);
+    return () => window.clearTimeout(id);
+  });
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col p-4">
