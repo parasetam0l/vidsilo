@@ -661,11 +661,13 @@ export function EntryDetailDialog({
                       isPublic: base.isPublic,
                     });
                     setAclId(base.domainAclId);
-                    setTicked(base.ticked);
+                    setTicked(new Set(base.ticked));
+                    setPosterFrame(0);
+                    setPosterTouched(false);
                   }
                 }}
               >
-                Reset
+                {t("reset")}
               </Button>
               <Button size="sm" className="h-8 gap-1.5 text-xs rounded-lg shadow-sm" onClick={save}>
                 <SaveIcon className="size-3.5" /> {t("save")}
