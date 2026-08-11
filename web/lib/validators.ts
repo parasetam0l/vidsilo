@@ -7,8 +7,9 @@ export const emailSchema = z
   .string()
   .trim()
   .min(1, "Email is required")
-  // tld:false accepts single-label hosts like the seeded admin@localhost.
-  .email({ tld: false }, "Enter a valid email address");
+  // Loosely validated so single-label hosts like the seeded admin@localhost
+  // pass; the server performs its own checks on real accounts.
+  .regex(/^[^\s@]+@[^\s@]+$/, "Enter a valid email address");
 
 export const passwordSchema = z
   .string()
