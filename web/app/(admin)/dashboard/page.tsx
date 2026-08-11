@@ -23,7 +23,7 @@ import { useEntryDetailDialog } from "@/components/entry-detail-dialog";
 import { EmptyState } from "@/components/empty-state";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -267,17 +267,22 @@ export default function DashboardPage() {
         {/* Entries by Status Card */}
         <Card className="relative flex flex-col justify-between overflow-hidden">
           <div className="pointer-events-none absolute -top-10 -right-10 size-32 rounded-full bg-blue-500/10 blur-3xl" />
-          <CardHeader className="flex flex-row items-center justify-between pb-3">
-            <CardTitle className="text-base font-semibold tracking-tight">{t("dashByStatus")}</CardTitle>
-            <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground tabular-nums">
-              {totalStatusCount} total
-            </span>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-semibold tracking-tight">{t("dashByStatus")}</CardTitle>
+              <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground tabular-nums">
+                {totalStatusCount} total
+              </span>
+            </div>
+            <CardDescription className="text-xs text-muted-foreground">
+              Current status of videos in your processing pipeline.
+            </CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-1 flex-col justify-between space-y-4">
+          <CardContent className="flex flex-1 flex-col justify-between space-y-5">
             {Object.keys(data.entriesByStatus).length > 0 ? (
-              <div className="space-y-4">
+              <div className="space-y-5">
                 {/* Segmented status distribution bar */}
-                <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-muted/60 p-0.5">
+                <div className="flex h-3 w-full overflow-hidden rounded-full bg-muted/60">
                   {Object.entries(data.entriesByStatus).map(([status, count]) => {
                     const pct = (count / (totalStatusCount || 1)) * 100;
                     return (
@@ -291,29 +296,39 @@ export default function DashboardPage() {
                   })}
                 </div>
 
-                {/* Structured status rows */}
-                <div className="space-y-3 pt-1">
+                {/* Pipeline Status List */}
+                <div className="space-y-3.5 pt-1">
                   {Object.entries(data.entriesByStatus).map(([status, count]) => {
                     const pct = totalStatusCount > 0 ? Math.round((count / totalStatusCount) * 100) : 0;
                     return (
                       <div
                         key={status}
-                        className="group flex items-center gap-3 rounded-xl border border-border/40 bg-card/60 p-3 shadow-2xs transition-all hover:bg-muted/40"
+                        className="flex items-center justify-between gap-3 transition-colors"
                       >
-                        <div className="shrink-0">
-                          <StatusBadge status={status as never} />
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span
+                            className={`size-3 rounded-full shrink-0 ${statusColors[status] ?? "bg-primary"}`}
+                          />
+                          <div className="flex flex-col">
+                            <span className="text-sm font-semibold capitalize text-foreground leading-snug">
+                              {status}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {count} {count === 1 ? "entry" : "entries"}
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex flex-1 items-center gap-2">
-                          <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
+
+                        <div className="flex items-center gap-3 shrink-0">
+                          <div className="h-2 w-16 sm:w-20 rounded-full bg-muted overflow-hidden">
                             <div
                               style={{ width: `${pct}%` }}
                               className={`h-full transition-all ${statusColors[status] ?? "bg-primary"}`}
                             />
                           </div>
-                        </div>
-                        <div className="flex items-center gap-1.5 shrink-0 text-xs tabular-nums">
-                          <span className="font-bold text-foreground">{count}</span>
-                          <span className="text-muted-foreground">({pct}%)</span>
+                          <span className="w-8 text-right text-xs font-medium text-muted-foreground tabular-nums">
+                            {pct}%
+                          </span>
                         </div>
                       </div>
                     );
