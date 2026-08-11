@@ -488,135 +488,129 @@ export function EntryDetailDialog({
                 )
               ) : null}
 
-              <Card className="rounded-2xl border shadow-xs">
-                <CardContent className="p-6 space-y-5">
-                  <div className="grid gap-5 md:grid-cols-2">
-                    <div className="flex flex-col gap-2">
-                      <Label className="text-xs font-medium">{t("labelTitle")}</Label>
-                      <Input
-                        value={draft.title}
-                        className="rounded-lg"
-                        onChange={(e) => setDraft({ ...draft, title: e.target.value })}
-                      />
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <Label className="text-xs font-medium">{t("labelCategory")}</Label>
-                      <Select
-                        options={[
-                          { value: "none", label: t("none") },
-                          ...categories.map((c) => ({ value: String(c.id), label: c.name })),
-                        ]}
-                        className="w-full rounded-lg"
-                        value={draft.categoryId ? String(draft.categoryId) : "none"}
-                        onChange={(v) =>
-                          setDraft({ ...draft, categoryId: v === "none" ? null : Number(v) })
-                        }
-                      />
-                    </div>
+              <div className="space-y-5">
+                <div className="grid gap-5 md:grid-cols-2">
+                  <div className="flex flex-col gap-2">
+                    <Label className="text-xs font-medium">{t("labelTitle")}</Label>
+                    <Input
+                      value={draft.title}
+                      className="rounded-lg"
+                      onChange={(e) => setDraft({ ...draft, title: e.target.value })}
+                    />
                   </div>
                   <div className="flex flex-col gap-2">
-                    <Label className="text-xs font-medium">{t("labelDescription")}</Label>
-                    <Textarea
-                      rows={4}
-                      className="rounded-lg resize-none"
-                      value={draft.description}
-                      onChange={(e) =>
-                        setDraft({ ...draft, description: e.target.value })
+                    <Label className="text-xs font-medium">{t("labelCategory")}</Label>
+                    <Select
+                      options={[
+                        { value: "none", label: t("none") },
+                        ...categories.map((c) => ({ value: String(c.id), label: c.name })),
+                      ]}
+                      className="w-full rounded-lg"
+                      value={draft.categoryId ? String(draft.categoryId) : "none"}
+                      onChange={(v) =>
+                        setDraft({ ...draft, categoryId: v === "none" ? null : Number(v) })
                       }
                     />
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label className="text-xs font-medium">{t("labelDescription")}</Label>
+                  <Textarea
+                    rows={4}
+                    className="rounded-lg resize-none"
+                    value={draft.description}
+                    onChange={(e) =>
+                      setDraft({ ...draft, description: e.target.value })
+                    }
+                  />
+                </div>
+              </div>
             </div>
           ) : null}
 
           {active === "flavors" ? (
             <div className="space-y-4 max-w-4xl">
-              <Card className="rounded-2xl border shadow-xs">
-                <CardContent className="p-6 space-y-4">
-                  <div className="overflow-hidden rounded-xl border">
-                    <Table>
-                      <TableHeader className="bg-muted/50">
-                        <TableRow className="hover:bg-transparent">
-                          <TableHead className="w-16">{t("labelTick")}</TableHead>
-                          <TableHead>{t("colFlavor")}</TableHead>
-                          <TableHead>{t("colCodec")}</TableHead>
-                          <TableHead>{t("colHeight")}</TableHead>
-                          <TableHead>{t("colStatus")}</TableHead>
-                          <TableHead>{t("colNote")}</TableHead>
+              <div className="overflow-hidden rounded-xl border">
+                <Table>
+                  <TableHeader className="bg-muted/50">
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead className="w-16">{t("labelTick")}</TableHead>
+                      <TableHead>{t("colFlavor")}</TableHead>
+                      <TableHead>{t("colCodec")}</TableHead>
+                      <TableHead>{t("colHeight")}</TableHead>
+                      <TableHead>{t("colStatus")}</TableHead>
+                      <TableHead>{t("colNote")}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {flavors.map((f) => {
+                      const ef = entry.flavors.find((x) => x.flavorId === f.id);
+                      return (
+                        <TableRow key={f.id} className="hover:bg-muted/30">
+                          <TableCell>
+                            <Switch
+                              checked={ticked.has(f.id)}
+                              onCheckedChange={(v) => {
+                                setTicked((prev) => {
+                                  const next = new Set(prev);
+                                  if (v) next.add(f.id);
+                                  else next.delete(f.id);
+                                  return next;
+                                });
+                              }}
+                            />
+                          </TableCell>
+                          <TableCell className="font-medium">{f.name}</TableCell>
+                          <TableCell>
+                            <Badge variant="secondary" className="text-[10px] font-mono">
+                              {f.codec}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">{f.height}p</TableCell>
+                          <TableCell>
+                            {ef ? (
+                              <Badge
+                                variant={ef.status === "done" ? "default" : ef.status === "failed" ? "destructive" : "outline"}
+                                className="capitalize text-xs font-normal"
+                              >
+                                {ef.status}
+                              </Badge>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">{t("notTicked")}</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {ef?.status === "failed" ? ef.error : ef?.status === "skipped" ? ef.error : ""}
+                          </TableCell>
                         </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {flavors.map((f) => {
-                          const ef = entry.flavors.find((x) => x.flavorId === f.id);
-                          return (
-                            <TableRow key={f.id} className="hover:bg-muted/30">
-                              <TableCell>
-                                <Switch
-                                  checked={ticked.has(f.id)}
-                                  onCheckedChange={(v) => {
-                                    setTicked((prev) => {
-                                      const next = new Set(prev);
-                                      if (v) next.add(f.id);
-                                      else next.delete(f.id);
-                                      return next;
-                                    });
-                                  }}
-                                />
-                              </TableCell>
-                              <TableCell className="font-medium">{f.name}</TableCell>
-                              <TableCell>
-                                <Badge variant="secondary" className="text-[10px] font-mono">
-                                  {f.codec}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="text-muted-foreground">{f.height}p</TableCell>
-                              <TableCell>
-                                {ef ? (
-                                  <Badge
-                                    variant={ef.status === "done" ? "default" : ef.status === "failed" ? "destructive" : "outline"}
-                                    className="capitalize text-xs font-normal"
-                                  >
-                                    {ef.status}
-                                  </Badge>
-                                ) : (
-                                  <span className="text-xs text-muted-foreground">{t("notTicked")}</span>
-                                )}
-                              </TableCell>
-                              <TableCell className="text-xs text-muted-foreground">
-                                {ef?.status === "failed" ? ef.error : ef?.status === "skipped" ? ef.error : ""}
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground pt-1">
+                <InfoIcon className="size-3.5 shrink-0 text-muted-foreground" />
+                <span>{t("flavorsSaveHint")}</span>
+              </div>
+              {isAdmin ? (
+                <div className="flex items-center justify-between rounded-xl border bg-muted/30 p-3">
+                  <div className="space-y-0.5">
+                    <Label className="text-sm font-medium">{t("entryReprocess")}</Label>
+                    <p className="text-xs text-muted-foreground">
+                      {t("reprocessHint")}
+                    </p>
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground pt-1">
-                    <InfoIcon className="size-3.5 shrink-0 text-muted-foreground" />
-                    <span>{t("flavorsSaveHint")}</span>
-                  </div>
-                  {isAdmin ? (
-                    <div className="flex items-center justify-between rounded-xl border bg-muted/30 p-3">
-                      <div className="space-y-0.5">
-                        <Label className="text-sm font-medium">{t("entryReprocess")}</Label>
-                        <p className="text-xs text-muted-foreground">
-                          {t("reprocessHint")}
-                        </p>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-8 gap-1.5 text-xs rounded-lg"
-                        onClick={() => reprocess.mutate()}
-                        disabled={reprocess.isPending}
-                      >
-                        <RotateCcwIcon className="size-3.5" /> {t("entryReprocess")}
-                      </Button>
-                    </div>
-                  ) : null}
-                </CardContent>
-              </Card>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 gap-1.5 text-xs rounded-lg"
+                    onClick={() => reprocess.mutate()}
+                    disabled={reprocess.isPending}
+                  >
+                    <RotateCcwIcon className="size-3.5" /> {t("entryReprocess")}
+                  </Button>
+                </div>
+              ) : null}
             </div>
           ) : null}
 
@@ -729,11 +723,9 @@ function PosterPicker({
 
   if (!entry.spriteKey || entry.spriteFrames === 0) {
     return (
-      <Card className="rounded-2xl border shadow-xs">
-        <CardContent className="p-6 text-sm text-muted-foreground">
-          {t("noSprite")}
-        </CardContent>
-      </Card>
+      <div className="text-sm text-muted-foreground py-4">
+        {t("noSprite")}
+      </div>
     );
   }
 
@@ -743,35 +735,33 @@ function PosterPicker({
   const rowStep = rows > 1 ? 100 / (rows - 1) : 0;
 
   return (
-    <Card className="rounded-2xl border shadow-xs">
-      <CardContent className="p-6 space-y-5">
-        <div className="relative overflow-hidden rounded-2xl border bg-black/90 shadow-inner flex items-center justify-center p-2">
-          <div
-            className="aspect-video w-full max-w-2xl rounded-xl border border-white/10"
-            style={{
-              backgroundImage: `url(${sprite})`,
-              backgroundSize: `${cols * 100}% ${rows * 100}%`,
-              backgroundPosition: `${(frame % cols) * (100 / (cols - 1))}% ${Math.floor(frame / cols) * rowStep}%`,
-            }}
+    <div className="space-y-5">
+      <div className="relative overflow-hidden rounded-2xl border bg-black/90 shadow-inner flex items-center justify-center p-2">
+        <div
+          className="aspect-video w-full max-w-2xl rounded-xl border border-white/10"
+          style={{
+            backgroundImage: `url(${sprite})`,
+            backgroundSize: `${cols * 100}% ${rows * 100}%`,
+            backgroundPosition: `${(frame % cols) * (100 / (cols - 1))}% ${Math.floor(frame / cols) * rowStep}%`,
+          }}
+        />
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border bg-muted/30 p-4">
+        <div className="flex items-center gap-3 flex-1 min-w-[240px]">
+          <Label className="text-xs font-medium whitespace-nowrap">
+            {t("labelFrame", { n: frame })}
+          </Label>
+          <Input
+            type="range"
+            min={0}
+            max={entry.spriteFrames - 1}
+            value={frame}
+            onChange={(e) => onFrameChange(Number(e.target.value))}
+            className="flex-1 h-2 cursor-pointer accent-primary"
           />
         </div>
-        <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border bg-muted/30 p-4">
-          <div className="flex items-center gap-3 flex-1 min-w-[240px]">
-            <Label className="text-xs font-medium whitespace-nowrap">
-              {t("labelFrame", { n: frame })}
-            </Label>
-            <Input
-              type="range"
-              min={0}
-              max={entry.spriteFrames - 1}
-              value={frame}
-              onChange={(e) => onFrameChange(Number(e.target.value))}
-              className="flex-1 h-2 cursor-pointer accent-primary"
-            />
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 
@@ -804,106 +794,104 @@ function SubtitlesTab({
   }
 
   return (
-    <Card className="rounded-2xl border shadow-xs">
-      <CardContent className="p-6 space-y-5">
-        <div className="overflow-hidden rounded-xl border">
-          <Table>
-            <TableHeader className="bg-muted/50">
-              <TableRow className="hover:bg-transparent">
-                <TableHead>Language Code</TableHead>
-                <TableHead>Display Label</TableHead>
-                <TableHead>VTT File Key</TableHead>
-                <TableHead className="w-16" />
+    <div className="space-y-5">
+      <div className="overflow-hidden rounded-xl border">
+        <Table>
+          <TableHeader className="bg-muted/50">
+            <TableRow className="hover:bg-transparent">
+              <TableHead>Language Code</TableHead>
+              <TableHead>Display Label</TableHead>
+              <TableHead>VTT File Key</TableHead>
+              <TableHead className="w-16" />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {entry.subtitles.map((s) => (
+              <TableRow key={s.id} className="hover:bg-muted/30">
+                <TableCell>
+                  <Badge variant="outline" className="font-mono text-xs uppercase">
+                    {s.lang}
+                  </Badge>
+                </TableCell>
+                <TableCell className="font-medium text-sm">{s.label}</TableCell>
+                <TableCell className="text-xs font-mono text-muted-foreground">{s.vttKey}</TableCell>
+                <TableCell className="text-right">
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className="text-muted-foreground hover:text-destructive"
+                    onClick={() => {
+                      confirm({
+                        title: t("deleteSubtitleTitle"),
+                        description: t("deleteSubtitleDesc"),
+                        variant: "destructive",
+                        confirmLabel: t("delete"),
+                        cancelLabel: t("cancel"),
+                        onConfirm: async () => {
+                          await api<void>(`/api/entries/${entry.id}/subtitles/${s.id}`, { method: "DELETE" });
+                          toast.success(t("deleted"));
+                          onChanged();
+                        },
+                      });
+                    }}
+                  >
+                    <Trash2Icon className="size-4" />
+                  </Button>
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {entry.subtitles.map((s) => (
-                <TableRow key={s.id} className="hover:bg-muted/30">
-                  <TableCell>
-                    <Badge variant="outline" className="font-mono text-xs uppercase">
-                      {s.lang}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="font-medium text-sm">{s.label}</TableCell>
-                  <TableCell className="text-xs font-mono text-muted-foreground">{s.vttKey}</TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      className="text-muted-foreground hover:text-destructive"
-                      onClick={() => {
-                        confirm({
-                          title: t("deleteSubtitleTitle"),
-                          description: t("deleteSubtitleDesc"),
-                          variant: "destructive",
-                          confirmLabel: t("delete"),
-                          cancelLabel: t("cancel"),
-                          onConfirm: async () => {
-                            await api<void>(`/api/entries/${entry.id}/subtitles/${s.id}`, { method: "DELETE" });
-                            toast.success(t("deleted"));
-                            onChanged();
-                          },
-                        });
-                      }}
-                    >
-                      <Trash2Icon className="size-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {entry.subtitles.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-center py-8 text-sm text-muted-foreground">
-                    {t("noSubtitles")}
-                  </TableCell>
-                </TableRow>
-              ) : null}
-            </TableBody>
-          </Table>
-        </div>
+            ))}
+            {entry.subtitles.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={4} className="text-center py-8 text-sm text-muted-foreground">
+                  {t("noSubtitles")}
+                </TableCell>
+              </TableRow>
+            ) : null}
+          </TableBody>
+        </Table>
+      </div>
 
-        <div className="rounded-xl border bg-muted/30 p-4 space-y-3">
-          <span className="text-xs font-medium text-foreground">Upload Subtitle Track</span>
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-xs text-muted-foreground">{t("labelLang")}</Label>
-              <Input
-                className="w-28 rounded-lg h-9 text-xs"
-                placeholder="e.g. en"
-                value={lang}
-                onChange={(e) => setLang(e.target.value)}
-              />
-            </div>
-            <div className="flex flex-col gap-1.5 flex-1 min-w-[160px]">
-              <Label className="text-xs text-muted-foreground">{t("labelSubtitleLabel")}</Label>
-              <Input
-                className="rounded-lg h-9 text-xs"
-                placeholder="e.g. English (CC)"
-                value={label}
-                onChange={(e) => setLabel(e.target.value)}
-              />
-            </div>
-            <input
-              ref={fileRef}
-              type="file"
-              accept=".vtt"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) uploadSubtitle(f);
-              }}
+      <div className="rounded-xl border bg-muted/30 p-4 space-y-3">
+        <span className="text-xs font-medium text-foreground">Upload Subtitle Track</span>
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs text-muted-foreground">{t("labelLang")}</Label>
+            <Input
+              className="w-28 rounded-lg h-9 text-xs"
+              placeholder="e.g. en"
+              value={lang}
+              onChange={(e) => setLang(e.target.value)}
             />
-            <Button
-              className="rounded-lg h-9 gap-1.5 text-xs shadow-xs"
-              onClick={() => fileRef.current?.click()}
-            >
-              <UploadIcon className="size-3.5" />
-              {t("uploadVtt")}
-            </Button>
           </div>
+          <div className="flex flex-col gap-1.5 flex-1 min-w-[160px]">
+            <Label className="text-xs text-muted-foreground">{t("labelSubtitleLabel")}</Label>
+            <Input
+              className="rounded-lg h-9 text-xs"
+              placeholder="e.g. English (CC)"
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+            />
+          </div>
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".vtt"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) uploadSubtitle(f);
+            }}
+          />
+          <Button
+            className="rounded-lg h-9 gap-1.5 text-xs shadow-xs"
+            onClick={() => fileRef.current?.click()}
+          >
+            <UploadIcon className="size-3.5" />
+            {t("uploadVtt")}
+          </Button>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 
@@ -927,64 +915,62 @@ function SecurityTab({
   const t = useT();
 
   return (
-    <Card className="rounded-2xl border shadow-xs">
-      <CardContent className="p-6 space-y-4">
-        {/* Card 1: Public Toggle */}
-        <div
-          className="flex cursor-pointer items-center justify-between gap-4 rounded-xl border bg-card p-4 transition-colors hover:bg-muted/40"
-          onClick={() => onPublicChange(!isPublic)}
-        >
-          <div className="space-y-0.5 select-none pointer-events-none">
-            <Label className="text-sm font-medium">{t("labelPublic")}</Label>
-            <p className="text-xs text-muted-foreground">
-              Allow video playback across public embeds without authentication.
-            </p>
-          </div>
-          <Switch
-            checked={isPublic}
-            onCheckedChange={onPublicChange}
-            onClick={(e) => e.stopPropagation()}
-          />
+    <div className="space-y-4">
+      {/* Card 1: Public Toggle */}
+      <div
+        className="flex cursor-pointer items-center justify-between gap-4 rounded-xl border bg-card p-4 transition-colors hover:bg-muted/40"
+        onClick={() => onPublicChange(!isPublic)}
+      >
+        <div className="space-y-0.5 select-none pointer-events-none">
+          <Label className="text-sm font-medium">{t("labelPublic")}</Label>
+          <p className="text-xs text-muted-foreground">
+            Allow video playback across public embeds without authentication.
+          </p>
         </div>
+        <Switch
+          checked={isPublic}
+          onCheckedChange={onPublicChange}
+          onClick={(e) => e.stopPropagation()}
+        />
+      </div>
 
-        {/* Card 2: Deny Access Toggle */}
-        <div
-          className="flex cursor-pointer items-center justify-between gap-4 rounded-xl border bg-card p-4 transition-colors hover:bg-muted/40"
-          onClick={() => onAccessDeniedChange(!accessDenied)}
-        >
-          <div className="space-y-0.5 select-none pointer-events-none">
-            <Label className="text-sm font-medium">{t("labelDenyAccess")}</Label>
-            <p className="text-xs text-muted-foreground">
-              {t("denyAccessHint")}
-            </p>
-          </div>
-          <Switch
-            checked={accessDenied}
-            onCheckedChange={onAccessDeniedChange}
-            onClick={(e) => e.stopPropagation()}
-          />
+      {/* Card 2: Deny Access Toggle */}
+      <div
+        className="flex cursor-pointer items-center justify-between gap-4 rounded-xl border bg-card p-4 transition-colors hover:bg-muted/40"
+        onClick={() => onAccessDeniedChange(!accessDenied)}
+      >
+        <div className="space-y-0.5 select-none pointer-events-none">
+          <Label className="text-sm font-medium">{t("labelDenyAccess")}</Label>
+          <p className="text-xs text-muted-foreground">
+            {t("denyAccessHint")}
+          </p>
         </div>
+        <Switch
+          checked={accessDenied}
+          onCheckedChange={onAccessDeniedChange}
+          onClick={(e) => e.stopPropagation()}
+        />
+      </div>
 
-        {/* Card 3: Embed Security Select */}
-        <div className="flex flex-col gap-3 rounded-xl border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="space-y-0.5">
-            <Label className="text-sm font-medium">{t("labelEmbedPolicy")}</Label>
-            <p className="text-xs text-muted-foreground">
-              Configure domain whitelist security policies to restrict where this video can be embedded.
-            </p>
-          </div>
-          <Select
-            options={[
-              { value: "", label: t("allowAll") },
-              ...acls.map((a) => ({ value: String(a.id), label: a.title })),
-            ]}
-            className="w-full sm:w-56 shrink-0 rounded-lg"
-            value={aclId ? String(aclId) : ""}
-            onChange={(v) => onAclChange(v ? Number(v) : null)}
-          />
+      {/* Card 3: Embed Security Select */}
+      <div className="flex flex-col gap-3 rounded-xl border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-0.5">
+          <Label className="text-sm font-medium">{t("labelEmbedPolicy")}</Label>
+          <p className="text-xs text-muted-foreground">
+            Configure domain whitelist security policies to restrict where this video can be embedded.
+          </p>
         </div>
-      </CardContent>
-    </Card>
+        <Select
+          options={[
+            { value: "", label: t("allowAll") },
+            ...acls.map((a) => ({ value: String(a.id), label: a.title })),
+          ]}
+          className="w-full sm:w-56 shrink-0 rounded-lg"
+          value={aclId ? String(aclId) : ""}
+          onChange={(v) => onAclChange(v ? Number(v) : null)}
+        />
+      </div>
+    </div>
   );
 }
 
@@ -1010,88 +996,86 @@ function EmbedTab({ publicId }: { publicId: string }) {
   };
 
   return (
-    <Card className="rounded-2xl border shadow-xs">
-      <CardContent className="p-6 space-y-5">
-        {/* Embedded Video Player Preview */}
-        <div className="relative aspect-video max-h-60 w-full overflow-hidden rounded-xl border border-border bg-black shadow-inner">
-          <iframe
-            src={`/embed/${publicId}`}
-            className="h-full w-full border-0"
-            allowFullScreen
-            title="Video preview"
-          />
-        </div>
+    <div className="space-y-5">
+      {/* Embedded Video Player Preview */}
+      <div className="relative aspect-video max-h-60 w-full overflow-hidden rounded-xl border border-border bg-black shadow-inner">
+        <iframe
+          src={`/embed/${publicId}`}
+          className="h-full w-full border-0"
+          allowFullScreen
+          title="Video preview"
+        />
+      </div>
 
-        {/* Gray Area 1: Direct Link */}
-        <div className="flex flex-col gap-2.5 rounded-xl border border-border/60 bg-muted/40 p-4">
-          <div className="flex items-center gap-2">
-            <Link2Icon className="size-4 text-primary shrink-0" />
-            <span className="text-xs font-semibold text-foreground">Direct Link</span>
-          </div>
-          <Input
-            readOnly
-            value={directUrl}
-            className="font-mono text-xs bg-background rounded-lg border shadow-2xs selection:bg-primary/20"
-            onFocus={(e) => e.target.select()}
-          />
-          <div className="flex justify-start">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleCopyDirect}
-              className="h-8 gap-1.5 text-xs rounded-lg bg-background shadow-2xs hover:bg-muted/60"
-            >
-              {copiedDirect ? (
-                <>
-                  <Check className="size-3.5 text-emerald-500" />
-                  <span className="text-emerald-600 dark:text-emerald-400">{t("copied")}</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="size-3.5" />
-                  <span>Copy Direct Link</span>
-                </>
-              )}
-            </Button>
-          </div>
+      {/* Gray Area 1: Direct Link */}
+      <div className="flex flex-col gap-2.5 rounded-xl border border-border/60 bg-muted/40 p-4">
+        <div className="flex items-center gap-2">
+          <Link2Icon className="size-4 text-primary shrink-0" />
+          <span className="text-xs font-semibold text-foreground">Direct Link</span>
         </div>
+        <Input
+          readOnly
+          value={directUrl}
+          className="font-mono text-xs bg-background rounded-lg border shadow-2xs selection:bg-primary/20"
+          onFocus={(e) => e.target.select()}
+        />
+        <div className="flex justify-start">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleCopyDirect}
+            className="h-8 gap-1.5 text-xs rounded-lg bg-background shadow-2xs hover:bg-muted/60"
+          >
+            {copiedDirect ? (
+              <>
+                <Check className="size-3.5 text-emerald-500" />
+                <span className="text-emerald-600 dark:text-emerald-400">{t("copied")}</span>
+              </>
+            ) : (
+              <>
+                <Copy className="size-3.5" />
+                <span>Copy Direct Link</span>
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
 
-        {/* Gray Area 2: Embed Code */}
-        <div className="flex flex-col gap-2.5 rounded-xl border border-border/60 bg-muted/40 p-4">
-          <div className="flex items-center gap-2">
-            <Code2Icon className="size-4 text-primary shrink-0" />
-            <span className="text-xs font-semibold text-foreground">Embed Code</span>
-          </div>
-          <Textarea
-            readOnly
-            rows={3}
-            value={snippet}
-            className="font-mono text-xs bg-background resize-none rounded-lg border shadow-2xs selection:bg-primary/20"
-            onFocus={(e) => e.target.select()}
-          />
-          <div className="flex justify-start">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleCopySnippet}
-              className="h-8 gap-1.5 text-xs rounded-lg bg-background shadow-2xs hover:bg-muted/60"
-            >
-              {copiedSnippet ? (
-                <>
-                  <Check className="size-3.5 text-emerald-500" />
-                  <span className="text-emerald-600 dark:text-emerald-400">{t("copied")}</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="size-3.5" />
-                  <span>Copy Embed Code</span>
-                </>
-              )}
-            </Button>
-          </div>
+      {/* Gray Area 2: Embed Code */}
+      <div className="flex flex-col gap-2.5 rounded-xl border border-border/60 bg-muted/40 p-4">
+        <div className="flex items-center gap-2">
+          <Code2Icon className="size-4 text-primary shrink-0" />
+          <span className="text-xs font-semibold text-foreground">Embed Code</span>
         </div>
-      </CardContent>
-    </Card>
+        <Textarea
+          readOnly
+          rows={3}
+          value={snippet}
+          className="font-mono text-xs bg-background resize-none rounded-lg border shadow-2xs selection:bg-primary/20"
+          onFocus={(e) => e.target.select()}
+        />
+        <div className="flex justify-start">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleCopySnippet}
+            className="h-8 gap-1.5 text-xs rounded-lg bg-background shadow-2xs hover:bg-muted/60"
+          >
+            {copiedSnippet ? (
+              <>
+                <Check className="size-3.5 text-emerald-500" />
+                <span className="text-emerald-600 dark:text-emerald-400">{t("copied")}</span>
+              </>
+            ) : (
+              <>
+                <Copy className="size-3.5" />
+                <span>Copy Embed Code</span>
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }
 
