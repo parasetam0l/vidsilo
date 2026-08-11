@@ -54,7 +54,7 @@ export default function AnalyticsPage() {
 
   if (!data) {
     return (
-      <div className="flex flex-1 flex-col gap-4 p-4">
+      <div className="flex flex-1 flex-col gap-4 px-4 pb-4 pt-0">
         <div className="grid gap-4 md:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
             <Skeleton key={i} className="h-28 rounded-xl" />
@@ -105,7 +105,7 @@ export default function AnalyticsPage() {
   ];
 
   return (
-    <div className="flex flex-1 flex-col gap-4 p-4">
+    <div className="flex flex-1 flex-col gap-4 px-4 pb-4 pt-0">
       {/* KPI Cards */}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {cards.map((c) => (
