@@ -203,8 +203,8 @@ const en = {
   embedSnippet: "Embed snippet",
   copy: "Copy",
   copied: "Copied",
-  flavorsSaveHint:
-    "Flavor changes are saved with the footer Save button and re-queue processing.",
+  flavorsLockedHint:
+    "During processing, flavors cannot be changed.",
   unsavedChanges: "Unsaved changes",
   changesTitle: "Review changes",
   changesDesc: "These changes will be saved:",

@@ -593,13 +593,15 @@ export function EntryDetailDialog({
                       );
                     })}
                   </TableBody>
-                </Table>
-              </div>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground pt-1">
-                <InfoIcon className="size-3.5 shrink-0 text-muted-foreground" />
-                <span>{t("flavorsSaveHint")}</span>
-              </div>
-              {isAdmin && entryEditable ? (
+                 </Table>
+               </div>
+               {!entryEditable ? (
+                 <div className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-medium text-amber-600 dark:text-amber-400">
+                   <InfoIcon className="size-3.5 shrink-0" />
+                   <span>{t("flavorsLockedHint")}</span>
+                 </div>
+               ) : null}
+               {isAdmin && entryEditable ? (
                 <div className="flex items-center justify-between rounded-xl border bg-muted/30 p-3">
                   <div className="space-y-0.5">
                     <Label className="text-sm font-medium">{t("entryReprocess")}</Label>
