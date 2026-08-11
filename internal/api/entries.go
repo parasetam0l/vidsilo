@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -194,22 +196,50 @@ func (s *Server) handleEntryDelete(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	// Drop spool files of any in-flight tus upload tied to this entry.
+	if s.spoolDir != "" {
+		if rows, err := s.pool.Query(r.Context(),
+			`SELECT upload_id FROM uploads WHERE entry_id = $1`, e.ID); err == nil {
+			for rows.Next() {
+				var id string
+				if rows.Scan(&id) == nil {
+					_ = os.Remove(filepath.Join(s.spoolDir, id))
+				}
+			}
+			rows.Close()
+		}
+	}
+
 	// Remove all media under the entry's storage subtree (original, flavors,
 	// poster, sprite, subtitles) before dropping the catalog row.
 	prefix := strconv.FormatInt(e.ID, 10)
-	keys, err := s.store.List(r.Context(), "entries/"+prefix)
-	if err != nil {
-		s.Log.Warn("entry media list", "err", err)
-	}
-	for _, k := range keys {
-		if err := s.store.Delete(r.Context(), k); err != nil {
-			s.Log.Warn("entry media delete", "key", k, "err", err)
+	deleteMedia := func() {
+		keys, err := s.store.List(r.Context(), "entries/"+prefix)
+		if err != nil {
+			s.Log.Warn("entry media list", "err", err)
+			return
+		}
+		for _, k := range keys {
+			if err := s.store.Delete(r.Context(), k); err != nil {
+				s.Log.Warn("entry media delete", "key", k, "err", err)
+			}
+		}
+		// The local driver leaves empty directories behind — remove the
+		// whole subtree so nothing remains.
+		if l, ok := s.store.(*store.Local); ok {
+			if err := l.RemoveTree("entries/" + prefix); err != nil {
+				s.Log.Warn("entry media tree remove", "err", err)
+			}
 		}
 	}
+	deleteMedia()
 	if err := db.DeleteEntry(r.Context(), s.pool, e.ID); err != nil {
 		s.internalError(w, r, "delete entry", err)
 		return
 	}
+	// Second pass: catch anything a racing worker wrote between the first
+	// pass and the row delete (in-flight ffmpeg/downloads).
+	deleteMedia()
 	w.WriteHeader(http.StatusNoContent)
 }
 

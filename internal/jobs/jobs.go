@@ -181,6 +181,12 @@ func (r *Runner) Download(ctx context.Context, job db.Job) error {
 		r.Log.Warn("download progress update", "err", err)
 	}
 
+	// Entry deleted while downloading? Stop before writing the file into
+	// storage (avoids an orphaned original).
+	if _, err := db.EntryByID(ctx, r.Pool, e.ID); err != nil {
+		return errors.New("entry deleted during download")
+	}
+
 	key := store.OriginalKey(e.ID, ext)
 	f, err := os.Open(src.Name())
 	if err != nil {
@@ -275,6 +281,10 @@ func (r *Runner) Probe(ctx context.Context, job db.Job) error {
 	if err != nil {
 		r.failEntry(ctx, e, "probe failed: "+err.Error())
 		return err
+	}
+	// Entry deleted while probing? Stop before writing poster/sprite.
+	if _, err := db.EntryByID(ctx, r.Pool, e.ID); err != nil {
+		return errors.New("entry deleted during probing")
 	}
 
 	// Poster at 10% + sprite sheet.
@@ -431,6 +441,12 @@ func (r *Runner) Transcode(ctx context.Context, job db.Job) error {
 		SegmentSecs: segmentSecs, GopSecs: gopSecs,
 	}
 
+	// Entry deleted while waiting for the transcode slot? Stop before
+	// starting ffmpeg.
+	if _, err := db.EntryByID(ctx, r.Pool, e.ID); err != nil {
+		return errors.New("entry deleted during transcoding")
+	}
+
 	outDir, cleanup, err := r.flavorOutputDir(ctx, e, f)
 	if err != nil {
 		r.markFlavor(ctx, e.ID, params.FlavorID, db.FlavorFailed, err.Error())
@@ -441,6 +457,12 @@ func (r *Runner) Transcode(ctx context.Context, job db.Job) error {
 		cleanup()
 		r.markFlavor(ctx, e.ID, params.FlavorID, db.FlavorFailed, err.Error())
 		return r.finalizeTranscode(ctx, e)
+	}
+	// Entry deleted while encoding? Remove the flavor files that were just
+	// written into the store tree (local driver) so nothing is left behind.
+	if _, err := db.EntryByID(ctx, r.Pool, e.ID); err != nil {
+		cleanup()
+		return errors.New("entry deleted during transcoding")
 	}
 	playlistKey, err := r.publishFlavor(ctx, e, f, outDir, cleanup)
 	if err != nil {
@@ -458,6 +480,11 @@ func (r *Runner) Transcode(ctx context.Context, job db.Job) error {
 // (when at least one flavor succeeded) and marks the entry ready — or fails
 // the entry when every flavor failed.
 func (r *Runner) finalizeTranscode(ctx context.Context, e db.Entry) error {
+	// Entry deleted (or being deleted): the job row is already cascaded
+	// away — nothing to finalize.
+	if _, err := db.EntryByID(ctx, r.Pool, e.ID); err != nil {
+		return nil
+	}
 	var remaining int
 	if err := r.Pool.QueryRow(ctx, `
 		SELECT count(*) FROM entry_flavors

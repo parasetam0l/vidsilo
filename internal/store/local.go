@@ -122,6 +122,19 @@ func (l *Local) Delete(ctx context.Context, key string) error {
 	return err
 }
 
+// RemoveTree deletes the whole subtree for a prefix — files AND the now
+// empty directories — so entry deletion leaves nothing behind.
+func (l *Local) RemoveTree(prefix string) error {
+	p, err := l.pathForKey(strings.Trim(prefix, "/"))
+	if err != nil {
+		return err
+	}
+	if err := os.RemoveAll(p); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	return nil
+}
+
 // List walks the root for keys under prefix (e.g. "entries/123").
 func (l *Local) List(ctx context.Context, prefix string) ([]string, error) {
 	prefix = strings.Trim(prefix, "/")
