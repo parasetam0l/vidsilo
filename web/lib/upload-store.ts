@@ -279,6 +279,19 @@ export function resetIdle() {
   }
 }
 
+// clearUploads aborts every in-flight transfer and drops the whole queue.
+export function clearUploads() {
+  for (const [id, upload] of activeUploads) {
+    upload.abort();
+    void idbDelete(id);
+  }
+  activeUploads.clear();
+  files.clear();
+  jobs = [];
+  emit();
+  persist();
+}
+
 // clearAllUploads resets all upload jobs and memory state.
 export function clearAllUploads() {
   for (const [id, upload] of activeUploads.entries()) {

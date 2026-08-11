@@ -239,6 +239,11 @@ const en = {
   uploadFailed: "Upload failed: {error}",
   uploadStart: "Start upload",
   uploadDialogTitle: "Upload videos",
+  uploadInProgressTitle: "Uploading…",
+  uploadCancelAll: "Cancel All",
+  uploadCancelAllTitle: "Cancel everything?",
+  uploadCancelAllDesc:
+    "All pending uploads and URL downloads will be stopped. Files already uploaded stay on the server; the rest are discarded.",
   uploadTabComputer: "Upload from Computer",
   uploadTabUrl: "Download from URL",
   uploadUrlHint: "Paste video URLs, one per line, then Check URLs.",

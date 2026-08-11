@@ -96,7 +96,12 @@ export function UploadDialogContent({ onClose }: { onClose: () => void }) {
   ).length;
   const hasPending = jobs.some((j) => j.status !== "done");
   const allDone = jobs.length > 0 && !hasPending;
-  const uploading = jobs.some((j) => j.status === "uploading");
+
+  // Any non-terminal work in either queue puts the dialog in the
+  // "uploading" view (tabs hidden, per-file progress).
+  const anyActive =
+    jobs.some((j) => j.status !== "done" && j.status !== "failed") ||
+    urlJobs.some((j) => j.status !== "done" && j.status !== "failed");
 
   const urlActive = urlJobs.some((j) => j.status === "downloading" || j.status === "checking");
   const urlQueued = urlJobs.some((j) => j.status === "queued");
@@ -143,8 +148,37 @@ export function UploadDialogContent({ onClose }: { onClose: () => void }) {
   };
 
   const handleStartUrls = () => {
+    // Starting downloads abandons the computer-upload queue.
+    clearAllUploads();
     setStarting(true);
     startDownloads().finally(() => setStarting(false));
+  };
+
+  const handleStartFiles = () => {
+    // Starting uploads abandons the URL-download queue.
+    clearAllUrlDownloads();
+    startAll();
+  };
+
+  // Cancels the whole queue: aborts in-flight uploads, drops all local
+  // jobs, and deletes the server entries of URL downloads so they stop.
+  const askCancelAll = () => {
+    confirm({
+      title: t("uploadCancelAllTitle"),
+      description: t("uploadCancelAllDesc"),
+      variant: "destructive",
+      confirmLabel: t("uploadCancelAll"),
+      cancelLabel: t("cancel"),
+      onConfirm: () => {
+        clearAllUploads();
+        for (const j of urlJobs) {
+          if (j.entryId) {
+            api<void>(`/api/entries/${j.entryId}`, { method: "DELETE" }).catch(() => {});
+          }
+        }
+        clearAllUrlDownloads();
+      },
+    });
   };
 
   const urlLines = urlText.split("\n").map((l) => l.trim()).filter(Boolean).length;
@@ -182,17 +216,26 @@ export function UploadDialogContent({ onClose }: { onClose: () => void }) {
     <div className="flex flex-col max-h-[85vh] w-full min-w-0 overflow-hidden">
       <DialogHeader className="p-5 pb-4 border-b border-border/40 shrink-0 relative pr-12">
         <DialogTitle className="flex items-center gap-2">
-          {t("uploadDialogTitle")}
+          {anyActive ? (
+            <>
+              <Loader2Icon className="size-4 animate-spin text-primary" />
+              {t("uploadInProgressTitle")}
+            </>
+          ) : (
+            t("uploadDialogTitle")
+          )}
           {(allDone || allUrlDone) && (jobs.length > 0 || urlJobs.length > 0) ? (
             <CircleCheckIcon className="size-4 text-emerald-500" />
           ) : null}
         </DialogTitle>
         <DialogDescription className="text-xs">
-          {tab === "computer"
-            ? jobs.length === 0
-              ? t("uploadOrClick", { max: formatBytes(maxSize) })
-              : t("uploadFilesSelected", { n: jobs.length })
-            : t("uploadUrlHint")}
+          {anyActive
+            ? t("uploadBackgroundNote")
+            : tab === "computer"
+              ? jobs.length === 0
+                ? t("uploadOrClick", { max: formatBytes(maxSize) })
+                : t("uploadFilesSelected", { n: jobs.length })
+              : t("uploadUrlHint")}
         </DialogDescription>
         <Button
           variant="ghost"
@@ -204,8 +247,24 @@ export function UploadDialogContent({ onClose }: { onClose: () => void }) {
         </Button>
       </DialogHeader>
 
-      <div className="flex-1 overflow-y-auto px-4 py-5 min-h-0 space-y-4">
-        <Tabs value={tab} onValueChange={setTab} className="flex flex-col gap-4 w-full min-w-0">
+      {anyActive ? (
+        /* In-flight view: no tabs — just a title and real per-file progress. */
+        <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-4 py-5">
+          {jobs.map((job) => (
+            <UploadJobCard
+              key={job.id}
+              job={job}
+              categories={categories}
+              onRemove={() => askRemove(job)}
+            />
+          ))}
+          {urlJobs.map((job) => (
+            <UrlDownloadCard key={job.id} job={job} categories={categories} />
+          ))}
+        </div>
+      ) : (
+        <div className="flex-1 overflow-y-auto px-4 py-5 min-h-0 space-y-4">
+          <Tabs value={tab} onValueChange={setTab} className="flex flex-col gap-4 w-full min-w-0">
           <TabsList className="grid w-full grid-cols-2 min-w-0">
             <TabsTrigger value="computer" className="min-w-0 truncate">
               <UploadCloudIcon className="size-4 shrink-0" /> {t("uploadTabComputer")}
@@ -306,24 +365,28 @@ export function UploadDialogContent({ onClose }: { onClose: () => void }) {
               {t("uploadBackgroundNote")}
             </p>
           ) : null}
-        </TabsContent>
-        </Tabs>
-      </div>
+          </TabsContent>
+          </Tabs>
+        </div>
+      )}
 
-      {tab === "computer" ? (
+      {anyActive ? (
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            {t("close")}
+          </Button>
+          <Button disabled>
+            <Loader2Icon className="size-4 animate-spin" /> {t("uploadPleaseWait")}
+          </Button>
+          <Button variant="destructive" className="ml-auto" onClick={askCancelAll}>
+            {t("uploadCancelAll")}
+          </Button>
+        </DialogFooter>
+      ) : tab === "computer" ? (
         jobs.length === 0 ? (
           <DialogFooter>
             <Button variant="outline" onClick={onClose}>
               {t("close")}
-            </Button>
-          </DialogFooter>
-        ) : uploading ? (
-          <DialogFooter>
-            <Button variant="outline" onClick={onClose}>
-              {t("close")}
-            </Button>
-            <Button disabled>
-              <Loader2Icon className="size-4 animate-spin" /> {t("uploadPleaseWait")}
             </Button>
           </DialogFooter>
         ) : (
@@ -331,7 +394,7 @@ export function UploadDialogContent({ onClose }: { onClose: () => void }) {
             <Button variant="outline" onClick={onClose}>
               {t("cancel")}
             </Button>
-            <Button onClick={startAll} disabled={activeCount === 0}>
+            <Button onClick={handleStartFiles} disabled={activeCount === 0}>
               <UploadCloudIcon className="size-4" />
               {t("uploadStartN", { n: activeCount, s: activeCount > 1 ? "s" : "" })}
             </Button>

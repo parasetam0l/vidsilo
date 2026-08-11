@@ -242,6 +242,13 @@ export function removeUrlDownload(id: string) {
   persist();
 }
 
+// clearUrlDownloads drops the whole URL queue from the local list.
+export function clearUrlDownloads() {
+  jobs = [];
+  emit();
+  persist();
+}
+
 export function clearAllUrlDownloads() {
   jobs = [];
   emit();

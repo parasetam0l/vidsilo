@@ -36,12 +36,21 @@ type Runner struct {
 	// downloadSem serializes URL downloads (one at a time) within this
 	// worker process.
 	downloadSem chan struct{}
+	// transcodeSem serializes flavor transcodes (one at a time).
+	transcodeSem chan struct{}
 }
 
 // EnsureDownloadSem lazily creates the download semaphore.
 func (r *Runner) EnsureDownloadSem() {
 	if r.downloadSem == nil {
 		r.downloadSem = make(chan struct{}, 1)
+	}
+}
+
+// EnsureTranscodeSem lazily creates the transcode semaphore.
+func (r *Runner) EnsureTranscodeSem() {
+	if r.transcodeSem == nil {
+		r.transcodeSem = make(chan struct{}, 1)
 	}
 }
 
@@ -239,7 +248,7 @@ func (r *Runner) spoolSource(ctx context.Context, e db.Entry) (string, error) {
 
 // transcodeParams is the transcode job payload.
 type transcodeParams struct {
-	FlavorIDs []int64 `json:"flavorIds"`
+	FlavorID int64 `json:"flavorId"`
 }
 
 // Probe probes the source, extracts poster + sprite, ticks flavors, and
@@ -339,8 +348,13 @@ func (r *Runner) Probe(ctx context.Context, job db.Job) error {
 	if err != nil {
 		return err
 	}
-	_, err = r.Queue.Enqueue(ctx, "transcode", e.ID, transcodeParams{FlavorIDs: pending}, 3)
-	return err
+	// One transcode job per flavor, executed serially (see transcodeSem).
+	for _, fid := range pending {
+		if _, err := r.Queue.Enqueue(ctx, "transcode", e.ID, transcodeParams{FlavorID: fid}, 3); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // publishSourcePlaylist writes a master pointing at the source file so the
@@ -365,7 +379,9 @@ func (r *Runner) publishSourcePlaylist(ctx context.Context, e db.Entry) error {
 	return r.Store.Put(ctx, store.MasterKey(e.ID), strings.NewReader(b.String()), int64(b.Len()))
 }
 
-// Transcode encodes each pending flavor and assembles the master playlist.
+// Transcode encodes ONE flavor (probe enqueues one job per flavor, executed
+// serially via transcodeSem) and, when it is the last flavor of the entry,
+// assembles the master playlist and marks the entry ready.
 func (r *Runner) Transcode(ctx context.Context, job db.Job) error {
 	if job.EntryID == nil {
 		return errors.New("transcode job without entry")
@@ -389,59 +405,81 @@ func (r *Runner) Transcode(ctx context.Context, job db.Job) error {
 	gopSecs := r.Settings.Int("transcode.gop_seconds", 2)
 	preset := r.Settings.String("transcode.preset", "veryfast")
 
-	done := 0
-	total := len(params.FlavorIDs)
-	for i, flavorID := range params.FlavorIDs {
-		f, err := db.FlavorByID(ctx, r.Pool, flavorID)
-		if err != nil {
-			r.markFlavor(ctx, e.ID, flavorID, db.FlavorFailed, err.Error())
-			continue
-		}
-		// Live visibility: mark the flavor as transcoding and surface which
-		// flavor is being encoded on the jobs page.
-		r.markFlavor(ctx, e.ID, flavorID, db.FlavorTranscoding, "")
-		_ = db.UpdateJobProgress(ctx, r.Pool, job.ID,
-			fmt.Sprintf("Transcoding %s (%d/%d)", f.Label, i+1, total))
-		r.Log.Info("transcoding flavor", "entry", e.ID, "flavor", f.Name)
-
-		flavor := media.Flavor{
-			Name: f.Name, Codec: f.Codec, Height: f.Height,
-			VideoMode: f.VideoMode, CRF: orZero(f.CRF), VideoBitrate: orZeroI(f.VideoBitrate),
-			AudioBitrate: f.AudioBitrate, Preset: preset,
-			SegmentSecs: segmentSecs, GopSecs: gopSecs,
-		}
-
-		outDir, cleanup, err := r.flavorOutputDir(ctx, e, f)
-		if err != nil {
-			r.markFlavor(ctx, e.ID, flavorID, db.FlavorFailed, err.Error())
-			continue
-		}
-		err = media.TranscodeFlavor(ctx, src, outDir, flavor, nil)
-		if err != nil {
-			cleanup()
-			r.markFlavor(ctx, e.ID, flavorID, db.FlavorFailed, err.Error())
-			continue
-		}
-		playlistKey, err := r.publishFlavor(ctx, e, f, outDir, cleanup)
-		if err != nil {
-			cleanup()
-			r.markFlavor(ctx, e.ID, flavorID, db.FlavorFailed, err.Error())
-			continue
-		}
-		r.markFlavorDone(ctx, e.ID, flavorID, playlistKey)
-		done++
+	r.EnsureTranscodeSem()
+	select {
+	case r.transcodeSem <- struct{}{}:
+		defer func() { <-r.transcodeSem }()
+	case <-ctx.Done():
+		return ctx.Err()
 	}
 
+	f, err := db.FlavorByID(ctx, r.Pool, params.FlavorID)
+	if err != nil {
+		r.markFlavor(ctx, e.ID, params.FlavorID, db.FlavorFailed, err.Error())
+		return r.finalizeTranscode(ctx, e)
+	}
+	// Live visibility: mark the flavor as transcoding and surface it on the
+	// jobs page (re-trying a failed flavor overwrites its status).
+	r.markFlavor(ctx, e.ID, params.FlavorID, db.FlavorTranscoding, "")
+	_ = db.UpdateJobProgress(ctx, r.Pool, job.ID, "Transcoding "+f.Label)
+	r.Log.Info("transcoding flavor", "entry", e.ID, "flavor", f.Name)
+
+	flavor := media.Flavor{
+		Name: f.Name, Codec: f.Codec, Height: f.Height,
+		VideoMode: f.VideoMode, CRF: orZero(f.CRF), VideoBitrate: orZeroI(f.VideoBitrate),
+		AudioBitrate: f.AudioBitrate, Preset: preset,
+		SegmentSecs: segmentSecs, GopSecs: gopSecs,
+	}
+
+	outDir, cleanup, err := r.flavorOutputDir(ctx, e, f)
+	if err != nil {
+		r.markFlavor(ctx, e.ID, params.FlavorID, db.FlavorFailed, err.Error())
+		return r.finalizeTranscode(ctx, e)
+	}
+	err = media.TranscodeFlavor(ctx, src, outDir, flavor, nil)
+	if err != nil {
+		cleanup()
+		r.markFlavor(ctx, e.ID, params.FlavorID, db.FlavorFailed, err.Error())
+		return r.finalizeTranscode(ctx, e)
+	}
+	playlistKey, err := r.publishFlavor(ctx, e, f, outDir, cleanup)
+	if err != nil {
+		cleanup()
+		r.markFlavor(ctx, e.ID, params.FlavorID, db.FlavorFailed, err.Error())
+		return r.finalizeTranscode(ctx, e)
+	}
+	r.markFlavorDone(ctx, e.ID, params.FlavorID, playlistKey)
+	_ = db.UpdateJobProgress(ctx, r.Pool, job.ID, "")
+	return r.finalizeTranscode(ctx, e)
+}
+
+// finalizeTranscode runs after a flavor reaches a terminal state. If no
+// flavors are still pending/transcoding, it assembles the master playlist
+// (when at least one flavor succeeded) and marks the entry ready — or fails
+// the entry when every flavor failed.
+func (r *Runner) finalizeTranscode(ctx context.Context, e db.Entry) error {
+	var remaining int
+	if err := r.Pool.QueryRow(ctx, `
+		SELECT count(*) FROM entry_flavors
+		WHERE entry_id = $1 AND status IN ('pending', 'transcoding')`, e.ID).Scan(&remaining); err != nil {
+		return err
+	}
+	if remaining > 0 {
+		return nil // more flavors queued; they finalize in turn
+	}
+	var done int
+	if err := r.Pool.QueryRow(ctx, `
+		SELECT count(*) FROM entry_flavors WHERE entry_id = $1 AND status = 'done'`, e.ID).Scan(&done); err != nil {
+		return err
+	}
 	if done == 0 {
 		r.failEntry(ctx, e, "all flavors failed")
 		return errors.New("all flavors failed")
 	}
-	_ = db.UpdateJobProgress(ctx, r.Pool, job.ID, "Building master playlist…")
 	if err := r.buildMaster(ctx, e); err != nil {
 		return err
 	}
-	_ = db.UpdateJobProgress(ctx, r.Pool, job.ID, "")
-	_, err = r.Pool.Exec(ctx, `
+	_, err := r.Pool.Exec(ctx, `
 		UPDATE entries SET status = 'ready', error = NULL, updated_at = now() WHERE id = $1`, e.ID)
 	return err
 }
