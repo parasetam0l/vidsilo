@@ -105,10 +105,6 @@ export function addFiles(newFiles: File[]): AddFilesResult {
   ).length;
   const slots = Math.max(0, MAX_BATCH - active);
   for (const f of newFiles) {
-    if (result.added >= slots) {
-      result.overLimit++;
-      continue;
-    }
     // Resume: same file name+size with a stored tus upload URL.
     const resumable = jobs.find(
       (j) =>
@@ -128,6 +124,8 @@ export function addFiles(newFiles: File[]): AddFilesResult {
       result.added++;
       continue;
     }
+    // Already in the list — report it as a duplicate even when the batch
+    // is full, so the user gets the right message.
     if (
       jobs.some(
         (j) =>
@@ -138,7 +136,11 @@ export function addFiles(newFiles: File[]): AddFilesResult {
       )
     ) {
       result.duplicates++;
-      continue; // already in the list
+      continue;
+    }
+    if (result.added >= slots) {
+      result.overLimit++;
+      continue;
     }
     const job: UploadJob = {
       id: crypto.randomUUID(),

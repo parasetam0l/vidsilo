@@ -113,6 +113,8 @@ export function EntryDetailDialog({
     queryKey: ["entry", publicId],
     queryFn: () => api<EntryDetail>(`/api/entries/${publicId}`),
   });
+  // Flavors can only be changed / reprocessed when the entry is idle.
+  const entryEditable = entry?.status === "ready" || entry?.status === "failed";
   const { data: flavors = [] } = useQuery({
     queryKey: ["flavors"],
     queryFn: () => api<Flavor[]>("/api/flavors"),
@@ -554,6 +556,7 @@ export function EntryDetailDialog({
                           <TableCell>
                             <Switch
                               checked={ticked.has(f.id)}
+                              disabled={!entryEditable}
                               onCheckedChange={(v) => {
                                 setTicked((prev) => {
                                   const next = new Set(prev);
@@ -596,7 +599,7 @@ export function EntryDetailDialog({
                 <InfoIcon className="size-3.5 shrink-0 text-muted-foreground" />
                 <span>{t("flavorsSaveHint")}</span>
               </div>
-              {isAdmin ? (
+              {isAdmin && entryEditable ? (
                 <div className="flex items-center justify-between rounded-xl border bg-muted/30 p-3">
                   <div className="space-y-0.5">
                     <Label className="text-sm font-medium">{t("entryReprocess")}</Label>
@@ -945,7 +948,6 @@ function SubtitlesTab({
         <UploadSubtitleDialog entryId={entry.id} onClose={close} onChanged={onChanged} />
       ),
       size: "md",
-      className: "rounded-2xl border border-border/80 bg-background p-6 shadow-lg",
       dismissible: true,
       showCloseButton: true,
     });

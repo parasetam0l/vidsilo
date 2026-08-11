@@ -6,6 +6,7 @@ import {
   CircleAlertIcon,
   CircleCheckIcon,
   DownloadIcon,
+  InfoIcon,
   Loader2Icon,
   PencilIcon,
   PlusIcon,
@@ -95,19 +96,21 @@ export function UploadDialogContent({ onClose }: { onClose: () => void }) {
   ).length;
   const hasPending = jobs.some((j) => j.status !== "done");
   const allDone = jobs.length > 0 && !hasPending;
+  const uploading = jobs.some((j) => j.status === "uploading");
 
   const urlActive = urlJobs.some((j) => j.status === "downloading" || j.status === "checking");
   const urlQueued = urlJobs.some((j) => j.status === "queued");
+  const urlQueuedCount = urlJobs.filter((j) => j.status === "queued").length;
   const allUrlDone = urlJobs.length > 0 && !urlActive && !urlQueued;
 
   const pickFiles = () => inputRef.current?.click();
 
   const addSelected = (files: File[]) => {
     const { added, duplicates, overLimit } = addFiles(Array.from(files));
-    if (overLimit > 0) {
-      toast.error(t("uploadBatchLimit", { n: MAX_BATCH }));
-    } else if (duplicates > 0 && added === 0) {
+    if (duplicates > 0 && added === 0) {
       toast.error(t("uploadDuplicate"));
+    } else if (overLimit > 0) {
+      toast.error(t("uploadBatchLimit", { n: MAX_BATCH }));
     }
   };
 
@@ -277,36 +280,55 @@ export function UploadDialogContent({ onClose }: { onClose: () => void }) {
             ) : null}
           </TabsContent>
 
-          {/* Tab 2: download from URL */}
-          <TabsContent value="url" className="flex flex-col gap-3 w-full min-w-0 outline-none">
-            <Textarea
-              rows={4}
-              className="w-full min-w-0 max-w-full rounded-lg font-mono text-xs resize-none break-all whitespace-pre-wrap"
-              placeholder={t("uploadUrlPlaceholder")}
-              value={urlText}
-              onChange={(e) => setUrlText(e.target.value)}
-            />
-            {urlJobs.length > 0 ? (
-              <div className="flex flex-col gap-3 min-w-0">
-                {urlJobs.map((job) => (
-                  <UrlDownloadCard key={job.id} job={job} categories={categories} />
-                ))}
-              </div>
-            ) : null}
-          </TabsContent>
+        {/* Tab 2: download from URL */}
+        <TabsContent value="url" className="flex flex-col gap-3">
+          <Textarea
+            rows={4}
+            className="rounded-lg font-mono text-xs resize-none"
+            placeholder={t("uploadUrlPlaceholder")}
+            value={urlText}
+            onChange={(e) => setUrlText(e.target.value)}
+          />
+          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <InfoIcon className="size-3.5 shrink-0" />
+            {t("uploadUrlRowHint")}
+          </p>
+          {urlJobs.length > 0 ? (
+            <div className="flex max-h-72 flex-col gap-2 overflow-y-auto p-1 pr-2">
+              {urlJobs.map((job) => (
+                <UrlDownloadCard key={job.id} job={job} categories={categories} />
+              ))}
+            </div>
+          ) : null}
+          {urlActive ? (
+            <p className="flex items-center gap-1.5 rounded-lg border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-xs font-medium text-blue-600 dark:text-blue-400">
+              <InfoIcon className="size-3.5 shrink-0" />
+              {t("uploadBackgroundNote")}
+            </p>
+          ) : null}
+        </TabsContent>
         </Tabs>
       </div>
 
       {tab === "computer" ? (
         jobs.length === 0 ? (
-          <DialogFooter className="px-5 py-3.5 border-t border-border/50 bg-muted/30 shrink-0">
-            <Button variant="outline" onClick={handleCloseAttempt}>
+          <DialogFooter>
+            <Button variant="outline" onClick={onClose}>
               {t("close")}
             </Button>
           </DialogFooter>
+        ) : uploading ? (
+          <DialogFooter>
+            <Button variant="outline" onClick={onClose}>
+              {t("close")}
+            </Button>
+            <Button disabled>
+              <Loader2Icon className="size-4 animate-spin" /> {t("uploadPleaseWait")}
+            </Button>
+          </DialogFooter>
         ) : (
-          <DialogFooter className="px-5 py-3.5 border-t border-border/50 bg-muted/30 shrink-0">
-            <Button variant="outline" onClick={handleCloseAttempt}>
+          <DialogFooter>
+            <Button variant="outline" onClick={onClose}>
               {t("cancel")}
             </Button>
             <Button onClick={startAll} disabled={activeCount === 0}>
@@ -316,8 +338,8 @@ export function UploadDialogContent({ onClose }: { onClose: () => void }) {
           </DialogFooter>
         )
       ) : urlJobs.length === 0 ? (
-        <DialogFooter className="px-5 py-3.5 border-t border-border/50 bg-muted/30 shrink-0">
-          <Button variant="outline" onClick={handleCloseAttempt}>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
             {t("close")}
           </Button>
           <Button onClick={handleCheckUrls} disabled={checking || urlLines === 0}>
@@ -326,14 +348,14 @@ export function UploadDialogContent({ onClose }: { onClose: () => void }) {
           </Button>
         </DialogFooter>
       ) : allUrlDone ? (
-        <DialogFooter className="px-5 py-3.5 border-t border-border/50 bg-muted/30 shrink-0">
-          <Button variant="outline" onClick={handleCloseAttempt}>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
             {t("close")}
           </Button>
         </DialogFooter>
       ) : (
-        <DialogFooter className="px-5 py-3.5 border-t border-border/50 bg-muted/30 shrink-0">
-          <Button variant="outline" onClick={handleCloseAttempt}>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
             {t("cancel")}
           </Button>
           <Button onClick={handleStartUrls} disabled={starting || urlActive}>
@@ -342,7 +364,9 @@ export function UploadDialogContent({ onClose }: { onClose: () => void }) {
             ) : (
               <DownloadIcon className="size-4" />
             )}
-            {urlActive ? t("uploadDownloading") : t("uploadStart")}
+            {urlActive
+              ? t("uploadDownloading")
+              : t("uploadStartDownloadN", { n: urlQueuedCount, s: urlQueuedCount > 1 ? "s" : "" })}
           </Button>
         </DialogFooter>
       )}
@@ -407,7 +431,7 @@ function UploadJobCard({
             </p>
           </div>
           <div className="flex items-center gap-1">
-            {job.status !== "done" ? (
+            {job.status !== "done" && job.status !== "uploading" ? (
               <Button
                 variant="ghost"
                 size="icon-sm"
@@ -420,7 +444,7 @@ function UploadJobCard({
                 <PencilIcon className="size-3.5" />
               </Button>
             ) : null}
-            {job.status !== "done" ? (
+            {job.status !== "done" && job.status !== "uploading" ? (
               <Button
                 variant="ghost"
                 size="icon-sm"

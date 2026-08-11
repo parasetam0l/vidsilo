@@ -82,7 +82,7 @@ export default function EntriesPage() {
     },
     // Refetch while visible so other users' work and dialog edits show up.
     refetchInterval: (query) =>
-      document.visibilityState === "visible" ? 30_000 : false,
+      document.visibilityState === "visible" ? 10_000 : false,
   });
 
   // Own uploads: refetch immediately when one completes.
