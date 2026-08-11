@@ -139,8 +139,8 @@ export function UploadDialogContent({ onClose }: { onClose: () => void }) {
   const urlLines = urlText.split("\n").map((l) => l.trim()).filter(Boolean).length;
 
   return (
-    <div className="flex flex-col gap-3">
-      <DialogHeader>
+    <div className="flex flex-col gap-3 w-full min-w-0 overflow-hidden">
+      <DialogHeader className="min-w-0">
         <DialogTitle className="flex items-center gap-2">
           {t("uploadDialogTitle")}
           {(allDone || allUrlDone) && (jobs.length > 0 || urlJobs.length > 0) ? (
@@ -156,18 +156,18 @@ export function UploadDialogContent({ onClose }: { onClose: () => void }) {
         </DialogDescription>
       </DialogHeader>
 
-      <Tabs value={tab} onValueChange={setTab} className="flex flex-col gap-3">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="computer">
-            <UploadCloudIcon className="size-4" /> {t("uploadTabComputer")}
+      <Tabs value={tab} onValueChange={setTab} className="flex flex-col gap-3 w-full min-w-0">
+        <TabsList className="grid w-full grid-cols-2 min-w-0">
+          <TabsTrigger value="computer" className="min-w-0 truncate">
+            <UploadCloudIcon className="size-4 shrink-0" /> {t("uploadTabComputer")}
           </TabsTrigger>
-          <TabsTrigger value="url">
-            <DownloadIcon className="size-4" /> {t("uploadTabUrl")}
+          <TabsTrigger value="url" className="min-w-0 truncate">
+            <DownloadIcon className="size-4 shrink-0" /> {t("uploadTabUrl")}
           </TabsTrigger>
         </TabsList>
 
         {/* Tab 1: upload from computer */}
-        <TabsContent value="computer" className="flex flex-col gap-3">
+        <TabsContent value="computer" className="flex flex-col gap-3 w-full min-w-0">
           {jobs.length === 0 ? (
             <div
               className={`flex min-h-44 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-6 text-center transition-colors ${
@@ -232,16 +232,16 @@ export function UploadDialogContent({ onClose }: { onClose: () => void }) {
         </TabsContent>
 
         {/* Tab 2: download from URL */}
-        <TabsContent value="url" className="flex flex-col gap-3">
+        <TabsContent value="url" className="flex flex-col gap-3 w-full min-w-0">
           <Textarea
             rows={4}
-            className="rounded-lg font-mono text-xs resize-none"
+            className="w-full min-w-0 max-w-full rounded-lg font-mono text-xs resize-none break-all whitespace-pre-wrap"
             placeholder={t("uploadUrlPlaceholder")}
             value={urlText}
             onChange={(e) => setUrlText(e.target.value)}
           />
           {urlJobs.length > 0 ? (
-            <div className="flex max-h-72 flex-col gap-2 overflow-y-auto p-1 pr-2">
+            <div className="flex max-h-72 flex-col gap-2 overflow-y-auto p-1 pr-2 min-w-0">
               {urlJobs.map((job) => (
                 <UrlDownloadCard key={job.id} job={job} />
               ))}
