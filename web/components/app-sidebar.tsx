@@ -54,7 +54,10 @@ import { useDialog } from "@/hooks/use-dialog"
 import { useUploadDialog } from "@/components/upload-dialog"
 import { useUploads } from "@/lib/upload-store"
 import { useUrlDownloads } from "@/lib/url-download-store"
-import { displayName } from "@/lib/api"
+import { useQuery } from "@tanstack/react-query"
+import { api, displayName, type StorageUsage } from "@/lib/api"
+import { formatBytes } from "@/lib/format"
+import { Progress } from "@/components/ui/progress"
 import { locales, useI18n, useT } from "@/lib/i18n"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
@@ -148,6 +151,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       {user ? (
         <SidebarFooter>
           <UploadProgressCard />
+          <StorageUsageCard />
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
@@ -328,6 +332,57 @@ function ProgressRing({
       {indeterminate ? (
         <Loader2Icon className="absolute inset-0 m-auto size-4 animate-spin text-primary" />
       ) : null}
+    </div>
+  )
+}
+
+// StorageUsageCard shows permanent disk usage above the user card, below
+// the upload status. Local drivers render a usage bar (used/total/free);
+// S3 has no capacity so it shows the used size and object count instead.
+function StorageUsageCard() {
+  const t = useT()
+  const { data } = useQuery({
+    queryKey: ["storage-usage"],
+    queryFn: () => api<StorageUsage>("/api/storage/usage"),
+    refetchInterval: () =>
+      document.visibilityState === "visible" ? 60_000 : false,
+  })
+
+  if (!data || data.totalBytes <= 0) {
+    if (!data) return null
+    // S3: no known capacity — used size + object count, no bar.
+    return (
+      <div className="mb-1 rounded-lg border border-sidebar-border/60 bg-sidebar-accent/40 px-2.5 py-2">
+        <div className="flex items-center justify-between text-xs">
+          <span className="font-medium">{t("navStorage")}</span>
+          <span className="font-mono text-muted-foreground">
+            {formatBytes(data.usedBytes)}
+          </span>
+        </div>
+        <p className="mt-1 text-[11px] text-muted-foreground">
+          {t("storageObjects", { n: data.objectCount })}
+        </p>
+      </div>
+    )
+  }
+
+  const pct = Math.round((data.usedBytes / data.totalBytes) * 100)
+  return (
+    <div className="mb-1 rounded-lg border border-sidebar-border/60 bg-sidebar-accent/40 px-2.5 py-2">
+      <div className="flex items-center justify-between text-xs">
+        <span className="font-medium">{t("navStorage")}</span>
+        <span className="font-mono text-muted-foreground">
+          {formatBytes(data.usedBytes)}
+        </span>
+      </div>
+      <Progress value={pct} className="mt-1.5 h-1.5" />
+      <p className="mt-1 text-[11px] text-muted-foreground">
+        {t("storageUsageLine", {
+          pct,
+          total: formatBytes(data.totalBytes),
+          free: formatBytes(data.freeBytes),
+        })}
+      </p>
     </div>
   )
 }

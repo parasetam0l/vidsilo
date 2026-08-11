@@ -245,3 +245,12 @@ export interface SettingsResponse {
   settings: Record<string, unknown>;
   restartRequired: string[];
 }
+
+export interface StorageUsage {
+  usedBytes: number;
+  /** 0 when the backend has no known capacity (S3). */
+  totalBytes: number;
+  freeBytes: number;
+  objectCount: number;
+  driver: string;
+}

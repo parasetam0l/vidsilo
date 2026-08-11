@@ -102,6 +102,7 @@ func (s *Server) Handler() http.Handler {
 	s.registerDashboardRoutes(mux)
 	s.registerUploadConfigRoute(mux)
 	s.registerActivityRoutes(mux)
+	s.registerStorageRoutes(mux)
 
 	// Exact admin page route: prevents ServeMux's /upload -> /upload/ redirect
 	// (the tus subtree owns /upload/).
