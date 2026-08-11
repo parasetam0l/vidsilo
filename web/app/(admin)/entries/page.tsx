@@ -217,10 +217,10 @@ export default function EntriesPage() {
           />
           {selected.size > 0 ? (
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" className="h-9 gap-1.5 rounded-lg text-xs" onClick={askReprocess}>
+              <Button variant="outline" size="sm" className="gap-1.5 rounded-lg text-xs" onClick={askReprocess}>
                 <RotateCcw className="size-3.5" /> {t("entriesReprocessN", { n: selected.size })}
               </Button>
-              <Button variant="destructive" size="sm" className="h-9 gap-1.5 rounded-lg text-xs" onClick={askBulkDelete}>
+              <Button variant="destructive" size="sm" className="gap-1.5 rounded-lg text-xs" onClick={askBulkDelete}>
                 <Trash2 className="size-3.5" /> {t("entriesDeleteN", { n: selected.size })}
               </Button>
             </div>
