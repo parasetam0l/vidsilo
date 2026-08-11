@@ -268,7 +268,6 @@ const en = {
   uploadStopDesc:
     "The transfer stops and the partially uploaded file is discarded. The empty entry can be deleted from the Entries page.",
   uploadStop: "Stop upload",
-  uploadsInProgress: "{n} upload{s} in progress",
 
   // users
   usersTitle: "Users",
