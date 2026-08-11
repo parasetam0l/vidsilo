@@ -145,6 +145,7 @@ func (s *Server) handlePlayInfo(w http.ResponseWriter, r *http.Request) {
 		DurationMs:   e.DurationMS,
 		Master:       "/media/" + strings.TrimPrefix(store.MasterKey(e.ID), "/"),
 		SpriteFrames: e.SpriteFrames,
+		Subtitles:    []subtitleOut{},
 		EmbedURL:     "/embed/" + e.PublicID,
 	}
 	if e.PosterKey != "" {

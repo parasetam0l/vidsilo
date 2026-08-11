@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { PencilIcon, ShieldIcon, Trash2 } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 import { api, type DomainAcl } from "@/lib/api";
 import { useT } from "@/lib/i18n";
@@ -47,6 +48,13 @@ export default function DomainAclsPage() {
       .catch((e) => toast.error(e.message));
   }, [toast]);
   React.useEffect(load, [load]);
+
+  // Create/edit dialogs dispatch a change event on save; refresh the table.
+  React.useEffect(() => {
+    const h = () => load();
+    window.addEventListener("acls:changed", h);
+    return () => window.removeEventListener("acls:changed", h);
+  }, [load]);
 
   function openEdit(a: DomainAcl) {
     open({
@@ -94,8 +102,12 @@ export default function DomainAclsPage() {
               {acls.map((a) => (
                 <TableRow key={a.id}>
                   <TableCell className="font-medium">
-                    <span className="flex items-center gap-2">
-                      <ShieldIcon className="size-4 text-muted-foreground" />
+                    <span className="flex items-center gap-2.5">
+                      <Avatar className="size-7 rounded-lg">
+                        <AvatarFallback className="rounded-lg">
+                          <ShieldIcon className="size-3.5" />
+                        </AvatarFallback>
+                      </Avatar>
                       {a.title}
                     </span>
                   </TableCell>
@@ -176,6 +188,7 @@ function AclFormContent({
         });
         toast.success(t("aclCreated"));
       }
+      window.dispatchEvent(new Event("acls:changed"));
       onClose();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("error"));

@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { CircleCheckIcon, CircleAlertIcon, ClockIcon, RotateCcwIcon } from "lucide-react";
+import { CircleCheckIcon, CircleAlertIcon, ClockIcon, RotateCcwIcon, FilmIcon } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 import { api, type JobActivity } from "@/lib/api";
 import { useT } from "@/lib/i18n";
@@ -83,9 +84,16 @@ export default function JobsPage() {
               {(jobs ?? []).map((j) => (
                 <TableRow key={j.id}>
                   <TableCell>
-                    <Badge variant="outline">
-                      {j.type === "probe" ? t("jobProbe") : t("jobTranscode")}
-                    </Badge>
+                    <div className="flex items-center gap-3">
+                      <Avatar className="size-8 rounded-lg">
+                        <AvatarFallback className="rounded-lg">
+                          <FilmIcon className="size-4" />
+                        </AvatarFallback>
+                      </Avatar>
+                      <Badge variant="outline">
+                        {j.type === "probe" ? t("jobProbe") : t("jobTranscode")}
+                      </Badge>
+                    </div>
                   </TableCell>
                   <TableCell className="font-medium">
                     {j.entryTitle || "—"}

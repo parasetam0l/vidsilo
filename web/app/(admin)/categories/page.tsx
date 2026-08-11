@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { FolderTreeIcon, PencilIcon, Trash2 } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 import { api, type Category } from "@/lib/api";
 import { useT } from "@/lib/i18n";
@@ -14,13 +15,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { EmptyState } from "@/components/empty-state";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select } from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -55,6 +50,13 @@ export default function CategoriesPage() {
       .catch((e) => toast.error(e.message));
   }, [toast]);
   React.useEffect(load, [load]);
+
+  // Create/edit dialogs dispatch a change event on save; refresh the tree.
+  React.useEffect(() => {
+    const h = () => load();
+    window.addEventListener("categories:changed", h);
+    return () => window.removeEventListener("categories:changed", h);
+  }, [load]);
 
   const flat = React.useMemo(() => {
     const out: Category[] = [];
@@ -128,9 +130,13 @@ export default function CategoriesPage() {
                   <TableCell className="font-medium">
                     <span
                       style={{ paddingLeft: depthOf(c.id) * 20 }}
-                      className="flex items-center gap-2"
+                      className="flex items-center gap-2.5"
                     >
-                      <FolderTreeIcon className="size-4 text-muted-foreground" />
+                      <Avatar className="size-7 rounded-lg">
+                        <AvatarFallback className="rounded-lg">
+                          <FolderTreeIcon className="size-3.5" />
+                        </AvatarFallback>
+                      </Avatar>
                       {c.name}
                     </span>
                   </TableCell>
@@ -218,6 +224,7 @@ function CategoryFormContent({
         });
         toast.success(t("categoryCreated"));
       }
+      window.dispatchEvent(new Event("categories:changed"));
       onClose();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("error"));
@@ -244,21 +251,17 @@ function CategoryFormContent({
       </div>
       <div className="flex flex-col gap-1.5">
         <Label>{t("colParent")}</Label>
-        <Select value={parent} onValueChange={(v) => setParent(v ?? "")}>
-          <SelectTrigger>
-            <SelectValue placeholder={t("parentNone")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="">{t("none")}</SelectItem>
-            {categories
+        <Select
+          options={[
+            { value: "", label: t("none") },
+            ...categories
               .filter((c) => c.id !== initial?.id)
-              .map((c) => (
-                <SelectItem key={c.id} value={String(c.id)}>
-                  {c.name}
-                </SelectItem>
-              ))}
-          </SelectContent>
-        </Select>
+              .map((c) => ({ value: String(c.id), label: c.name })),
+          ]}
+          value={parent}
+          onChange={(v) => setParent(v ?? "")}
+          placeholder={t("parentNone")}
+        />
       </div>
       <div className="flex justify-end gap-2">
         <Button type="button" variant="outline" onClick={onClose} disabled={busy}>

@@ -11,13 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select } from "@/components/ui/select";
 
 interface GroupDef {
   title: string;
@@ -131,21 +125,13 @@ export default function SettingsPage() {
                     <Switch checked={bool(k)} onCheckedChange={(v) => setBool(k, v)} />
                   ) : isEnum ? (
                     <Select
+                      options={["off", "auto"].map((o) => ({ value: o, label: o }))}
                       value={str(k)}
-                      onValueChange={(v) => {
+                      onChange={(v) => {
                         s[k] = v;
                         setData({ ...data });
                       }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {["off", "auto"].map((o) => (
-                          <SelectItem key={o} value={o}>{o}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    />
                   ) : (
                     <Input
                       defaultValue={typeof s[k] === "number" ? String(num(k)) : str(k)}

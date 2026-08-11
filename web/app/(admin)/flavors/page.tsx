@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { PencilIcon, Save, SlidersHorizontalIcon, Trash2 } from "lucide-react";
+import { PencilIcon, Save, SlidersHorizontalIcon, Trash2, VideoIcon } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 import { api, type Flavor } from "@/lib/api";
 import { useT } from "@/lib/i18n";
@@ -22,13 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 
 const blank = (): Flavor => ({
@@ -81,6 +76,13 @@ export default function FlavorsPage() {
       .catch((e) => toast.error(e.message));
   }, [toast]);
   React.useEffect(load, [load]);
+
+  // Create/edit dialogs dispatch a change event on save; refresh the table.
+  React.useEffect(() => {
+    const h = () => load();
+    window.addEventListener("flavors:changed", h);
+    return () => window.removeEventListener("flavors:changed", h);
+  }, [load]);
 
   async function toggle(f: Flavor) {
     try {
@@ -136,7 +138,16 @@ export default function FlavorsPage() {
                   <TableCell>
                     <Switch checked={f.enabled} onCheckedChange={() => toggle(f)} />
                   </TableCell>
-                  <TableCell className="font-medium">{f.name}</TableCell>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="size-7 rounded-lg">
+                        <AvatarFallback className="rounded-lg">
+                          <VideoIcon className="size-3.5" />
+                        </AvatarFallback>
+                      </Avatar>
+                      {f.name}
+                    </div>
+                  </TableCell>
                   <TableCell>
                     <Badge variant="outline">{f.codec}</Badge>
                   </TableCell>
@@ -218,6 +229,7 @@ function FlavorFormContent({
         });
         toast.success(t("flavorCreated"));
       }
+      window.dispatchEvent(new Event("flavors:changed"));
       onClose();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("error"));
@@ -244,17 +256,13 @@ function FlavorFormContent({
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-medium">{t("colCodec")}</label>
           <Select
+            options={[
+              { value: "h264", label: t("codecH264") },
+              { value: "h265", label: t("codecH265") },
+            ]}
             value={draft.codec}
-            onValueChange={(v) => set({ codec: (v ?? "h264") as "h264" | "h265" })}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="h264">{t("codecH264")}</SelectItem>
-              <SelectItem value="h265">{t("codecH265")}</SelectItem>
-            </SelectContent>
-          </Select>
+            onChange={(v) => set({ codec: (v ?? "h264") as "h264" | "h265" })}
+          />
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-medium">{t("colHeight")} (px)</label>
@@ -268,17 +276,13 @@ function FlavorFormContent({
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-medium">{t("videoMode")}</label>
           <Select
+            options={[
+              { value: "crf", label: t("vmodeCrf") },
+              { value: "bitrate", label: t("vmodeBitrate") },
+            ]}
             value={draft.videoMode}
-            onValueChange={(v) => set({ videoMode: (v ?? "crf") as "crf" | "bitrate" })}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="crf">{t("vmodeCrf")}</SelectItem>
-              <SelectItem value="bitrate">{t("vmodeBitrate")}</SelectItem>
-            </SelectContent>
-          </Select>
+            onChange={(v) => set({ videoMode: (v ?? "crf") as "crf" | "bitrate" })}
+          />
         </div>
         {draft.videoMode === "crf" ? (
           <div className="flex flex-col gap-1.5">
@@ -314,20 +318,13 @@ function FlavorFormContent({
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-medium">{t("labelPreset")}</label>
           <Select
+            options={["ultrafast", "superfast", "veryfast", "faster", "fast", "medium"].map((p) => ({
+              value: p,
+              label: p,
+            }))}
             value={draft.preset}
-            onValueChange={(v) => set({ preset: v ?? "veryfast" })}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {["ultrafast", "superfast", "veryfast", "faster", "fast", "medium"].map((p) => (
-                <SelectItem key={p} value={p}>
-                  {p}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            onChange={(v) => set({ preset: v ?? "veryfast" })}
+          />
         </div>
       </div>
       <div className="flex justify-end gap-2">

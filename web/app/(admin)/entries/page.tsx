@@ -29,13 +29,7 @@ import { useUploads } from "@/lib/upload-store";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select } from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -200,32 +194,28 @@ export default function EntriesPage() {
             }}
           />
         </div>
-        <Select value={status} onValueChange={(v) => { setStatus(v ?? ""); setPage(1); }}>
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder={t("entriesAllStatuses")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="">{t("entriesAllStatuses")}</SelectItem>
-            <SelectItem value="uploading">{t("statusUploading")}</SelectItem>
-            <SelectItem value="probing">{t("statusProbing")}</SelectItem>
-            <SelectItem value="transcoding">{t("statusTranscoding")}</SelectItem>
-            <SelectItem value="ready">{t("statusReady")}</SelectItem>
-            <SelectItem value="failed">{t("statusFailed")}</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={category} onValueChange={(v) => { setCategory(v ?? ""); setPage(1); }}>
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder={t("entriesAllCategories")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="">{t("entriesAllCategories")}</SelectItem>
-            {categories.map((c) => (
-              <SelectItem key={c.id} value={String(c.id)}>
-                {c.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Select
+          options={[
+            { value: "", label: t("entriesAllStatuses") },
+            { value: "uploading", label: t("statusUploading") },
+            { value: "probing", label: t("statusProbing") },
+            { value: "transcoding", label: t("statusTranscoding") },
+            { value: "ready", label: t("statusReady") },
+            { value: "failed", label: t("statusFailed") },
+          ]}
+          className="w-40"
+          value={status}
+          onChange={(v) => { setStatus(v ?? ""); setPage(1); }}
+        />
+        <Select
+          options={[
+            { value: "", label: t("entriesAllCategories") },
+            ...categories.map((c) => ({ value: String(c.id), label: c.name })),
+          ]}
+          className="w-40"
+          value={category}
+          onChange={(v) => { setCategory(v ?? ""); setPage(1); }}
+        />
         {selected.size > 0 ? (
           <>
             <Button variant="outline" onClick={askReprocess}>
@@ -356,23 +346,14 @@ export default function EntriesPage() {
           </span>
           <div className="flex items-center gap-2">
             <Select
+              options={[10, 20, 50].map((n) => ({ value: String(n), label: String(n) }))}
+              className="h-7 w-20 text-xs"
               value={String(limit)}
-              onValueChange={(v) => {
+              onChange={(v) => {
                 setLimit(Number(v ?? 20));
                 setPage(1);
               }}
-            >
-              <SelectTrigger className="h-7 w-20 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {[10, 20, 50].map((n) => (
-                  <SelectItem key={n} value={String(n)}>
-                    {n}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            />
             <Button
               variant="outline"
               size="sm"

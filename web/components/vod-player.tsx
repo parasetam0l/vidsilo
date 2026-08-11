@@ -319,7 +319,7 @@ export function VODPlayer({
         onError={() => setError(t("playerError"))}
       />
 
-      {info.subtitles.map((s) => (
+      {(info.subtitles ?? []).map((s) => (
         <track key={s.lang} kind="subtitles" srcLang={s.lang} label={s.label} src={s.url} />
       ))}
 
@@ -414,7 +414,7 @@ export function VODPlayer({
                 ))}
               </select>
             ) : null}
-            {info.subtitles.length > 0 ? (
+            {((info.subtitles ?? []).length > 0 ? (
               <select
                 value={subtitle}
                 onChange={(e) => setSubtitle(e.target.value)}
@@ -422,13 +422,13 @@ export function VODPlayer({
                 aria-label={t("tabSubtitles")}
               >
                 <option value="">{t("playerOff")}</option>
-                {info.subtitles.map((s) => (
+                {(info.subtitles ?? []).map((s) => (
                   <option key={s.lang} value={s.lang}>
                     {s.label || s.lang}
                   </option>
                 ))}
               </select>
-            ) : null}
+            ) : null)}
             <select
               value={rate}
               onChange={(e) => setPlaybackRate(Number(e.target.value))}

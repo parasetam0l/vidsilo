@@ -156,19 +156,27 @@ func ListEntries(ctx context.Context, pool *pgxpool.Pool, f EntryFilter) (EntryL
 
 func UpdateEntry(ctx context.Context, pool *pgxpool.Pool, id int64, patch EntryPatch) (Entry, error) {
 	if _, err := pool.Exec(ctx, `
-		UPDATE entries SET title = $1, description = $2, category_id = $3, is_public = $4, updated_at = now()
-		WHERE id = $5`,
-		patch.Title, patch.Description, patch.CategoryID, patch.IsPublic, id); err != nil {
+		UPDATE entries SET title = $1, description = $2, category_id = $3, is_public = $4,
+			domain_acl_id = $5, updated_at = now()
+		WHERE id = $6`,
+		patch.Title, patch.Description, patch.CategoryID, patch.IsPublic, patch.DomainACLID, id); err != nil {
 		return Entry{}, err
 	}
 	return EntryByID(ctx, pool, id)
 }
 
 type EntryPatch struct {
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	CategoryID  *int64 `json:"categoryId"`
-	IsPublic    bool   `json:"isPublic"`
+	Title       string   `json:"title"`
+	Description string   `json:"description"`
+	CategoryID  *int64   `json:"categoryId"`
+	IsPublic    bool     `json:"isPublic"`
+	// DomainACLID is the named embed ACL; nil = "Allow All".
+	DomainACLID *int64   `json:"domainAclId"`
+	// FlavorIDs, when present, replaces the ticked flavor set and re-queues
+	// processing (reprocess path). Omit to leave flavors untouched.
+	FlavorIDs *[]int64 `json:"flavorIds"`
+	// PosterFrame, when present, re-extracts the poster from this sprite frame.
+	PosterFrame *int `json:"posterFrame"`
 }
 
 func DeleteEntry(ctx context.Context, pool *pgxpool.Pool, id int64) error {

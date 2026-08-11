@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { PencilIcon, Trash2, UsersIcon } from "lucide-react";
+import { PencilIcon, Trash2, UserRoundIcon, UsersIcon } from "lucide-react";
 
 import { api, ApiError, displayName, type Role, type User } from "@/lib/api";
 import { useT } from "@/lib/i18n";
@@ -16,14 +16,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { EmptyState } from "@/components/empty-state";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select } from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -60,6 +55,13 @@ export default function UsersPage() {
       .catch((e) => toast.error(e.message));
   }, [toast]);
   React.useEffect(load, [load]);
+
+  // Create/edit dialogs dispatch a change event on save; refresh the table.
+  React.useEffect(() => {
+    const h = () => load();
+    window.addEventListener("users:changed", h);
+    return () => window.removeEventListener("users:changed", h);
+  }, [load]);
 
   function openEdit(u: User) {
     open({
@@ -108,7 +110,16 @@ export default function UsersPage() {
             <TableBody>
               {users.map((u) => (
                 <TableRow key={u.id}>
-                  <TableCell className="font-medium">{u.email}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <Avatar className="size-8 rounded-lg">
+                        <AvatarFallback className="rounded-lg">
+                          <UserRoundIcon className="size-4" />
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="font-medium">{u.email}</span>
+                    </div>
+                  </TableCell>
                   <TableCell>{displayName(u)}</TableCell>
                   <TableCell>
                     <Badge variant="outline" className="capitalize">
@@ -190,6 +201,7 @@ function UserFormContent({
         });
         toast.success(t("userCreated"));
       }
+      window.dispatchEvent(new Event("users:changed"));
       onClose();
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t("error"));
@@ -237,18 +249,12 @@ function UserFormContent({
       </div>
       <div className="flex flex-col gap-1.5">
         <Label>{t("colRole")}</Label>
-        <Select value={role} onValueChange={(v) => v && setRole(v as Role)}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {roles.map((r) => (
-              <SelectItem key={r} value={r}>
-                {r}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Select
+          options={roles.map((r) => ({ value: r, label: r }))}
+          value={role}
+          onChange={(v) => setRole(v as Role)}
+          placeholder={t("colRole")}
+        />
       </div>
       {editing ? (
         <div className="flex items-center gap-2">

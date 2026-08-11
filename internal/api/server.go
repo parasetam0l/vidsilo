@@ -170,12 +170,15 @@ func (s *Server) internalError(w http.ResponseWriter, r *http.Request, op string
 
 // serveUI maps the static export onto clean URLs: /login -> login.html,
 // /_next/... as-is, index fallback for /, and the exported 404 page.
+// Pages are served with no-cache (a truncated mid-deploy response must never
+// stick in a heuristic cache); content-hashed _next assets are immutable.
 func (s *Server) serveUI(w http.ResponseWriter, r *http.Request) {
 	p := strings.TrimPrefix(r.URL.Path, "/")
 	if p == "" {
 		p = "index.html"
 	}
 	if strings.HasPrefix(p, "_next/") {
+		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 		http.FileServer(http.FS(s.uiFS)).ServeHTTP(w, r)
 		return
 	}
@@ -184,12 +187,14 @@ func (s *Server) serveUI(w http.ResponseWriter, r *http.Request) {
 		candidate := p + ".html"
 		if f, err := s.uiFS.Open(candidate); err == nil {
 			f.Close()
+			w.Header().Set("Cache-Control", "no-cache")
 			r2 := r.Clone(r.Context())
 			r2.URL.Path = "/" + candidate
 			http.FileServer(http.FS(s.uiFS)).ServeHTTP(w, r2)
 			return
 		}
 	}
+	w.Header().Set("Cache-Control", "no-cache")
 	http.FileServer(http.FS(s.uiFS)).ServeHTTP(w, r)
 }
 func gzipMiddleware(next http.Handler) http.Handler {
@@ -198,6 +203,7 @@ func gzipMiddleware(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
+		w.Header().Add("Vary", "Accept-Encoding")
 		gz := gzip.NewWriter(w)
 		grw := &gzipResponseWriter{ResponseWriter: w, gz: gz}
 		defer func() {

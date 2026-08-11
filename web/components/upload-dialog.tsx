@@ -31,13 +31,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select } from "@/components/ui/select";
 
 // Uploads run at app level (lib/upload-store) so they survive closing the
 // dialog, page navigation and hard refreshes.
@@ -271,21 +265,15 @@ function UploadJobCard({
             <div className="flex flex-col gap-1">
               <Label className="text-xs">{t("labelCategory")}</Label>
               <Select
+                options={[
+                  { value: "", label: t("none") },
+                  ...categories.map((c) => ({ value: String(c.id), label: c.name })),
+                ]}
+                className="h-8 w-full"
                 value={job.category}
                 disabled={job.status === "uploading"}
-                onValueChange={(v) => updateJob(job.id, { category: v ?? "" })}
-              >
-                <SelectTrigger className="h-8 w-full">
-                  <SelectValue placeholder={t("none")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((c) => (
-                    <SelectItem key={c.id} value={String(c.id)}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                onChange={(v) => updateJob(job.id, { category: v ?? "" })}
+              />
             </div>
             <div className="flex flex-col gap-1">
               <Label className="text-xs">{t("labelDescription")}</Label>

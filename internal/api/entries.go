@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strconv"
@@ -29,9 +30,6 @@ func (s *Server) registerEntryRoutes(mux *http.ServeMux, tusHandler http.Handler
 	mux.Handle("POST /api/entries/{publicId}/reprocess", s.requireRole(roleEditor, roleAdmin)(http.HandlerFunc(s.handleEntryReprocess)))
 	mux.Handle("POST /api/entries/reprocess", s.requireRole(roleEditor, roleAdmin)(http.HandlerFunc(s.handleEntriesReprocess)))
 	mux.Handle("POST /api/entries/{publicId}/flavors", s.requireRole(roleEditor, roleAdmin)(http.HandlerFunc(s.handleEntryFlavors)))
-	mux.Handle("GET /api/entries/{publicId}/embed", s.requireRole(roleEditor, roleAdmin)(http.HandlerFunc(s.handleEntryEmbedGet)))
-	mux.Handle("PATCH /api/entries/{publicId}/embed", s.requireRole(roleEditor, roleAdmin)(http.HandlerFunc(s.handleEntryEmbedPatch)))
-	mux.Handle("POST /api/entries/{publicId}/poster", s.requireRole(roleEditor, roleAdmin)(http.HandlerFunc(s.handleEntryPoster)))
 	mux.Handle("POST /api/entries/{publicId}/subtitles", s.requireRole(roleEditor, roleAdmin)(http.HandlerFunc(s.handleEntrySubtitleAdd)))
 	mux.Handle("DELETE /api/entries/{publicId}/subtitles/{sid}", s.requireRole(roleEditor, roleAdmin)(http.HandlerFunc(s.handleEntrySubtitleDelete)))
 }
@@ -125,12 +123,70 @@ func (s *Server) handleEntryPatch(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "bad_request", "invalid JSON body")
 		return
 	}
+	if patch.DomainACLID != nil {
+		if _, err := db.ACLByID(r.Context(), s.pool, *patch.DomainACLID); err != nil {
+			writeError(w, http.StatusBadRequest, "bad_request", "unknown domain acl")
+			return
+		}
+	}
+	if patch.PosterFrame != nil {
+		if e.SpriteKey == "" || e.SpriteFrames == 0 {
+			writeError(w, http.StatusConflict, "conflict", "no sprite sheet available yet")
+			return
+		}
+		if *patch.PosterFrame < 0 || *patch.PosterFrame >= e.SpriteFrames {
+			writeError(w, http.StatusBadRequest, "bad_request", "poster frame out of range")
+			return
+		}
+		if err := s.media.ExtractPoster(r.Context(), e.ID, *patch.PosterFrame); err != nil {
+			s.internalError(w, r, "extract poster", err)
+			return
+		}
+	}
 	updated, err := db.UpdateEntry(r.Context(), s.pool, e.ID, patch)
 	if err != nil {
 		s.internalError(w, r, "update entry", err)
 		return
 	}
+	if patch.PosterFrame != nil {
+		_, err := s.pool.Exec(r.Context(), `
+			UPDATE entries SET poster_key = $1, updated_at = now() WHERE id = $2`,
+			store.PosterKey(e.ID), e.ID)
+		if err != nil {
+			s.internalError(w, r, "update poster key", err)
+			return
+		}
+		updated, err = db.EntryByID(r.Context(), s.pool, e.ID)
+		if err != nil {
+			s.internalError(w, r, "reload entry", err)
+			return
+		}
+	}
+	if patch.FlavorIDs != nil {
+		if err := s.applyFlavors(r.Context(), e.ID, *patch.FlavorIDs); err != nil {
+			s.internalError(w, r, "apply flavors", err)
+			return
+		}
+		updated, err = db.EntryByID(r.Context(), s.pool, e.ID)
+		if err != nil {
+			s.internalError(w, r, "reload entry", err)
+			return
+		}
+	}
 	writeJSON(w, http.StatusOK, updated)
+}
+
+// applyFlavors replaces the ticked flavor set and re-queues processing.
+func (s *Server) applyFlavors(ctx context.Context, entryID int64, flavorIDs []int64) error {
+	if err := db.SetEntryFlavors(ctx, s.pool, entryID, flavorIDs); err != nil {
+		return err
+	}
+	if _, err := s.queue.Enqueue(ctx, "probe", entryID, map[string]any{}, 3); err != nil {
+		return err
+	}
+	_, err := s.pool.Exec(ctx, `
+		UPDATE entries SET status = 'probing', error = NULL, updated_at = now() WHERE id = $1`, entryID)
+	return err
 }
 
 func (s *Server) handleEntryDelete(w http.ResponseWriter, r *http.Request) {
@@ -216,85 +272,11 @@ func (s *Server) handleEntryFlavors(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "bad_request", "invalid JSON body")
 		return
 	}
-	if err := db.SetEntryFlavors(r.Context(), s.pool, e.ID, body.FlavorIDs); err != nil {
-		s.internalError(w, r, "set entry flavors", err)
+	if err := s.applyFlavors(r.Context(), e.ID, body.FlavorIDs); err != nil {
+		s.internalError(w, r, "apply flavors", err)
 		return
 	}
-	if _, err := s.queue.Enqueue(r.Context(), "probe", e.ID, map[string]any{}, 3); err != nil {
-		s.internalError(w, r, "enqueue reprocess", err)
-		return
-	}
-	_, _ = s.pool.Exec(r.Context(), `
-		UPDATE entries SET status = 'probing', error = NULL, updated_at = now() WHERE id = $1`, e.ID)
 	w.WriteHeader(http.StatusAccepted)
-}
-
-// embedBody carries the entry's domain ACL reference: null means "Allow All".
-type embedBody struct {
-	DomainACLID *int64 `json:"domainAclId"`
-}
-
-func (s *Server) handleEntryEmbedGet(w http.ResponseWriter, r *http.Request) {
-	e, ok := s.entryOr404(w, r)
-	if !ok {
-		return
-	}
-	writeJSON(w, http.StatusOK, embedBody{DomainACLID: e.DomainACLID})
-}
-
-func (s *Server) handleEntryEmbedPatch(w http.ResponseWriter, r *http.Request) {
-	e, ok := s.entryOr404(w, r)
-	if !ok {
-		return
-	}
-	var body embedBody
-	if err := decodeJSON(r, &body); err != nil {
-		writeError(w, http.StatusBadRequest, "bad_request", "invalid JSON body")
-		return
-	}
-	if body.DomainACLID != nil {
-		if _, err := db.ACLByID(r.Context(), s.pool, *body.DomainACLID); err != nil {
-			writeError(w, http.StatusBadRequest, "bad_request", "unknown domain acl")
-			return
-		}
-	}
-	if _, err := s.pool.Exec(r.Context(), `
-		UPDATE entries SET domain_acl_id = $1, updated_at = now() WHERE id = $2`,
-		body.DomainACLID, e.ID); err != nil {
-		s.internalError(w, r, "update entry acl", err)
-		return
-	}
-	writeJSON(w, http.StatusOK, body)
-}
-
-func (s *Server) handleEntryPoster(w http.ResponseWriter, r *http.Request) {
-	e, ok := s.entryOr404(w, r)
-	if !ok {
-		return
-	}
-	var body struct {
-		Frame int `json:"frame"`
-	}
-	if err := decodeJSON(r, &body); err != nil {
-		writeError(w, http.StatusBadRequest, "bad_request", "invalid JSON body")
-		return
-	}
-	if e.SpriteKey == "" || e.SpriteFrames == 0 {
-		writeError(w, http.StatusConflict, "conflict", "no sprite sheet available yet")
-		return
-	}
-	if body.Frame < 0 || body.Frame >= e.SpriteFrames {
-		writeError(w, http.StatusBadRequest, "bad_request", "frame out of range")
-		return
-	}
-	if err := s.media.ExtractPoster(r.Context(), e.ID, body.Frame); err != nil {
-		s.internalError(w, r, "extract poster", err)
-		return
-	}
-	_, _ = s.pool.Exec(r.Context(), `
-		UPDATE entries SET poster_key = $1, updated_at = now() WHERE id = $2`,
-		store.PosterKey(e.ID), e.ID)
-	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *Server) handleEntrySubtitleAdd(w http.ResponseWriter, r *http.Request) {
