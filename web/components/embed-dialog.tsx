@@ -1,11 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { Copy } from "lucide-react";
+import { Check, Copy, Code2Icon, Link2Icon } from "lucide-react";
 
 import { useT } from "@/lib/i18n";
 import { useDialog } from "@/hooks/use-dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
 export function useEmbedDialog() {
   const dialog = useDialog();
@@ -13,8 +15,9 @@ export function useEmbedDialog() {
     (publicId: string) => {
       dialog.open({
         content: () => <EmbedDialogContent publicId={publicId} />,
-        size: "sm",
-        dismissible: false,
+        size: "xl",
+        className: "p-6 sm:max-w-[640px] rounded-2xl border shadow-2xl bg-background overflow-hidden",
+        dismissible: true,
         showCloseButton: true,
       });
     },
@@ -24,34 +27,113 @@ export function useEmbedDialog() {
 
 function EmbedDialogContent({ publicId }: { publicId: string }) {
   const t = useT();
-  const [copied, setCopied] = React.useState(false);
+  const [copiedDirect, setCopiedDirect] = React.useState(false);
+  const [copiedSnippet, setCopiedSnippet] = React.useState(false);
 
-  const embedUrl = `https://${typeof window !== "undefined" ? window.location.host : "localhost"}/embed/${publicId}`;
-  const snippet = `<iframe src="${embedUrl}" width="640" height="360" frameborder="0" allowfullscreen></iframe>`;
+  const origin = typeof window !== "undefined" ? window.location.origin : "http://localhost:8080";
+  const directUrl = `${origin}/embed/${publicId}`;
+  const snippet = `<iframe src="${directUrl}" width="640" height="360" frameborder="0" allowfullscreen></iframe>`;
+
+  const handleCopyDirect = () => {
+    navigator.clipboard.writeText(directUrl);
+    setCopiedDirect(true);
+    setTimeout(() => setCopiedDirect(false), 2000);
+  };
+
+  const handleCopySnippet = () => {
+    navigator.clipboard.writeText(snippet);
+    setCopiedSnippet(true);
+    setTimeout(() => setCopiedSnippet(false), 2000);
+  };
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-5 pt-1">
       <div>
-        <h2 className="text-base font-semibold tracking-tight">
+        <h2 className="text-lg font-semibold tracking-tight text-foreground">
           {t("embedTitle")}
         </h2>
-        <p className="text-xs text-muted-foreground">{embedUrl}</p>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          Share this video via direct URL link or embed iframe into your application.
+        </p>
       </div>
-      <pre className="overflow-x-auto rounded-lg border bg-muted/40 p-3 text-xs">
-        {snippet}
-      </pre>
-      <div className="flex justify-end">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            navigator.clipboard.writeText(snippet);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 1500);
-          }}
-        >
-          <Copy className="size-3.5" /> {copied ? t("copied") : t("copy")}
-        </Button>
+
+      {/* Embedded Video Player Preview */}
+      <div className="relative aspect-video w-full overflow-hidden rounded-xl border bg-black shadow-inner">
+        <iframe
+          src={`/embed/${publicId}`}
+          className="h-full w-full border-0"
+          allowFullScreen
+          title="Video preview"
+        />
+      </div>
+
+      {/* Gray Area 1: Direct Link */}
+      <div className="flex flex-col gap-2.5 rounded-xl border bg-muted/40 p-4">
+        <div className="flex items-center gap-2">
+          <Link2Icon className="size-4 text-primary" />
+          <span className="text-xs font-semibold text-foreground">Direct Link</span>
+        </div>
+        <Input
+          readOnly
+          value={directUrl}
+          className="font-mono text-xs bg-background rounded-lg border shadow-2xs selection:bg-primary/20"
+          onFocus={(e) => e.target.select()}
+        />
+        <div className="flex justify-start">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleCopyDirect}
+            className="h-8 gap-1.5 text-xs rounded-lg bg-background shadow-2xs hover:bg-muted/60"
+          >
+            {copiedDirect ? (
+              <>
+                <Check className="size-3.5 text-emerald-500" />
+                <span className="text-emerald-600 dark:text-emerald-400">{t("copied")}</span>
+              </>
+            ) : (
+              <>
+                <Copy className="size-3.5" />
+                <span>Copy Direct Link</span>
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+
+      {/* Gray Area 2: Embed Code */}
+      <div className="flex flex-col gap-2.5 rounded-xl border bg-muted/40 p-4">
+        <div className="flex items-center gap-2">
+          <Code2Icon className="size-4 text-primary" />
+          <span className="text-xs font-semibold text-foreground">Embed Code</span>
+        </div>
+        <Textarea
+          readOnly
+          rows={3}
+          value={snippet}
+          className="font-mono text-xs bg-background resize-none rounded-lg border shadow-2xs selection:bg-primary/20"
+          onFocus={(e) => e.target.select()}
+        />
+        <div className="flex justify-start">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleCopySnippet}
+            className="h-8 gap-1.5 text-xs rounded-lg bg-background shadow-2xs hover:bg-muted/60"
+          >
+            {copiedSnippet ? (
+              <>
+                <Check className="size-3.5 text-emerald-500" />
+                <span className="text-emerald-600 dark:text-emerald-400">{t("copied")}</span>
+              </>
+            ) : (
+              <>
+                <Copy className="size-3.5" />
+                <span>Copy Embed Code</span>
+              </>
+            )}
+          </Button>
+        </div>
       </div>
     </div>
   );
