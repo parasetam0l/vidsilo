@@ -227,10 +227,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={askLogout}
-                  className="text-destructive focus:text-destructive focus:bg-destructive/10"
-                >
+                <DropdownMenuItem variant="destructive" onClick={askLogout}>
                   <LogOutIcon className="size-4" />
                   {t("signOut")}
                 </DropdownMenuItem>
