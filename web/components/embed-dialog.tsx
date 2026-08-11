@@ -16,7 +16,7 @@ export function useEmbedDialog() {
       dialog.open({
         content: () => <EmbedDialogContent publicId={publicId} />,
         size: "xl",
-        className: "p-6 sm:max-w-[640px] rounded-2xl border shadow-2xl bg-background overflow-hidden",
+        className: "p-6 sm:max-w-[640px] max-h-[85vh] flex flex-col overflow-y-auto rounded-2xl border border-border/80 shadow-2xl bg-background",
         dismissible: true,
         showCloseButton: true,
       });
@@ -47,8 +47,8 @@ function EmbedDialogContent({ publicId }: { publicId: string }) {
   };
 
   return (
-    <div className="flex flex-col gap-5 pt-1">
-      <div>
+    <div className="flex flex-col gap-5 pr-2">
+      <div className="pr-8">
         <h2 className="text-lg font-semibold tracking-tight text-foreground">
           {t("embedTitle")}
         </h2>
@@ -58,7 +58,7 @@ function EmbedDialogContent({ publicId }: { publicId: string }) {
       </div>
 
       {/* Embedded Video Player Preview */}
-      <div className="relative aspect-video w-full overflow-hidden rounded-xl border bg-black shadow-inner">
+      <div className="relative aspect-video max-h-56 w-full shrink-0 overflow-hidden rounded-xl border border-border bg-black shadow-inner">
         <iframe
           src={`/embed/${publicId}`}
           className="h-full w-full border-0"
@@ -68,9 +68,9 @@ function EmbedDialogContent({ publicId }: { publicId: string }) {
       </div>
 
       {/* Gray Area 1: Direct Link */}
-      <div className="flex flex-col gap-2.5 rounded-xl border bg-muted/40 p-4">
+      <div className="flex flex-col gap-2.5 rounded-xl border border-border/60 bg-muted/40 p-4 shrink-0">
         <div className="flex items-center gap-2">
-          <Link2Icon className="size-4 text-primary" />
+          <Link2Icon className="size-4 text-primary shrink-0" />
           <span className="text-xs font-semibold text-foreground">Direct Link</span>
         </div>
         <Input
@@ -102,9 +102,9 @@ function EmbedDialogContent({ publicId }: { publicId: string }) {
       </div>
 
       {/* Gray Area 2: Embed Code */}
-      <div className="flex flex-col gap-2.5 rounded-xl border bg-muted/40 p-4">
+      <div className="flex flex-col gap-2.5 rounded-xl border border-border/60 bg-muted/40 p-4 shrink-0">
         <div className="flex items-center gap-2">
-          <Code2Icon className="size-4 text-primary" />
+          <Code2Icon className="size-4 text-primary shrink-0" />
           <span className="text-xs font-semibold text-foreground">Embed Code</span>
         </div>
         <Textarea
