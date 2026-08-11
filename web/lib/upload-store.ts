@@ -32,11 +32,47 @@ export interface UploadJob {
 }
 
 const STORAGE_KEY = "vod-uploads";
+const COMPLETED_KEY = "vod-uploads-completed";
 const listeners = new Set<() => void>();
 
 let jobs: UploadJob[] = load();
+let lastCompletedAt: number | null = loadCompleted();
 const files = new Map<string, File>(); // id -> File (memory only)
 const activeUploads = new Map<string, tus.Upload>(); // id -> in-flight tus upload
+
+function loadCompleted(): number | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(COMPLETED_KEY);
+    return raw ? Number(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+// markUploadsCompleted remembers that the batch finished, so reopening the
+// dialog can show the completed state instead of resetting it away.
+export function markUploadsCompleted() {
+  lastCompletedAt = Date.now();
+  try {
+    localStorage.setItem(COMPLETED_KEY, String(lastCompletedAt));
+  } catch {
+    // ignore
+  }
+}
+
+export function hasUploadsCompleted(): boolean {
+  return lastCompletedAt != null;
+}
+
+export function clearUploadsCompleted() {
+  lastCompletedAt = null;
+  try {
+    localStorage.removeItem(COMPLETED_KEY);
+  } catch {
+    // ignore
+  }
+}
 
 function load(): UploadJob[] {
   if (typeof window === "undefined") return [];
@@ -253,6 +289,9 @@ export async function startAll() {
       );
       if (!next) break;
       await startJob(next.id);
+    }
+    if (jobs.some((j) => j.status === "done")) {
+      markUploadsCompleted();
     }
   } finally {
     batchRunning = false;

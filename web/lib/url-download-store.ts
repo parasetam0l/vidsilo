@@ -28,9 +28,43 @@ export interface UrlDownloadJob {
 }
 
 const STORAGE_KEY = "vod-url-downloads";
+const COMPLETED_KEY = "vod-url-downloads-completed";
 const listeners = new Set<() => void>();
 
 let jobs: UrlDownloadJob[] = load();
+let lastCompletedAt: number | null = loadCompleted();
+
+function loadCompleted(): number | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(COMPLETED_KEY);
+    return raw ? Number(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function markUrlDownloadsCompleted() {
+  lastCompletedAt = Date.now();
+  try {
+    localStorage.setItem(COMPLETED_KEY, String(lastCompletedAt));
+  } catch {
+    // ignore
+  }
+}
+
+export function hasUrlDownloadsCompleted(): boolean {
+  return lastCompletedAt != null;
+}
+
+export function clearUrlDownloadsCompleted() {
+  lastCompletedAt = null;
+  try {
+    localStorage.removeItem(COMPLETED_KEY);
+  } catch {
+    // ignore
+  }
+}
 
 function load(): UrlDownloadJob[] {
   if (typeof window === "undefined") return [];
@@ -157,6 +191,9 @@ export async function startDownloads() {
       await submitOne(next);
     }
     await pollUntilIdle();
+    if (jobs.some((j) => j.status === "done")) {
+      markUrlDownloadsCompleted();
+    }
   } finally {
     polling = false;
   }

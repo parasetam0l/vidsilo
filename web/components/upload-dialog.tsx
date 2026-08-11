@@ -26,6 +26,8 @@ import {
   MAX_BATCH,
   addFiles,
   clearAllUploads,
+  clearUploadsCompleted,
+  hasUploadsCompleted,
   removeJob,
   resetIdle,
   startAll,
@@ -36,6 +38,8 @@ import {
 import {
   checkUrls,
   clearAllUrlDownloads,
+  clearUrlDownloadsCompleted,
+  hasUrlDownloadsCompleted,
   removeUrlDownload,
   resetIdleDownloads,
   startDownloads,
@@ -58,11 +62,23 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 export function useUploadDialog() {
   const dialog = useDialog();
   return React.useCallback(() => {
-    // No ongoing upload? Reset the dialog to a fresh state.
-    resetIdle();
-    resetIdleDownloads();
+    // A freshly completed batch keeps its done cards so the dialog can show
+    // the completed state; otherwise reset to a fresh idle state.
+    const completed = hasUploadsCompleted() || hasUrlDownloadsCompleted();
+    if (!completed) {
+      resetIdle();
+      resetIdleDownloads();
+    }
     dialog.open({
-      content: (close) => <UploadDialogContent onClose={close} />,
+      content: (close) => (
+        <UploadDialogContent
+          onClose={() => {
+            clearUploadsCompleted();
+            clearUrlDownloadsCompleted();
+            close();
+          }}
+        />
+      ),
       size: "2xl",
       className: "max-h-[85vh] flex flex-col min-w-0 overflow-hidden",
       dismissible: false,
