@@ -46,14 +46,17 @@ func (q *Queue) EnqueueAt(ctx context.Context, jobType string, entryID int64, pa
 }
 
 // Claim atomically marks up to n due jobs as running and returns them. Job
-// types listed in exclude are skipped, so serialized job kinds (transcode,
-// download) stay honestly 'queued' while one of them is executing.
+// types listed in exclude are skipped (the worker excludes a serialized kind
+// while one of it executes). Serialized types (transcode, download) are
+// additionally limited to their earliest queued job per round, so a claim
+// can never start more than one of them at a time.
 func (q *Queue) Claim(ctx context.Context, n int, exclude ...string) ([]db.Job, error) {
 	// pgx encodes a nil []string as SQL NULL, which would turn the
 	// exclusion condition NULL and match nothing — normalize to '{}'.
 	if exclude == nil {
 		exclude = []string{}
 	}
+	serialized := []string{"transcode", "download"}
 	tx, err := q.pool.Begin(ctx)
 	if err != nil {
 		return nil, err
@@ -62,12 +65,20 @@ func (q *Queue) Claim(ctx context.Context, n int, exclude ...string) ([]db.Job, 
 
 	rows, err := tx.Query(ctx, `
 		SELECT id, type, entry_id, payload, status, attempts, max_attempts, coalesce(error, ''), created_at
-		FROM jobs
+		FROM jobs j
 		WHERE status = 'queued' AND run_at <= now()
 		  AND (cardinality($2::text[]) = 0 OR NOT (type = ANY($2::text[])))
+		  AND (NOT (type = ANY($3::text[]))
+		       OR (
+		           -- serialized types: claim only when none is running AND
+		           -- only the earliest queued one
+		           NOT EXISTS (SELECT 1 FROM jobs j2 WHERE j2.type = j.type AND j2.status = 'running')
+		           AND NOT EXISTS (SELECT 1 FROM jobs j2
+		                           WHERE j2.type = j.type AND j2.status = 'queued' AND j2.id < j.id)
+		       ))
 		ORDER BY id
 		LIMIT $1
-		FOR UPDATE SKIP LOCKED`, n, exclude)
+		FOR UPDATE SKIP LOCKED`, n, exclude, serialized)
 	if err != nil {
 		return nil, err
 	}

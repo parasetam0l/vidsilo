@@ -90,8 +90,9 @@ type worker struct {
 }
 
 func (w *worker) run(ctx context.Context) {
-	// Reclaim stale running jobs hourly (crashed workers).
-	staleTicker := time.NewTicker(time.Hour)
+	// Reclaim stale running jobs frequently (crashed workers): abandoned
+	// jobs must not sit as 'running' for long.
+	staleTicker := time.NewTicker(5 * time.Minute)
 	defer staleTicker.Stop()
 
 	// Prune analytics rows hourly (totals survive retention).
@@ -136,17 +137,11 @@ func (w *worker) run(ctx context.Context) {
 }
 
 func (w *worker) claimRound(ctx context.Context, sem chan struct{}) {
-	// While a transcode/download executes, don't claim more of that kind —
-	// queued ones stay honestly 'queued' instead of sitting 'running' behind
-	// the serialization semaphore.
-	var exclude []string
-	if w.runner.TranscodeBusy() {
-		exclude = append(exclude, "transcode")
-	}
-	if w.runner.DownloadBusy() {
-		exclude = append(exclude, "download")
-	}
-	jobs, err := w.queue.Claim(ctx, w.concurrency, exclude...)
+	// Serialization is enforced in SQL (Queue.Claim): transcode/download
+	// jobs are only claimable when none of their kind is running, so queued
+	// ones honestly show as 'In Queue' instead of sitting 'running' behind
+	// the semaphore.
+	jobs, err := w.queue.Claim(ctx, w.concurrency)
 	if err != nil {
 		w.log.Error("claim", "err", err)
 		return

@@ -371,12 +371,10 @@ func (r *Runner) Probe(ctx context.Context, job db.Job) error {
 	if err != nil {
 		return err
 	}
-	// One transcode job per flavor, executed serially (see transcodeSem).
-	// Stagger run_at so the claim loop picks them up one at a time and the
-	// waiting ones honestly show as 'queued'.
-	for i, fid := range pending {
-		if _, err := r.Queue.EnqueueAt(ctx, "transcode", e.ID, transcodeParams{FlavorID: fid}, 3,
-			time.Now().Add(time.Duration(i)*2*time.Second)); err != nil {
+	// One transcode job per flavor; the queue serializes them (only the
+	// earliest queued transcode job is claimable at a time).
+	for _, fid := range pending {
+		if _, err := r.Queue.Enqueue(ctx, "transcode", e.ID, transcodeParams{FlavorID: fid}, 3); err != nil {
 			return err
 		}
 	}
