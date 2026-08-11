@@ -334,14 +334,14 @@ export function UploadDialogContent({ onClose }: { onClose: () => void }) {
 
       {anyActive ? (
         <DialogFooter>
+          <Button variant="destructive" className="mr-auto" onClick={askCancelAll}>
+            {t("uploadCancelAll")}
+          </Button>
           <Button variant="outline" onClick={onClose}>
             {t("close")}
           </Button>
           <Button disabled>
             <Loader2Icon className="size-4 animate-spin" /> {t("uploadPleaseWait")}
-          </Button>
-          <Button variant="destructive" className="ml-auto" onClick={askCancelAll}>
-            {t("uploadCancelAll")}
           </Button>
         </DialogFooter>
       ) : tab === "computer" ? (
