@@ -39,6 +39,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   DropdownMenu,
@@ -113,6 +115,27 @@ export default function EntriesPage() {
       else next.add(id);
       return next;
     });
+  }
+
+  // Quick allow/deny toggle from the accessibility column: sends the full
+  // row body so no other field is touched.
+  async function toggleAccess(e: Entry, allowed: boolean) {
+    try {
+      await api<Entry>(`/api/entries/${e.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          title: e.title,
+          description: e.description,
+          categoryId: e.categoryId,
+          isPublic: e.isPublic,
+          domainAclId: e.domainAclId,
+          accessDenied: !allowed,
+        }),
+      });
+      load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("error"));
+    }
   }
 
   async function bulkDelete() {
@@ -251,6 +274,7 @@ export default function EntriesPage() {
                 <TableHead>{t("colDuration")}</TableHead>
                 <TableHead>{t("colSize")}</TableHead>
                 <TableHead className="text-right">{t("colUploaded")}</TableHead>
+                <TableHead>{t("colAccess")}</TableHead>
                 <TableHead className="w-10" />
               </TableRow>
             </TableHeader>
@@ -298,8 +322,29 @@ export default function EntriesPage() {
                   <TableCell className="text-muted-foreground">
                     {formatBytes(e.sourceSize)}
                   </TableCell>
-                  <TableCell className="text-right text-muted-foreground">
+                  <TableCell className="text-muted-foreground">
                     {formatDate(e.createdAt)}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col items-start gap-1">
+                      <Badge
+                        variant={e.isPublic ? "outline" : "secondary"}
+                        className="text-[10px] capitalize"
+                      >
+                        {e.isPublic ? t("visibilityPublic") : t("visibilityPrivate")}
+                      </Badge>
+                      <div className="flex items-center gap-1.5">
+                        <Switch
+                          checked={!e.accessDenied}
+                          onCheckedChange={(v) => toggleAccess(e, v)}
+                        />
+                        <span
+                          className={`text-xs ${e.accessDenied ? "font-medium text-destructive" : "text-muted-foreground"}`}
+                        >
+                          {e.accessDenied ? t("accessDenied") : t("accessAllowed")}
+                        </span>
+                      </div>
+                    </div>
                   </TableCell>
                   <TableCell className="text-right">
                     <RowActions
@@ -312,7 +357,7 @@ export default function EntriesPage() {
               ))}
               {list && (list.items ?? []).length === 0 ? (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={7}>
+                  <TableCell colSpan={8}>
                     {list.catalogTotal === 0 ? (
                       <EmptyState
                         icon={FilmIcon}

@@ -18,6 +18,7 @@ func scanEntry(row pgx.Row) (Entry, error) {
 		&e.ID, &e.PublicID, &e.CategoryID, &e.UploadedBy,
 		&e.Title, &e.Description, &e.Status, &e.DurationMS,
 		&e.SourceKey, &e.SourceSize, &e.IsPublic,
+		&e.AccessDenied,
 		&e.DomainACLID,
 		&e.PosterKey, &e.SpriteKey, &e.SpriteFrames, &e.Error,
 		&e.CreatedAt, &e.UpdatedAt,
@@ -29,6 +30,7 @@ const entryColumns = `
 	e.id, e.public_id::text, e.category_id, e.uploaded_by,
 	e.title, e.description, e.status, e.duration_ms,
 	coalesce(e.source_key, ''), e.source_size, e.is_public,
+	e.access_denied,
 	e.domain_acl_id,
 	coalesce(e.poster_key, ''), coalesce(e.sprite_key, ''), coalesce(e.sprite_frames, 0), coalesce(e.error, ''),
 	e.created_at, e.updated_at`
@@ -157,9 +159,10 @@ func ListEntries(ctx context.Context, pool *pgxpool.Pool, f EntryFilter) (EntryL
 func UpdateEntry(ctx context.Context, pool *pgxpool.Pool, id int64, patch EntryPatch) (Entry, error) {
 	if _, err := pool.Exec(ctx, `
 		UPDATE entries SET title = $1, description = $2, category_id = $3, is_public = $4,
-			domain_acl_id = $5, updated_at = now()
-		WHERE id = $6`,
-		patch.Title, patch.Description, patch.CategoryID, patch.IsPublic, patch.DomainACLID, id); err != nil {
+			domain_acl_id = $5, access_denied = COALESCE($6::boolean, access_denied), updated_at = now()
+		WHERE id = $7`,
+		patch.Title, patch.Description, patch.CategoryID, patch.IsPublic, patch.DomainACLID,
+		patch.AccessDenied, id); err != nil {
 		return Entry{}, err
 	}
 	return EntryByID(ctx, pool, id)
@@ -172,6 +175,9 @@ type EntryPatch struct {
 	IsPublic    bool     `json:"isPublic"`
 	// DomainACLID is the named embed ACL; nil = "Allow All".
 	DomainACLID *int64   `json:"domainAclId"`
+	// AccessDenied hides the entry from all viewers (editors/admins can
+	// still manage it). Omit to leave access untouched.
+	AccessDenied *bool `json:"accessDenied"`
 	// FlavorIDs, when present, replaces the ticked flavor set and re-queues
 	// processing (reprocess path). Omit to leave flavors untouched.
 	FlavorIDs *[]int64 `json:"flavorIds"`

@@ -77,6 +77,7 @@ type Entry struct {
 	SourceKey    string      `json:"sourceKey"`
 	SourceSize   *int64      `json:"sourceSize"`
 	IsPublic     bool        `json:"isPublic"`
+	AccessDenied bool        `json:"accessDenied"`
 	DomainACLID  *int64      `json:"domainAclId"`
 	PosterKey    string      `json:"posterKey"`
 	SpriteKey    string      `json:"spriteKey"`

@@ -128,6 +128,15 @@ func (s *Server) handlePlayInfo(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "not_found", "entry not found")
 		return
 	}
+	// Access-denied entries are invisible to viewers; editors/admins can
+	// still preview and manage them.
+	if e.AccessDenied {
+		u := userFromContext(r.Context())
+		if u.ID == 0 || (u.Role != db.RoleAdmin && u.Role != db.RoleEditor) {
+			writeError(w, http.StatusForbidden, "forbidden", "video access denied")
+			return
+		}
+	}
 	if e.Status != db.StatusReady {
 		writeJSON(w, http.StatusOK, playInfo{
 			Title:   e.Title,

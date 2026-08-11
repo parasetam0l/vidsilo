@@ -108,6 +108,7 @@ export function EntryDetailDialog({
     description: string;
     categoryId: number | null;
     isPublic: boolean;
+    accessDenied: boolean;
     domainAclId: number | null;
     ticked: Set<number>;
   } | null>(null);
@@ -136,6 +137,7 @@ export function EntryDetailDialog({
           description: e.description,
           categoryId: e.categoryId,
           isPublic: e.isPublic,
+          accessDenied: e.accessDenied,
           domainAclId: e.domainAclId,
           ticked: tick,
         });
@@ -207,6 +209,7 @@ export function EntryDetailDialog({
     entry.description !== base.description ||
     entry.categoryId !== base.categoryId ||
     entry.isPublic !== base.isPublic ||
+    entry.accessDenied !== base.accessDenied ||
     aclId !== base.domainAclId ||
     posterTouched ||
     !setsEqual(ticked, base.ticked)
@@ -230,6 +233,11 @@ export function EntryDetailDialog({
     if (entry.isPublic !== base.isPublic) {
       items.push(
         `${t("chgVisibility")}: ${base.isPublic ? t("visibilityPublic") : t("visibilityPrivate")} → ${entry.isPublic ? t("visibilityPublic") : t("visibilityPrivate")}`,
+      );
+    }
+    if (entry.accessDenied !== base.accessDenied) {
+      items.push(
+        `${t("chgAccess")}: ${base.accessDenied ? t("accessDenied") : t("accessAllowed")} → ${entry.accessDenied ? t("accessDenied") : t("accessAllowed")}`,
       );
     }
     if (aclId !== base.domainAclId) {
@@ -274,6 +282,7 @@ export function EntryDetailDialog({
           description: entry.description,
           categoryId: entry.categoryId,
           isPublic: entry.isPublic,
+          accessDenied: entry.accessDenied,
           domainAclId: aclId,
         };
         if (!setsEqual(ticked, base.ticked)) {
@@ -488,6 +497,18 @@ export function EntryDetailDialog({
                       onCheckedChange={(v) => setEntry({ ...entry, isPublic: v })}
                     />
                   </div>
+                  <div className="flex items-center justify-between rounded-xl border bg-muted/30 p-4">
+                    <div className="space-y-0.5">
+                      <Label className="text-sm font-medium">{t("labelDenyAccess")}</Label>
+                      <p className="text-xs text-muted-foreground">
+                        {t("denyAccessHint")}
+                      </p>
+                    </div>
+                    <Switch
+                      checked={entry.accessDenied}
+                      onCheckedChange={(v) => setEntry({ ...entry, accessDenied: v })}
+                    />
+                  </div>
                 </CardContent>
               </Card>
             </div>
@@ -659,6 +680,7 @@ export function EntryDetailDialog({
                       description: base.description,
                       categoryId: base.categoryId,
                       isPublic: base.isPublic,
+                      accessDenied: base.accessDenied,
                     });
                     setAclId(base.domainAclId);
                     setTicked(new Set(base.ticked));

@@ -100,6 +100,8 @@ export interface Entry {
   sourceKey: string;
   sourceSize: number | null;
   isPublic: boolean;
+  /** True = hidden from all viewers (editors/admins can still manage it). */
+  accessDenied: boolean;
   /** null = "Allow All" (embed anywhere); otherwise references a DomainAcl. */
   domainAclId: number | null;
   posterKey: string;

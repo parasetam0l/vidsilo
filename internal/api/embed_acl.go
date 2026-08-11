@@ -16,6 +16,12 @@ import (
 // (deny wins), then whitelist (empty whitelist = allow the rest). Any ACL
 // resolution failure denies (fail closed).
 func (s *Server) entryAllowed(ctx context.Context, r *http.Request, e db.Entry) bool {
+	// Access-denied entries are hidden from everyone except editors/admins,
+	// who keep working access so the video can be re-enabled or managed.
+	if e.AccessDenied {
+		u := userFromContext(ctx)
+		return u.ID > 0 && (u.Role == db.RoleAdmin || u.Role == db.RoleEditor)
+	}
 	if u := userFromContext(ctx); u.ID > 0 {
 		return true // authenticated sessions always pass
 	}
