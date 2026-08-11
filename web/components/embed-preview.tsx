@@ -34,7 +34,7 @@ export function EmbedPreview({
 
   return (
     <div
-      className={`relative aspect-video ${maxH} w-full shrink-0 overflow-hidden rounded-xl border border-border bg-black`}
+      className={`relative aspect-video ${maxH} w-full shrink-0 overflow-hidden rounded-2xl border border-border/60 bg-muted/40`}
     >
       {ready === true ? (
         <iframe
@@ -48,7 +48,7 @@ export function EmbedPreview({
           <Loader2Icon className="size-6 animate-spin text-muted-foreground" />
         </div>
       ) : (
-        <div className="flex h-full w-full items-center justify-center bg-muted/40">
+        <div className="flex h-full w-full items-center justify-center">
           <div className="flex flex-col items-center gap-2 text-muted-foreground">
             <VideoIcon className="size-8" />
             <span className="text-xs font-medium">{t("previewUnavailable")}</span>
