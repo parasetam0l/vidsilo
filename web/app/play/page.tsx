@@ -41,6 +41,13 @@ export default function PlayPage() {
       });
   }, [uuid, toast]);
 
+  // Kaia-style dynamic title: set from the loaded video.
+  React.useEffect(() => {
+    if (info?.title) {
+      document.title = `${info.title} | ${t("appTitle")}`;
+    }
+  }, [info?.title, t]);
+
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col p-4">
       <header className="mb-4 flex items-center gap-2 text-muted-foreground">

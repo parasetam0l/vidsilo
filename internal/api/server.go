@@ -187,14 +187,14 @@ func (s *Server) serveUI(w http.ResponseWriter, r *http.Request) {
 		candidate := p + ".html"
 		if f, err := s.uiFS.Open(candidate); err == nil {
 			f.Close()
-			w.Header().Set("Cache-Control", "no-cache")
+			w.Header().Set("Cache-Control", "no-store")
 			r2 := r.Clone(r.Context())
 			r2.URL.Path = "/" + candidate
 			http.FileServer(http.FS(s.uiFS)).ServeHTTP(w, r2)
 			return
 		}
 	}
-	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Cache-Control", "no-store")
 	http.FileServer(http.FS(s.uiFS)).ServeHTTP(w, r)
 }
 func gzipMiddleware(next http.Handler) http.Handler {
