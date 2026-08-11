@@ -14,6 +14,7 @@ import {
   Trash2Icon,
   TriangleAlertIcon,
   UploadCloudIcon,
+  XIcon,
 } from "lucide-react";
 
 import { api, type Category, type UploadConfig } from "@/lib/api";
@@ -65,7 +66,7 @@ export function useUploadDialog() {
       size: "2xl",
       className: "max-h-[85vh] flex flex-col min-w-0 overflow-hidden",
       dismissible: false,
-      showCloseButton: true,
+      showCloseButton: false, // custom X with the discard-confirm logic
     });
   }, [dialog]);
 }
@@ -184,6 +185,41 @@ export function UploadDialogContent({ onClose }: { onClose: () => void }) {
 
   const urlLines = urlText.split("\n").map((l) => l.trim()).filter(Boolean).length;
 
+  // Discard everything that hasn't started yet: queued/interrupted files,
+  // queued URL jobs and the textarea content. In-flight transfers continue.
+  const discardPending = () => {
+    for (const j of jobs) {
+      if (j.status === "queued" || j.status === "interrupted") removeJob(j.id);
+    }
+    for (const j of urlJobs) {
+      if (j.status === "queued") removeUrlDownload(j.id);
+    }
+    setUrlText("");
+  };
+
+  // Closing with unstarted selections asks for confirmation first.
+  const handleCloseAttempt = () => {
+    const hasPending =
+      jobs.some((j) => j.status === "queued" || j.status === "interrupted") ||
+      urlJobs.some((j) => j.status === "queued") ||
+      urlText.trim().length > 0;
+    if (anyActive || !hasPending) {
+      onClose();
+      return;
+    }
+    confirm({
+      title: t("uploadDiscardTitle"),
+      description: t("uploadDiscardDesc"),
+      variant: "destructive",
+      confirmLabel: t("uploadDiscardConfirm"),
+      cancelLabel: t("uploadDiscardCancel"),
+      onConfirm: () => {
+        discardPending();
+        onClose();
+      },
+    });
+  };
+
   return (
     <div className="flex flex-col max-h-[85vh] w-full min-w-0 overflow-hidden">
       <DialogHeader className="p-5 pb-4 border-b border-border/40 shrink-0 relative pr-12">
@@ -209,6 +245,15 @@ export function UploadDialogContent({ onClose }: { onClose: () => void }) {
                 : t("uploadFilesSelected", { n: jobs.length })
               : t("uploadUrlHint")}
         </DialogDescription>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="absolute right-4 top-4 text-muted-foreground hover:text-foreground rounded-lg"
+          onClick={handleCloseAttempt}
+          aria-label={t("close")}
+        >
+          <XIcon className="size-4" />
+        </Button>
       </DialogHeader>
 
       {anyActive ? (
@@ -345,7 +390,7 @@ export function UploadDialogContent({ onClose }: { onClose: () => void }) {
           <Button variant="destructive" className="mr-auto" onClick={askCancelAll}>
             {t("uploadCancelAll")}
           </Button>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={handleCloseAttempt}>
             {t("close")}
           </Button>
           <Button disabled>
@@ -355,13 +400,13 @@ export function UploadDialogContent({ onClose }: { onClose: () => void }) {
       ) : tab === "computer" ? (
         jobs.length === 0 ? (
           <DialogFooter>
-            <Button variant="outline" onClick={onClose}>
+            <Button variant="outline" onClick={handleCloseAttempt}>
               {t("close")}
             </Button>
           </DialogFooter>
         ) : (
           <DialogFooter>
-            <Button variant="outline" onClick={onClose}>
+            <Button variant="outline" onClick={handleCloseAttempt}>
               {t("cancel")}
             </Button>
             <Button onClick={handleStartFiles} disabled={activeCount === 0}>
@@ -372,7 +417,7 @@ export function UploadDialogContent({ onClose }: { onClose: () => void }) {
         )
       ) : urlJobs.length === 0 ? (
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={handleCloseAttempt}>
             {t("close")}
           </Button>
           <Button onClick={handleCheckUrls} disabled={checking || urlLines === 0}>
@@ -382,13 +427,13 @@ export function UploadDialogContent({ onClose }: { onClose: () => void }) {
         </DialogFooter>
       ) : allUrlDone ? (
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={handleCloseAttempt}>
             {t("close")}
           </Button>
         </DialogFooter>
       ) : (
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={handleCloseAttempt}>
             {t("cancel")}
           </Button>
           <Button onClick={handleStartUrls} disabled={starting || urlActive}>

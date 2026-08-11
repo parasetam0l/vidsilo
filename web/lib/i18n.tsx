@@ -270,6 +270,11 @@ const en = {
   uploadStopDesc:
     "The transfer stops and the partially uploaded file is discarded. The empty entry can be deleted from the Entries page.",
   uploadStop: "Stop upload",
+  uploadDiscardTitle: "Discard unstarted uploads?",
+  uploadDiscardDesc:
+    "Files that haven't started uploading/downloading will be discarded. Running transfers continue in the background.",
+  uploadDiscardConfirm: "Discard & Close",
+  uploadDiscardCancel: "Keep Editing",
 
   // users
   usersTitle: "Users",
