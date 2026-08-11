@@ -1,0 +1,174 @@
+package main
+
+import (
+	"context"
+	"log/slog"
+	"path/filepath"
+	"os"
+	"os/signal"
+	"runtime"
+	"syscall"
+	"time"
+
+	"github.com/parasetam0l/vod-app/internal/analytics"
+	"github.com/parasetam0l/vod-app/internal/config"
+	"github.com/parasetam0l/vod-app/internal/db"
+	"github.com/parasetam0l/vod-app/internal/jobs"
+	"github.com/parasetam0l/vod-app/internal/queue"
+	"github.com/parasetam0l/vod-app/internal/settings"
+)
+
+// cmdWorker drains the job queue: claims due jobs and runs them in a pool
+// sized by transcode.concurrency (default GOMAXPROCS-1) so parallel ffmpeg
+// processes never exceed the configured limit.
+func cmdWorker(args []string) {
+	log, closeLog := newSlog("vod-worker.log")
+	defer closeLog()
+	slog.SetDefault(log)
+
+	cfg, err := config.Load()
+	if err != nil {
+		log.Error("invalid config", "err", err)
+		os.Exit(1)
+	}
+	if err := cfg.CheckServer(); err != nil {
+		log.Error("invalid config", "err", err)
+		os.Exit(1)
+	}
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	pool, err := db.New(ctx, cfg.DatabaseURL)
+	if err != nil {
+		log.Error("database", "err", err)
+		os.Exit(1)
+	}
+	defer pool.Close()
+	db.MustSeed(ctx, pool, log)
+
+	svc, err := settings.New(ctx, pool)
+	if err != nil {
+		log.Error("settings", "err", err)
+		os.Exit(1)
+	}
+	go svc.Run(ctx, 0)
+	mediaStore, err := buildStore(cfg, svc)
+	if err != nil {
+		log.Error("storage", "err", err)
+		os.Exit(1)
+	}
+
+	q := queue.New(pool)
+	runner := &jobs.Runner{Pool: pool, Store: mediaStore, Queue: q, Settings: svc, Log: log}
+
+	concurrency := svc.Int("transcode.concurrency", 0)
+	if concurrency <= 0 {
+		concurrency = runtime.GOMAXPROCS(0) - 1
+	}
+	if concurrency < 1 {
+		concurrency = 1
+	}
+
+	w := &worker{
+		log:         log,
+		queue:       q,
+		runner:      runner,
+		concurrency: concurrency,
+		spoolDir:    filepath.Join(cfg.DataDir, "uploads"),
+	}
+	log.Info("worker started", "concurrency", concurrency)
+	w.run(ctx)
+}
+
+type worker struct {
+	log         *slog.Logger
+	queue       *queue.Queue
+	runner      *jobs.Runner
+	concurrency int
+	spoolDir    string
+}
+
+func (w *worker) run(ctx context.Context) {
+	// Reclaim stale running jobs hourly (crashed workers).
+	staleTicker := time.NewTicker(time.Hour)
+	defer staleTicker.Stop()
+
+	// Prune analytics rows hourly (totals survive retention).
+	pruneTicker := time.NewTicker(time.Hour)
+	defer pruneTicker.Stop()
+
+	// Sweep abandoned uploads hourly (spool files, uploads rows, stuck
+	// 'uploading' entries).
+	cleanupTicker := time.NewTicker(time.Hour)
+	defer cleanupTicker.Stop()
+
+	// Claim loop: one claim round per poll interval; jobs run on the pool.
+	pollTicker := time.NewTicker(time.Second)
+	defer pollTicker.Stop()
+
+	sem := make(chan struct{}, w.concurrency)
+
+	for {
+		select {
+		case <-ctx.Done():
+			// Let in-flight jobs finish (ffmpeg runs have their own ctx
+			// derived from the job context, which we cancel after draining).
+			w.log.Info("worker draining in-flight jobs")
+			time.Sleep(500 * time.Millisecond)
+			return
+		case <-staleTicker.C:
+			if n, err := w.queue.RequeueStale(ctx, 15*time.Minute); err == nil && n > 0 {
+				w.log.Info("requeued stale jobs", "count", n)
+			}
+		case <-pruneTicker.C:
+			if err := analytics.Prune(ctx, w.runner.Pool, w.runner.Settings.Int("analytics.retention_days", 30)); err != nil {
+				w.log.Warn("analytics prune", "err", err)
+			}
+		case <-cleanupTicker.C:
+			if err := cleanupStaleUploads(ctx, w.runner.Pool, w.spoolDir); err != nil {
+				w.log.Warn("upload cleanup", "err", err)
+			}
+		case <-pollTicker.C:
+			w.claimRound(ctx, sem)
+		}
+	}
+}
+
+func (w *worker) claimRound(ctx context.Context, sem chan struct{}) {
+	// Claim up to the pool size each round.
+	jobs, err := w.queue.Claim(ctx, w.concurrency)
+	if err != nil {
+		w.log.Error("claim", "err", err)
+		return
+	}
+	for _, j := range jobs {
+		sem <- struct{}{} // block if pool is full
+		go func(jobID int64, jobType string) {
+			defer func() { <-sem }()
+			w.runJob(ctx, jobID, jobType)
+		}(j.ID, j.Type)
+	}
+}
+
+func (w *worker) runJob(parent context.Context, jobID int64, jobType string) {
+	jobCtx, cancel := context.WithTimeout(parent, 4*time.Hour)
+	defer cancel()
+
+	log := w.log.With("job", jobID, "type", jobType)
+	job, err := w.queue.Get(jobCtx, jobID)
+	if err != nil {
+		log.Error("load job", "err", err)
+		return
+	}
+	log.Info("job started")
+	if err := w.runner.Handle(jobCtx, job); err != nil {
+		log.Error("job failed", "err", err)
+		_ = w.queue.Fail(jobCtx, jobID, err.Error())
+		return
+	}
+	if err := w.queue.Done(jobCtx, jobID); err != nil {
+		log.Error("mark done", "err", err)
+	}
+	log.Info("job finished")
+}

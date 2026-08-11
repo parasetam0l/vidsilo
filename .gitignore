@@ -3,7 +3,7 @@
 *.test
 *.out
 coverage.txt
-vod-app
+/vod-app
 bin/
 
 # Next.js / web
