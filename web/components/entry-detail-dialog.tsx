@@ -296,6 +296,7 @@ export function EntryDetailDialog({
           body: JSON.stringify(body),
         });
         reload();
+        window.dispatchEvent(new Event("entries:changed"));
         toast.success(t("saved"));
       },
       onError: (err) => toast.error(err instanceof Error ? err.message : t("error")),
@@ -306,6 +307,7 @@ export function EntryDetailDialog({
     try {
       await api<void>(`/api/entries/${entry.id}/reprocess`, { method: "POST" });
       reload();
+      window.dispatchEvent(new Event("entries:changed"));
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t("error"));
     }

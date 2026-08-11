@@ -96,12 +96,20 @@ export default function EntriesPage() {
     if (changed) load();
   }, [uploads, load]);
 
-  // Other users' work: refetch while visible so the table stays in sync.
+  // Other users' work + edits made in the entry dialog: refetch while
+  // visible so the table stays in sync.
   React.useEffect(() => {
     const timer = window.setInterval(() => {
       if (document.visibilityState === "visible") load();
     }, 30_000);
     return () => window.clearInterval(timer);
+  }, [load]);
+
+  // The entry dialog dispatches a change event after every save/reprocess.
+  React.useEffect(() => {
+    const h = () => load();
+    window.addEventListener("entries:changed", h);
+    return () => window.removeEventListener("entries:changed", h);
   }, [load]);
 
   const catName = (id: number | null) =>
