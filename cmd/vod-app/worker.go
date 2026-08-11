@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
+	"fmt"
 	"log/slog"
 	"path/filepath"
 	"os"
@@ -17,6 +20,15 @@ import (
 	"github.com/parasetam0l/vod-app/internal/queue"
 	"github.com/parasetam0l/vod-app/internal/settings"
 )
+
+// randHex returns n random bytes hex-encoded (worker id suffix).
+func randHex(n int) string {
+	b := make([]byte, n)
+	if _, err := rand.Read(b); err != nil {
+		return "0000"
+	}
+	return hex.EncodeToString(b)
+}
 
 // cmdWorker drains the job queue: claims due jobs and runs them in a pool
 // sized by transcode.concurrency (default GOMAXPROCS-1) so parallel ffmpeg
@@ -70,14 +82,19 @@ func cmdWorker(args []string) {
 		concurrency = 1
 	}
 
+	// Worker identity: includes the OS PID so a running job's owner is
+	// visible for diagnostics. Used as the job ownership key for heartbeats.
+	workerID := fmt.Sprintf("w-%d-%s", os.Getpid(), randHex(4))
+
 	w := &worker{
 		log:         log,
 		queue:       q,
 		runner:      runner,
 		concurrency: concurrency,
 		spoolDir:    filepath.Join(cfg.DataDir, "uploads"),
+		workerID:    workerID,
 	}
-	log.Info("worker started", "concurrency", concurrency)
+	log.Info("worker started", "concurrency", concurrency, "worker_id", workerID)
 	w.run(ctx)
 }
 
@@ -87,6 +104,7 @@ type worker struct {
 	runner      *jobs.Runner
 	concurrency int
 	spoolDir    string
+	workerID    string
 }
 
 func (w *worker) run(ctx context.Context) {
@@ -106,14 +124,19 @@ func (w *worker) run(ctx context.Context) {
 
 	// Reclaim jobs abandoned by a previous worker process (docker restart,
 	// service restart, machine reboot) before the claim loop starts. The
-	// standard heartbeat keeps multi-worker deployments safe — jobs that
-	// another live worker is legitimately running are left alone. This also
+	// heartbeat keeps multi-worker deployments safe — jobs that another live
+	// worker is running keep a fresh heartbeat and are left alone. This also
 	// reverts flavors stuck on 'transcoding' by the dead process.
-	if n, err := w.queue.RequeueStale(ctx, 15*time.Minute); err != nil {
+	if n, err := w.queue.RequeueStale(ctx, 3*time.Minute); err != nil {
 		w.log.Warn("startup stale requeue", "err", err)
 	} else if n > 0 {
 		w.log.Info("requeued stale jobs on startup", "count", n)
 	}
+
+	// Heartbeat: prove this worker is alive every 30s so its running jobs
+	// are never reclaimed (3-minute stale threshold, 6 missed beats).
+	heartbeatTicker := time.NewTicker(30 * time.Second)
+	defer heartbeatTicker.Stop()
 
 	// Claim loop: one claim round per poll interval; jobs run on the pool.
 	pollTicker := time.NewTicker(time.Second)
@@ -130,8 +153,12 @@ func (w *worker) run(ctx context.Context) {
 			time.Sleep(500 * time.Millisecond)
 			return
 		case <-staleTicker.C:
-			if n, err := w.queue.RequeueStale(ctx, 15*time.Minute); err == nil && n > 0 {
+			if n, err := w.queue.RequeueStale(ctx, 3*time.Minute); err == nil && n > 0 {
 				w.log.Info("requeued stale jobs", "count", n)
+			}
+		case <-heartbeatTicker.C:
+			if err := w.queue.Heartbeat(ctx, w.workerID); err != nil {
+				w.log.Warn("heartbeat", "err", err)
 			}
 		case <-pruneTicker.C:
 			if err := analytics.Prune(ctx, w.runner.Pool, w.runner.Settings.Int("analytics.retention_days", 30)); err != nil {
@@ -152,7 +179,7 @@ func (w *worker) claimRound(ctx context.Context, sem chan struct{}) {
 	// jobs are only claimable when none of their kind is running, so queued
 	// ones honestly show as 'In Queue' instead of sitting 'running' behind
 	// the semaphore.
-	jobs, err := w.queue.Claim(ctx, w.concurrency)
+	jobs, err := w.queue.Claim(ctx, w.workerID, w.concurrency)
 	if err != nil {
 		w.log.Error("claim", "err", err)
 		return

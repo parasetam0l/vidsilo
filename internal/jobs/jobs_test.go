@@ -94,7 +94,7 @@ func TestPipelineProbeAndTranscode(t *testing.T) {
 	}
 
 	// Transcode job should be queued; run it too.
-	jobs, err := q.Claim(ctx, 10)
+	jobs, err := q.Claim(ctx, "test-worker", 10)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -37,7 +37,7 @@ func TestQueueClaimDone(t *testing.T) {
 	}
 	t.Cleanup(func() { _, _ = q.pool.Exec(context.Background(), `DELETE FROM jobs WHERE id = $1`, id) })
 
-	jobs, err := q.Claim(ctx, 10)
+	jobs, err := q.Claim(ctx, "test-worker", 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,10 +60,10 @@ func TestQueueClaimIsolation(t *testing.T) {
 	t.Cleanup(func() { _, _ = q.pool.Exec(context.Background(), `DELETE FROM jobs WHERE id = $1`, id) })
 
 	// First claim takes it; a second claim must not see it (row lock).
-	if jobs, err := q.Claim(ctx, 10); err != nil || len(jobs) != 1 {
+	if jobs, err := q.Claim(ctx, "test-worker", 10); err != nil || len(jobs) != 1 {
 		t.Fatalf("first claim: jobs=%d err=%v", len(jobs), err)
 	}
-	jobs, err := q.Claim(ctx, 10)
+	jobs, err := q.Claim(ctx, "test-worker", 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,7 +79,7 @@ func TestQueueRetryBackoffThenDeadLetter(t *testing.T) {
 	t.Cleanup(func() { _, _ = q.pool.Exec(context.Background(), `DELETE FROM jobs WHERE id = $1`, id) })
 
 	// Fail once -> requeued with run_at in the future.
-	if _, err := q.Claim(ctx, 10); err != nil {
+	if _, err := q.Claim(ctx, "test-worker", 10); err != nil {
 		t.Fatal(err)
 	}
 	if err := q.Fail(ctx, id, "boom"); err != nil {
@@ -95,7 +95,7 @@ func TestQueueRetryBackoffThenDeadLetter(t *testing.T) {
 
 	// Force it due, claim, fail again -> dead-lettered.
 	_, _ = q.pool.Exec(ctx, `UPDATE jobs SET run_at = now() WHERE id = $1`, id)
-	if _, err := q.Claim(ctx, 10); err != nil {
+	if _, err := q.Claim(ctx, "test-worker", 10); err != nil {
 		t.Fatal(err)
 	}
 	if err := q.Fail(ctx, id, "boom twice"); err != nil {
@@ -112,7 +112,7 @@ func TestRequeueStale(t *testing.T) {
 	id, _ := q.Enqueue(ctx, "test", testEntryID(t, q.pool), nil, 3)
 	t.Cleanup(func() { _, _ = q.pool.Exec(context.Background(), `DELETE FROM jobs WHERE id = $1`, id) })
 
-	if _, err := q.Claim(ctx, 10); err != nil {
+	if _, err := q.Claim(ctx, "test-worker", 10); err != nil {
 		t.Fatal(err)
 	}
 	// Pretend the worker died 30 minutes ago.

@@ -45,12 +45,12 @@ func (q *Queue) EnqueueAt(ctx context.Context, jobType string, entryID int64, pa
 	return id, err
 }
 
-// Claim atomically marks up to n due jobs as running and returns them. Job
-// types listed in exclude are skipped (the worker excludes a serialized kind
-// while one of it executes). Serialized types (transcode, download) are
-// additionally limited to their earliest queued job per round, so a claim
-// can never start more than one of them at a time.
-func (q *Queue) Claim(ctx context.Context, n int, exclude ...string) ([]db.Job, error) {
+// Claim atomically marks up to n due jobs as running (owned by workerID)
+// and returns them. Job types listed in exclude are skipped (the worker
+// excludes a serialized kind while one of it executes). Serialized types
+// (transcode, download) are additionally limited to their earliest queued
+// job per round, so a claim can never start more than one of them at a time.
+func (q *Queue) Claim(ctx context.Context, workerID string, n int, exclude ...string) ([]db.Job, error) {
 	// pgx encodes a nil []string as SQL NULL, which would turn the
 	// exclusion condition NULL and match nothing — normalize to '{}'.
 	if exclude == nil {
@@ -105,14 +105,24 @@ func (q *Queue) Claim(ctx context.Context, n int, exclude ...string) ([]db.Job, 
 		ids = append(ids, j.ID)
 	}
 	if _, err := tx.Exec(ctx, `
-		UPDATE jobs SET status = 'running', started_at = now(), attempts = attempts + 1, updated_at = now()
-		WHERE id = ANY($1)`, ids); err != nil {
+		UPDATE jobs SET status = 'running', started_at = now(), attempts = attempts + 1,
+			worker_id = $2, heartbeat_at = now(), updated_at = now()
+		WHERE id = ANY($1)`, ids, workerID); err != nil {
 		return nil, err
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return nil, err
 	}
 	return jobs, nil
+}
+
+// Heartbeat refreshes heartbeat_at for every job this worker currently runs,
+// proving the process is alive. Called periodically while working.
+func (q *Queue) Heartbeat(ctx context.Context, workerID string) error {
+	_, err := q.pool.Exec(ctx, `
+		UPDATE jobs SET heartbeat_at = now()
+		WHERE worker_id = $1 AND status = 'running'`, workerID)
+	return err
 }
 
 // Get loads a single job row (for the runner).
@@ -129,7 +139,8 @@ func (q *Queue) Get(ctx context.Context, id int64) (db.Job, error) {
 // Done marks a job successful.
 func (q *Queue) Done(ctx context.Context, jobID int64) error {
 	_, err := q.pool.Exec(ctx, `
-		UPDATE jobs SET status = 'done', finished_at = now(), updated_at = now()
+		UPDATE jobs SET status = 'done', worker_id = NULL, heartbeat_at = NULL,
+			finished_at = now(), updated_at = now()
 		WHERE id = $1`, jobID)
 	return err
 }
@@ -146,7 +157,8 @@ func (q *Queue) Fail(ctx context.Context, jobID int64, errMsg string) error {
 	}
 	if attempts >= maxAttempts {
 		_, err = q.pool.Exec(ctx, `
-			UPDATE jobs SET status = 'failed', error = $1, finished_at = now(), updated_at = now()
+			UPDATE jobs SET status = 'failed', worker_id = NULL, heartbeat_at = NULL,
+				error = $1, finished_at = now(), updated_at = now()
 			WHERE id = $2`, errMsg, jobID)
 		return err
 	}
@@ -155,15 +167,18 @@ func (q *Queue) Fail(ctx context.Context, jobID int64, errMsg string) error {
 		backoff = 300 * time.Second
 	}
 	_, err = q.pool.Exec(ctx, `
-		UPDATE jobs SET status = 'queued', error = $1, run_at = now() + $2::interval, updated_at = now()
+		UPDATE jobs SET status = 'queued', worker_id = NULL, heartbeat_at = NULL,
+			error = $1, run_at = now() + $2::interval, updated_at = now()
 		WHERE id = $3`, errMsg, backoff.String(), jobID)
 	return err
 }
 
-// RequeueStale reclaims running jobs whose workers died (heartbeat timeout).
-// Transcode jobs that are requeued also revert their flavor status back to
-// 'pending' (it was left 'transcoding' by the killed worker).
-func (q *Queue) RequeueStale(ctx context.Context, heartbeat time.Duration) (int64, error) {
+// RequeueStale reclaims running jobs whose worker stopped heartbeating
+// (died, restarted, machine reboot). Heartbeat-based, so long-running jobs
+// are never falsely reclaimed. Transcode jobs that are requeued also revert
+// their flavor status back to 'pending' (it was left 'transcoding' by the
+// dead worker).
+func (q *Queue) RequeueStale(ctx context.Context, staleAfter time.Duration) (int64, error) {
 	tx, err := q.pool.Begin(ctx)
 	if err != nil {
 		return 0, err
@@ -171,9 +186,10 @@ func (q *Queue) RequeueStale(ctx context.Context, heartbeat time.Duration) (int6
 	defer tx.Rollback(ctx)
 
 	tag, err := tx.Exec(ctx, `
-		UPDATE jobs SET status = 'queued', started_at = NULL, updated_at = now(),
-			run_at = now() + interval '5 seconds'
-		WHERE status = 'running' AND started_at < now() - $1::interval`, heartbeat.String())
+		UPDATE jobs SET status = 'queued', worker_id = NULL, heartbeat_at = NULL,
+			started_at = NULL, updated_at = now(), run_at = now() + interval '5 seconds'
+		WHERE status = 'running'
+		  AND coalesce(heartbeat_at, started_at) < now() - $1::interval`, staleAfter.String())
 	if err != nil {
 		return 0, err
 	}
