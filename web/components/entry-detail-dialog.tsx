@@ -492,7 +492,14 @@ export function EntryDetailDialog({
                     </div>
                   </button>
                 )
-              ) : null}
+              ) : (
+                <div className="flex aspect-video max-h-60 w-full items-center justify-center rounded-2xl border border-border/60 bg-muted/40 mx-auto">
+                  <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                    <VideoIcon className="size-8" />
+                    <span className="text-xs font-medium">{t("previewUnavailable")}</span>
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-5">
                 <div className="grid gap-5 md:grid-cols-2">

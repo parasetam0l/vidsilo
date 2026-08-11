@@ -353,6 +353,7 @@ const en = {
   playerVideoStatus: "This video isn't ready to watch yet — check back shortly.",
   playerMissingId: "Missing entry id in URL",
   videoUnavailable: "Video is unavailable.",
+  previewUnavailable: "Preview Not Available",
 } as const;
 
 export type MessageKey = keyof typeof en;
