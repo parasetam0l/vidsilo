@@ -3,6 +3,7 @@
 import * as React from "react";
 import {
   ActivityIcon,
+  ArrowRightIcon,
   ClapperboardIcon,
   FilmIcon,
   HardDriveIcon,
@@ -11,6 +12,7 @@ import {
   UploadCloudIcon,
   type LucideIcon,
 } from "lucide-react";
+import Link from "next/link";
 
 import { api, type Dashboard, type Entry } from "@/lib/api";
 import { useT } from "@/lib/i18n";
@@ -262,19 +264,20 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="relative overflow-hidden ">
+        {/* Entries by Status Card */}
+        <Card className="relative flex flex-col justify-between overflow-hidden">
           <div className="pointer-events-none absolute -top-10 -right-10 size-32 rounded-full bg-blue-500/10 blur-3xl" />
           <CardHeader className="flex flex-row items-center justify-between pb-3">
             <CardTitle className="text-base font-semibold tracking-tight">{t("dashByStatus")}</CardTitle>
-            <span className="text-xs font-medium text-muted-foreground tabular-nums">
+            <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground tabular-nums">
               {totalStatusCount} total
             </span>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="flex flex-1 flex-col justify-between space-y-4">
             {Object.keys(data.entriesByStatus).length > 0 ? (
-              <>
+              <div className="space-y-4">
                 {/* Segmented status distribution bar */}
-                <div className="flex h-3 w-full overflow-hidden rounded-full bg-muted/60 p-0.5">
+                <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-muted/60 p-0.5">
                   {Object.entries(data.entriesByStatus).map(([status, count]) => {
                     const pct = (count / (totalStatusCount || 1)) * 100;
                     return (
@@ -288,75 +291,94 @@ export default function DashboardPage() {
                   })}
                 </div>
 
-                {/* Status tiles grid */}
-                <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+                {/* Structured status rows */}
+                <div className="space-y-3 pt-1">
                   {Object.entries(data.entriesByStatus).map(([status, count]) => {
                     const pct = totalStatusCount > 0 ? Math.round((count / totalStatusCount) * 100) : 0;
                     return (
                       <div
                         key={status}
-                        className="flex flex-col justify-between gap-2 rounded-xl border bg-card/60 p-3 shadow-2xs transition-all hover:bg-muted/40 hover:shadow-xs"
+                        className="group flex items-center gap-3 rounded-xl border border-border/40 bg-card/60 p-3 shadow-2xs transition-all hover:bg-muted/40"
                       >
-                        <div className="flex items-center justify-between gap-1">
+                        <div className="shrink-0">
                           <StatusBadge status={status as never} />
-                          <span className="text-[11px] font-medium text-muted-foreground tabular-nums">
-                            {pct}%
-                          </span>
                         </div>
-                        <div className="text-2xl font-bold tracking-tight tabular-nums text-foreground">
-                          {count}
+                        <div className="flex flex-1 items-center gap-2">
+                          <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
+                            <div
+                              style={{ width: `${pct}%` }}
+                              className={`h-full transition-all ${statusColors[status] ?? "bg-primary"}`}
+                            />
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0 text-xs tabular-nums">
+                          <span className="font-bold text-foreground">{count}</span>
+                          <span className="text-muted-foreground">({pct}%)</span>
                         </div>
                       </div>
                     );
                   })}
                 </div>
-              </>
+              </div>
             ) : (
               <EmptyState icon={FilmIcon} description={t("dashStatusEmpty")} />
             )}
           </CardContent>
         </Card>
 
-        <Card className="relative overflow-hidden py-0 ">
+        {/* Recent Uploads Card */}
+        <Card className="relative flex flex-col justify-between overflow-hidden">
           <div className="pointer-events-none absolute -top-10 -right-10 size-32 rounded-full bg-violet-500/10 blur-3xl" />
-          <CardHeader className="py-4">
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
             <CardTitle className="text-base font-semibold tracking-tight">{t("dashRecent")}</CardTitle>
+            <Link
+              href="/entries"
+              className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-primary transition-colors"
+            >
+              <span>View all</span>
+              <ArrowRightIcon className="size-3.5" />
+            </Link>
           </CardHeader>
-          <CardContent className="p-0">
+          <CardContent className="flex flex-1 flex-col justify-between">
             {(data.recent ?? []).length > 0 ? (
-              <Table>
-                <TableHeader className="bg-muted/50">
-                  <TableRow className="hover:bg-transparent">
-                    <TableHead>{t("colTitle")}</TableHead>
-                    <TableHead>{t("colStatus")}</TableHead>
-                    <TableHead className="text-right">{t("colDuration")}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(data.recent ?? []).map((e: Entry) => (
-                    <TableRow key={e.id} className="group transition-colors hover:bg-muted/40">
-                      <TableCell className="font-medium">
-                        <div className="flex items-center gap-3">
-                          <EntryThumb posterKey={e.posterKey} updatedAt={e.updatedAt} />
-                          <button
-                            type="button"
-                            className="max-w-full truncate text-left font-medium hover:underline text-foreground"
-                            onClick={() => openEntryDetail(e.id)}
-                          >
-                            {e.title || t("untitled")}
-                          </button>
+              <div className="space-y-2.5">
+                {(data.recent ?? []).map((e: Entry) => (
+                  <div
+                    key={e.id}
+                    onClick={() => openEntryDetail(e.id)}
+                    className="group flex items-center justify-between gap-3 rounded-xl border border-border/50 bg-card p-2.5 shadow-2xs transition-all hover:bg-muted/40 hover:border-border cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <EntryThumb posterKey={e.posterKey} updatedAt={e.updatedAt} />
+                      <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                        <span className="font-medium text-sm text-foreground group-hover:text-primary transition-colors truncate">
+                          {e.title || t("untitled")}
+                        </span>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground truncate">
+                          <span>{formatDuration(e.durationMs)}</span>
+                          {e.sourceSize ? (
+                            <>
+                              <span>•</span>
+                              <span>{formatBytes(e.sourceSize)}</span>
+                            </>
+                          ) : null}
+                          {e.createdAt ? (
+                            <>
+                              <span>•</span>
+                              <span>{new Date(e.createdAt).toLocaleDateString()}</span>
+                            </>
+                          ) : null}
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <StatusBadge status={e.status} />
-                      </TableCell>
-                      <TableCell className="text-right text-xs font-mono text-muted-foreground tabular-nums">
-                        {formatDuration(e.durationMs)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <StatusBadge status={e.status} />
+                      <ArrowRightIcon className="size-4 text-muted-foreground/30 transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : (
               <EmptyState
                 icon={ClapperboardIcon}
