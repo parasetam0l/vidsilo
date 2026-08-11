@@ -489,16 +489,7 @@ export function EntryDetailDialog({
               ) : null}
 
               <Card className="rounded-2xl border shadow-xs">
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-base font-medium flex items-center gap-2">
-                    <PencilLineIcon className="size-4 text-primary" />
-                    {t("tabMetadata")}
-                  </CardTitle>
-                  <CardDescription>
-                    Configure basic video parameters, category assignment and visibility.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-5">
+                <CardContent className="p-6 space-y-5">
                   <div className="grid gap-5 md:grid-cols-2">
                     <div className="flex flex-col gap-2">
                       <Label className="text-xs font-medium">{t("labelTitle")}</Label>
@@ -534,30 +525,6 @@ export function EntryDetailDialog({
                       }
                     />
                   </div>
-                  <div className="flex items-center justify-between rounded-xl border bg-muted/30 p-4">
-                    <div className="space-y-0.5">
-                      <Label className="text-sm font-medium">{t("labelPublic")}</Label>
-                      <p className="text-xs text-muted-foreground">
-                        Allow video playback across public embeds without authentication.
-                      </p>
-                    </div>
-                    <Switch
-                      checked={draft.isPublic}
-                      onCheckedChange={(v) => setDraft({ ...draft, isPublic: v })}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between rounded-xl border bg-muted/30 p-4">
-                    <div className="space-y-0.5">
-                      <Label className="text-sm font-medium">{t("labelDenyAccess")}</Label>
-                      <p className="text-xs text-muted-foreground">
-                        {t("denyAccessHint")}
-                      </p>
-                    </div>
-                    <Switch
-                      checked={draft.accessDenied}
-                      onCheckedChange={(v) => setDraft({ ...draft, accessDenied: v })}
-                    />
-                  </div>
                 </CardContent>
               </Card>
             </div>
@@ -566,16 +533,7 @@ export function EntryDetailDialog({
           {active === "flavors" ? (
             <div className="space-y-4 max-w-4xl">
               <Card className="rounded-2xl border shadow-xs">
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-base font-medium flex items-center gap-2">
-                    <VideoIcon className="size-4 text-primary" />
-                    {t("tabFlavors")}
-                  </CardTitle>
-                  <CardDescription>
-                    Enable or disable specific resolution renditions for adaptive bit-rate playback.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="p-6 space-y-4">
                   <div className="overflow-hidden rounded-xl border">
                     <Table>
                       <TableHeader className="bg-muted/50">
@@ -687,6 +645,10 @@ export function EntryDetailDialog({
                 aclId={aclId}
                 acls={acls}
                 onAclChange={setAclId}
+                isPublic={draft.isPublic}
+                onPublicChange={(v) => setDraft({ ...draft, isPublic: v })}
+                accessDenied={draft.accessDenied}
+                onAccessDeniedChange={(v) => setDraft({ ...draft, accessDenied: v })}
               />
             </div>
           ) : null}
@@ -768,13 +730,7 @@ function PosterPicker({
   if (!entry.spriteKey || entry.spriteFrames === 0) {
     return (
       <Card className="rounded-2xl border shadow-xs">
-        <CardHeader>
-          <CardTitle className="text-base font-medium flex items-center gap-2">
-            <ImageIcon className="size-4 text-primary" />
-            {t("tabPoster")}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm text-muted-foreground pb-6">
+        <CardContent className="p-6 text-sm text-muted-foreground">
           {t("noSprite")}
         </CardContent>
       </Card>
@@ -788,16 +744,7 @@ function PosterPicker({
 
   return (
     <Card className="rounded-2xl border shadow-xs">
-      <CardHeader className="pb-4">
-        <CardTitle className="text-base font-medium flex items-center gap-2">
-          <ImageIcon className="size-4 text-primary" />
-          {t("tabPoster")}
-        </CardTitle>
-        <CardDescription>
-          {t("posterScrubHint")}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-5">
+      <CardContent className="p-6 space-y-5">
         <div className="relative overflow-hidden rounded-2xl border bg-black/90 shadow-inner flex items-center justify-center p-2">
           <div
             className="aspect-video w-full max-w-2xl rounded-xl border border-white/10"
@@ -858,16 +805,7 @@ function SubtitlesTab({
 
   return (
     <Card className="rounded-2xl border shadow-xs">
-      <CardHeader className="pb-4">
-        <CardTitle className="text-base font-medium flex items-center gap-2">
-          <CaptionsIcon className="size-4 text-primary" />
-          {t("tabSubtitles")}
-        </CardTitle>
-        <CardDescription>
-          Manage text tracks and captions for multi-language playback support.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-5">
+      <CardContent className="p-6 space-y-5">
         <div className="overflow-hidden rounded-xl border">
           <Table>
             <TableHeader className="bg-muted/50">
@@ -973,33 +911,74 @@ function SecurityTab({
   aclId,
   acls,
   onAclChange,
+  isPublic,
+  onPublicChange,
+  accessDenied,
+  onAccessDeniedChange,
 }: {
   aclId: number | null;
   acls: DomainAcl[];
   onAclChange: (id: number | null) => void;
+  isPublic: boolean;
+  onPublicChange: (v: boolean) => void;
+  accessDenied: boolean;
+  onAccessDeniedChange: (v: boolean) => void;
 }) {
   const t = useT();
 
   return (
     <Card className="rounded-2xl border shadow-xs">
-      <CardHeader className="pb-4">
-        <CardTitle className="text-base font-medium flex items-center gap-2">
-          <ShieldIcon className="size-4 text-primary" />
-          Security
-        </CardTitle>
-        <CardDescription>
-          Configure domain whitelist security policies to restrict where this video can be embedded.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-5">
-        <div className="flex flex-col gap-2">
-          <Label className="text-xs font-medium">{t("labelEmbedPolicy")}</Label>
+      <CardContent className="p-6 space-y-4">
+        {/* Card 1: Public Toggle */}
+        <div
+          className="flex cursor-pointer items-center justify-between gap-4 rounded-xl border bg-card p-4 transition-colors hover:bg-muted/40"
+          onClick={() => onPublicChange(!isPublic)}
+        >
+          <div className="space-y-0.5 select-none pointer-events-none">
+            <Label className="text-sm font-medium">{t("labelPublic")}</Label>
+            <p className="text-xs text-muted-foreground">
+              Allow video playback across public embeds without authentication.
+            </p>
+          </div>
+          <Switch
+            checked={isPublic}
+            onCheckedChange={onPublicChange}
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+
+        {/* Card 2: Deny Access Toggle */}
+        <div
+          className="flex cursor-pointer items-center justify-between gap-4 rounded-xl border bg-card p-4 transition-colors hover:bg-muted/40"
+          onClick={() => onAccessDeniedChange(!accessDenied)}
+        >
+          <div className="space-y-0.5 select-none pointer-events-none">
+            <Label className="text-sm font-medium">{t("labelDenyAccess")}</Label>
+            <p className="text-xs text-muted-foreground">
+              {t("denyAccessHint")}
+            </p>
+          </div>
+          <Switch
+            checked={accessDenied}
+            onCheckedChange={onAccessDeniedChange}
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+
+        {/* Card 3: Embed Security Select */}
+        <div className="flex flex-col gap-3 rounded-xl border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-0.5">
+            <Label className="text-sm font-medium">{t("labelEmbedPolicy")}</Label>
+            <p className="text-xs text-muted-foreground">
+              Configure domain whitelist security policies to restrict where this video can be embedded.
+            </p>
+          </div>
           <Select
             options={[
               { value: "", label: t("allowAll") },
               ...acls.map((a) => ({ value: String(a.id), label: a.title })),
             ]}
-            className="w-full max-w-sm rounded-lg"
+            className="w-full sm:w-56 shrink-0 rounded-lg"
             value={aclId ? String(aclId) : ""}
             onChange={(v) => onAclChange(v ? Number(v) : null)}
           />
@@ -1032,16 +1011,7 @@ function EmbedTab({ publicId }: { publicId: string }) {
 
   return (
     <Card className="rounded-2xl border shadow-xs">
-      <CardHeader className="pb-4">
-        <CardTitle className="text-base font-medium flex items-center gap-2">
-          <Code2Icon className="size-4 text-primary" />
-          Embed
-        </CardTitle>
-        <CardDescription>
-          Share this video via direct URL link or embed iframe into your application.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-5">
+      <CardContent className="p-6 space-y-5">
         {/* Embedded Video Player Preview */}
         <div className="relative aspect-video max-h-60 w-full overflow-hidden rounded-xl border border-border bg-black shadow-inner">
           <iframe
