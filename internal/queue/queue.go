@@ -161,13 +161,40 @@ func (q *Queue) Fail(ctx context.Context, jobID int64, errMsg string) error {
 }
 
 // RequeueStale reclaims running jobs whose workers died (heartbeat timeout).
+// Transcode jobs that are requeued also revert their flavor status back to
+// 'pending' (it was left 'transcoding' by the killed worker).
 func (q *Queue) RequeueStale(ctx context.Context, heartbeat time.Duration) (int64, error) {
-	tag, err := q.pool.Exec(ctx, `
+	tx, err := q.pool.Begin(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback(ctx)
+
+	tag, err := tx.Exec(ctx, `
 		UPDATE jobs SET status = 'queued', started_at = NULL, updated_at = now(),
 			run_at = now() + interval '5 seconds'
 		WHERE status = 'running' AND started_at < now() - $1::interval`, heartbeat.String())
 	if err != nil {
 		return 0, err
 	}
-	return tag.RowsAffected(), nil
+	requeued := tag.RowsAffected()
+	if requeued > 0 {
+		// Any flavor left 'transcoding' by a dead worker goes back to
+		// 'pending' so the list reflects reality while it waits in queue.
+		if _, err := tx.Exec(ctx, `
+			UPDATE entry_flavors ef SET status = 'pending', error = NULL
+			WHERE ef.status = 'transcoding'
+			  AND NOT EXISTS (
+			      SELECT 1 FROM jobs j
+			      WHERE j.type = 'transcode' AND j.status = 'running'
+			        AND j.entry_id = ef.entry_id
+			        AND coalesce((j.payload->>'flavorId')::bigint, -1) = ef.flavor_id
+			  )`); err != nil {
+			return 0, err
+		}
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return 0, err
+	}
+	return requeued, nil
 }
