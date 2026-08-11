@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { EmbedPreview } from "@/components/embed-preview";
 
 export function useEmbedDialog() {
   const dialog = useDialog();
@@ -57,14 +58,7 @@ function EmbedDialogContent({ publicId, onClose }: { publicId: string; onClose: 
       </DialogHeader>
 
       {/* Embedded Video Player Preview */}
-      <div className="relative aspect-video max-h-56 w-full shrink-0 overflow-hidden rounded-xl border border-border bg-black shadow-inner">
-        <iframe
-          src={`/embed/${publicId}`}
-          className="h-full w-full border-0"
-          allowFullScreen
-          title="Video preview"
-        />
-      </div>
+      <EmbedPreview publicId={publicId} maxH="max-h-56" />
 
       {/* Gray Area 1: Direct Link */}
       <div className="flex flex-col gap-2.5 rounded-xl border border-border/60 bg-muted/40 p-4 shrink-0">

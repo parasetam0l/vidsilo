@@ -44,6 +44,7 @@ import {
 import { formatBytes, formatDate, formatDuration, formatGb, formatWatchHours } from "@/lib/format";
 import { StatusBadge } from "@/components/status-badge";
 import { VODPlayer } from "@/components/vod-player";
+import { EmbedPreview } from "@/components/embed-preview";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -1143,14 +1144,7 @@ function EmbedTab({ publicId }: { publicId: string }) {
   return (
     <div className="space-y-5">
       {/* Embedded Video Player Preview */}
-      <div className="relative aspect-video max-h-60 w-full overflow-hidden rounded-xl border border-border bg-black shadow-inner">
-        <iframe
-          src={`/embed/${publicId}`}
-          className="h-full w-full border-0"
-          allowFullScreen
-          title="Video preview"
-        />
-      </div>
+      <EmbedPreview publicId={publicId} />
 
       {/* Gray Area 1: Direct Link */}
       <div className="flex flex-col gap-2.5 rounded-xl border border-border/60 bg-muted/40 p-4">
