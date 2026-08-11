@@ -273,7 +273,7 @@ export default function EntriesPage() {
                   className="cursor-pointer transition-colors hover:bg-muted/40"
                   onClick={() => openEntryDetail(e.id)}
                 >
-                  <TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
                     <Checkbox
                       checked={selected.has(e.id)}
                       onCheckedChange={() => toggleSelect(e.id)}
@@ -282,13 +282,9 @@ export default function EntriesPage() {
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-3">
                       <EntryThumb posterKey={e.posterKey} updatedAt={e.updatedAt} />
-                      <button
-                        type="button"
-                        className="max-w-full truncate text-left hover:underline"
-                        onClick={() => openEntryDetail(e.id)}
-                      >
+                      <span className="max-w-full truncate hover:underline">
                         {e.title || t("untitled")}
-                      </button>
+                      </span>
                     </div>
                   </TableCell>
                   <TableCell>
