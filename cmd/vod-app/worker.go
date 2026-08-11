@@ -104,6 +104,17 @@ func (w *worker) run(ctx context.Context) {
 	cleanupTicker := time.NewTicker(time.Hour)
 	defer cleanupTicker.Stop()
 
+	// Reclaim jobs abandoned by a previous worker process (docker restart,
+	// service restart, machine reboot) before the claim loop starts. The
+	// standard heartbeat keeps multi-worker deployments safe — jobs that
+	// another live worker is legitimately running are left alone. This also
+	// reverts flavors stuck on 'transcoding' by the dead process.
+	if n, err := w.queue.RequeueStale(ctx, 15*time.Minute); err != nil {
+		w.log.Warn("startup stale requeue", "err", err)
+	} else if n > 0 {
+		w.log.Info("requeued stale jobs on startup", "count", n)
+	}
+
 	// Claim loop: one claim round per poll interval; jobs run on the pool.
 	pollTicker := time.NewTicker(time.Second)
 	defer pollTicker.Stop()
