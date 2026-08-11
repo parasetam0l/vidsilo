@@ -31,6 +31,7 @@ type jobActivity struct {
 	Status     string    `json:"status"`
 	Attempts   int       `json:"attempts"`
 	Error      string    `json:"error,omitempty"`
+	Progress   string    `json:"progress,omitempty"`
 	CreatedAt  time.Time `json:"createdAt"`
 }
 
@@ -44,7 +45,7 @@ func (s *Server) registerActivityRoutes(mux *http.ServeMux) {
 func (s *Server) handleJobs(w http.ResponseWriter, r *http.Request) {
 	rows, err := s.pool.Query(r.Context(), `
 		SELECT j.id, j.type, j.entry_id, coalesce(e.title, ''), j.status,
-		       j.attempts, coalesce(j.error, ''), j.created_at
+		       j.attempts, coalesce(j.error, ''), coalesce(j.progress, ''), j.created_at
 		FROM jobs j
 		LEFT JOIN entries e ON e.id = j.entry_id
 		ORDER BY j.id DESC
@@ -59,7 +60,7 @@ func (s *Server) handleJobs(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var j jobActivity
 		if err := rows.Scan(&j.ID, &j.Type, &j.EntryID, &j.EntryTitle, &j.Status,
-			&j.Attempts, &j.Error, &j.CreatedAt); err != nil {
+			&j.Attempts, &j.Error, &j.Progress, &j.CreatedAt); err != nil {
 			s.internalError(w, r, "list jobs", err)
 			return
 		}
@@ -138,7 +139,7 @@ func (s *Server) handleActiveUploads(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleCurrentJobs(w http.ResponseWriter, r *http.Request) {
 	rows, err := s.pool.Query(r.Context(), `
 		SELECT j.id, j.type, j.entry_id, coalesce(e.title, ''), j.status,
-		       j.attempts, coalesce(j.error, ''), j.created_at
+		       j.attempts, coalesce(j.error, ''), coalesce(j.progress, ''), j.created_at
 		FROM jobs j
 		LEFT JOIN entries e ON e.id = j.entry_id
 		WHERE j.status IN ('queued', 'running', 'failed')
@@ -154,7 +155,7 @@ func (s *Server) handleCurrentJobs(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var j jobActivity
 		if err := rows.Scan(&j.ID, &j.Type, &j.EntryID, &j.EntryTitle, &j.Status,
-			&j.Attempts, &j.Error, &j.CreatedAt); err != nil {
+			&j.Attempts, &j.Error, &j.Progress, &j.CreatedAt); err != nil {
 			s.internalError(w, r, "list jobs", err)
 			return
 		}

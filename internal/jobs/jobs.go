@@ -269,6 +269,7 @@ func (r *Runner) Probe(ctx context.Context, job db.Job) error {
 	}
 
 	// Poster at 10% + sprite sheet.
+	_ = db.UpdateJobProgress(ctx, r.Pool, job.ID, "Extracting poster & sprite…")
 	atMs := res.DurationMs / 10
 	if atMs < 0 {
 		atMs = 0
@@ -389,12 +390,18 @@ func (r *Runner) Transcode(ctx context.Context, job db.Job) error {
 	preset := r.Settings.String("transcode.preset", "veryfast")
 
 	done := 0
-	for _, flavorID := range params.FlavorIDs {
+	total := len(params.FlavorIDs)
+	for i, flavorID := range params.FlavorIDs {
 		f, err := db.FlavorByID(ctx, r.Pool, flavorID)
 		if err != nil {
 			r.markFlavor(ctx, e.ID, flavorID, db.FlavorFailed, err.Error())
 			continue
 		}
+		// Live visibility: mark the flavor as transcoding and surface which
+		// flavor is being encoded on the jobs page.
+		r.markFlavor(ctx, e.ID, flavorID, db.FlavorTranscoding, "")
+		_ = db.UpdateJobProgress(ctx, r.Pool, job.ID,
+			fmt.Sprintf("Transcoding %s (%d/%d)", f.Label, i+1, total))
 		r.Log.Info("transcoding flavor", "entry", e.ID, "flavor", f.Name)
 
 		flavor := media.Flavor{
@@ -429,9 +436,11 @@ func (r *Runner) Transcode(ctx context.Context, job db.Job) error {
 		r.failEntry(ctx, e, "all flavors failed")
 		return errors.New("all flavors failed")
 	}
+	_ = db.UpdateJobProgress(ctx, r.Pool, job.ID, "Building master playlist…")
 	if err := r.buildMaster(ctx, e); err != nil {
 		return err
 	}
+	_ = db.UpdateJobProgress(ctx, r.Pool, job.ID, "")
 	_, err = r.Pool.Exec(ctx, `
 		UPDATE entries SET status = 'ready', error = NULL, updated_at = now() WHERE id = $1`, e.ID)
 	return err

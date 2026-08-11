@@ -121,7 +121,7 @@ export interface EntryDetail extends Entry {
 export interface EntryFlavor {
   entryId: number;
   flavorId: number;
-  status: "pending" | "done" | "failed" | "skipped";
+  status: "pending" | "transcoding" | "done" | "failed" | "skipped";
   error?: string;
   playlistKey: string;
 }
@@ -234,6 +234,8 @@ export interface JobActivity {
   status: "queued" | "running" | "done" | "failed";
   attempts: number;
   error?: string;
+  /** Free-text progress line, e.g. "Transcoding 1080p-h264 (2/4)". */
+  progress?: string;
   createdAt: string;
 }
 

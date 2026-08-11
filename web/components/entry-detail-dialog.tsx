@@ -19,6 +19,7 @@ import {
   InfoIcon,
   Link2Icon,
   Loader2,
+  Loader2Icon,
   PencilLineIcon,
   PlayIcon,
   PlusIcon,
@@ -113,6 +114,12 @@ export function EntryDetailDialog({
   const { data: entry } = useQuery({
     queryKey: ["entry", publicId],
     queryFn: () => api<EntryDetail>(`/api/entries/${publicId}`),
+    // While the entry is being processed, poll so flavor/status badges and
+    // progress update live.
+    refetchInterval: (query) => {
+      const st = query.state.data?.status;
+      return st === "uploading" || st === "probing" || st === "transcoding" ? 5_000 : false;
+    },
   });
   // Flavors can only be changed / reprocessed when the entry is idle.
   const entryEditable = entry?.status === "ready" || entry?.status === "failed";
@@ -586,8 +593,15 @@ export function EntryDetailDialog({
                             {ef ? (
                               <Badge
                                 variant={ef.status === "done" ? "default" : ef.status === "failed" ? "destructive" : "outline"}
-                                className="capitalize text-xs font-normal"
+                                className={`capitalize text-xs font-normal ${
+                                  ef.status === "transcoding"
+                                    ? "bg-blue-500/15 text-blue-500 border-blue-500/30"
+                                    : ""
+                                }`}
                               >
+                                {ef.status === "transcoding" ? (
+                                  <Loader2Icon className="size-3 animate-spin" />
+                                ) : null}
                                 {ef.status}
                               </Badge>
                             ) : (

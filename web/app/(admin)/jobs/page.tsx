@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CircleCheckIcon,
   CircleAlertIcon,
@@ -34,29 +35,21 @@ import {
 export default function JobsPage() {
   const t = useT();
   const toast = useToast();
-  const [jobs, setJobs] = React.useState<JobActivity[] | null>(null);
+  const queryClient = useQueryClient();
 
-  const load = React.useCallback(() => {
-    api<JobActivity[]>("/api/jobs")
-      .then(setJobs)
-      .catch((e) => toast.error(e.message));
-  }, [toast]);
-
-  React.useEffect(load, [load]);
-
-  // Jobs change while processing — refresh while the page is visible.
-  React.useEffect(() => {
-    const timer = window.setInterval(() => {
-      if (document.visibilityState === "visible") load();
-    }, 15_000);
-    return () => window.clearInterval(timer);
-  }, [load]);
+  // Jobs change while processing — poll every 5s while the page is visible.
+  const { data: jobs = null } = useQuery({
+    queryKey: ["jobs"],
+    queryFn: () => api<JobActivity[]>("/api/jobs"),
+    refetchInterval: (query) =>
+      document.visibilityState === "visible" ? 5_000 : false,
+  });
 
   async function retry(job: JobActivity) {
     try {
       await api<void>(`/api/jobs/${job.id}/retry`, { method: "POST" });
       toast.success(t("jobRetried"));
-      load();
+      queryClient.invalidateQueries({ queryKey: ["jobs"] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t("error"));
     }
@@ -169,6 +162,14 @@ export default function JobsPage() {
                   </TableCell>
                   <TableCell className="font-medium">
                     {j.entryTitle || "—"}
+                    {j.progress ? (
+                      <p className="mt-0.5 flex items-center gap-1 text-xs font-normal text-muted-foreground">
+                        {j.status === "running" ? (
+                          <Loader2Icon className="size-3 animate-spin text-primary" />
+                        ) : null}
+                        {j.progress}
+                      </p>
+                    ) : null}
                   </TableCell>
                   <TableCell>
                     <JobStatusBadge status={j.status} />

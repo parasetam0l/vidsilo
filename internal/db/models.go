@@ -90,10 +90,11 @@ type Entry struct {
 type EntryFlavorStatus string
 
 const (
-	FlavorPending EntryFlavorStatus = "pending"
-	FlavorDone    EntryFlavorStatus = "done"
-	FlavorFailed  EntryFlavorStatus = "failed"
-	FlavorSkipped EntryFlavorStatus = "skipped"
+	FlavorPending      EntryFlavorStatus = "pending"
+	FlavorTranscoding  EntryFlavorStatus = "transcoding"
+	FlavorDone         EntryFlavorStatus = "done"
+	FlavorFailed       EntryFlavorStatus = "failed"
+	FlavorSkipped      EntryFlavorStatus = "skipped"
 )
 
 type EntryFlavor struct {
