@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PencilIcon, Save, SlidersHorizontalIcon, Trash2, VideoIcon, CheckCircle2Icon, XCircleIcon } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
@@ -68,33 +69,33 @@ export default function FlavorsPage() {
   const { open, confirm } = useDialog();
   const openEdit = (f: Flavor) => openFlavorForm(open, f);
   const toast = useToast();
-  const [flavors, setFlavors] = React.useState<Flavor[]>([]);
+  const queryClient = useQueryClient();
 
-  const load = React.useCallback(() => {
-    api<Flavor[]>("/api/flavors")
-      .then(setFlavors)
-      .catch((e) => toast.error(e.message));
-  }, [toast]);
-  React.useEffect(load, [load]);
+  const { data: flavors = [] } = useQuery({
+    queryKey: ["flavors"],
+    queryFn: () => api<Flavor[]>("/api/flavors"),
+  });
 
-  // Create/edit dialogs dispatch a change event on save; refresh the table.
-  React.useEffect(() => {
-    const h = () => load();
-    window.addEventListener("flavors:changed", h);
-    return () => window.removeEventListener("flavors:changed", h);
-  }, [load]);
-
-  async function toggle(f: Flavor) {
-    try {
-      await api<Flavor>(`/api/flavors/${f.id}`, {
+  const toggleFlavor = useMutation({
+    mutationFn: (f: Flavor) =>
+      api<Flavor>(`/api/flavors/${f.id}`, {
         method: "PATCH",
         body: JSON.stringify({ ...f, enabled: !f.enabled }),
-      });
-      load();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("error"));
-    }
-  }
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["flavors"] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const removeFlavor = useMutation({
+    mutationFn: (id: number) => api<void>(`/api/flavors/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      toast.success(t("deleted"));
+      queryClient.invalidateQueries({ queryKey: ["flavors"] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
 
   function askRemove(f: Flavor) {
     confirm({
@@ -103,16 +104,9 @@ export default function FlavorsPage() {
       variant: "destructive",
       confirmLabel: t("delete"),
       cancelLabel: t("cancel"),
-      onConfirm: async () => {
-        try {
-          await api<void>(`/api/flavors/${f.id}`, { method: "DELETE" });
-          toast.success(t("deleted"));
-          load();
-        } catch (err) {
-          toast.error(err instanceof Error ? err.message : t("error"));
-          throw err; // keep the dialog open
-        }
-      },
+      onConfirm: () => removeFlavor.mutateAsync(f.id),
+      onError: (err: unknown) =>
+        toast.error(err instanceof Error ? err.message : t("error")),
     });
   }
 
@@ -162,7 +156,7 @@ export default function FlavorsPage() {
                   className={`transition-colors hover:bg-muted/40 ${!f.enabled ? "opacity-60" : ""}`}
                 >
                   <TableCell>
-                    <Switch checked={f.enabled} onCheckedChange={() => toggle(f)} />
+                    <Switch checked={f.enabled} onCheckedChange={() => toggleFlavor.mutate(f)} />
                   </TableCell>
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-3">
@@ -225,12 +219,37 @@ function FlavorFormContent({
 }) {
   const t = useT();
   const toast = useToast();
+  const queryClient = useQueryClient();
   const editing = initial.id !== 0;
   const [draft, setDraft] = React.useState<Flavor>(initial);
-  const [busy, setBusy] = React.useState(false);
   const [errors, setErrors] = React.useState<FieldErrors>({});
 
   const set = (patch: Partial<Flavor>) => setDraft((d) => ({ ...d, ...patch }));
+
+  const saveFlavor = useMutation({
+    mutationFn: () => {
+      const body = {
+        ...draft,
+        videoBitrate: draft.videoMode === "bitrate" ? draft.videoBitrate : null,
+        crf: draft.videoMode === "crf" ? draft.crf : null,
+      };
+      return editing
+        ? api<Flavor>(`/api/flavors/${draft.id}`, {
+            method: "PATCH",
+            body: JSON.stringify(body),
+          })
+        : api<Flavor>("/api/flavors", {
+            method: "POST",
+            body: JSON.stringify(body),
+          });
+    },
+    onSuccess: () => {
+      toast.success(editing ? t("flavorUpdated") : t("flavorCreated"));
+      queryClient.invalidateQueries({ queryKey: ["flavors"] });
+      onClose();
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -244,33 +263,7 @@ function FlavorFormContent({
       return;
     }
     setErrors({});
-    setBusy(true);
-    try {
-      const body = {
-        ...draft,
-        videoBitrate: draft.videoMode === "bitrate" ? draft.videoBitrate : null,
-        crf: draft.videoMode === "crf" ? draft.crf : null,
-      };
-      if (editing) {
-        await api<Flavor>(`/api/flavors/${draft.id}`, {
-          method: "PATCH",
-          body: JSON.stringify(body),
-        });
-        toast.success(t("flavorUpdated"));
-      } else {
-        await api<Flavor>("/api/flavors", {
-          method: "POST",
-          body: JSON.stringify(body),
-        });
-        toast.success(t("flavorCreated"));
-      }
-      window.dispatchEvent(new Event("flavors:changed"));
-      onClose();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("error"));
-    } finally {
-      setBusy(false);
-    }
+    saveFlavor.mutate();
   }
 
   return (
@@ -370,11 +363,11 @@ function FlavorFormContent({
         </div>
       </div>
       <div className="flex justify-end gap-2 border-t pt-3">
-        <Button type="button" variant="outline" className="rounded-lg text-xs" onClick={onClose} disabled={busy}>
+        <Button type="button" variant="outline" className="rounded-lg text-xs" onClick={onClose} disabled={saveFlavor.isPending}>
           {t("cancel")}
         </Button>
-        <Button type="submit" className="rounded-lg text-xs gap-1.5" disabled={busy}>
-          <Save className="size-3.5" /> {busy ? t("loading") : t("saveFlavor")}
+        <Button type="submit" className="rounded-lg text-xs gap-1.5" disabled={saveFlavor.isPending}>
+          <Save className="size-3.5" /> {saveFlavor.isPending ? t("loading") : t("saveFlavor")}
         </Button>
       </div>
     </form>

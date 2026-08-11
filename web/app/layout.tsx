@@ -8,6 +8,7 @@ import { UploadNotifications } from "@/components/upload-notifications";
 import { DialogProvider } from "@/hooks/use-dialog";
 import { I18nProvider } from "@/lib/i18n";
 import { ThemeProvider } from "@/components/theme-provider";
+import { QueryProvider } from "@/components/query-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -39,15 +40,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body className="min-h-full flex flex-col">
-        <ThemeProvider>
-          <I18nProvider>
-            <AuthProvider>
-              <DialogProvider>{children}</DialogProvider>
-            </AuthProvider>
-          </I18nProvider>
-          <UploadNotifications />
-          <Toaster />
-        </ThemeProvider>
+        <QueryProvider>
+          <ThemeProvider>
+            <I18nProvider>
+              <AuthProvider>
+                <DialogProvider>{children}</DialogProvider>
+              </AuthProvider>
+              <UploadNotifications />
+              <Toaster />
+            </I18nProvider>
+          </ThemeProvider>
+        </QueryProvider>
       </body>
     </html>
   );

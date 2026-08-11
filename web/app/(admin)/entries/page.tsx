@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ChevronLeft,
   ChevronRight,
@@ -54,33 +55,35 @@ export default function EntriesPage() {
   const t = useT();
   const { confirm } = useDialog();
   const toast = useToast();
+  const queryClient = useQueryClient();
   const openUpload = useUploadDialog();
   const openEntryDetail = useEntryDetailDialog();
   const openEmbed = useEmbedDialog();
-  const [list, setList] = React.useState<EntryList | null>(null);
   const [q, setQ] = React.useState("");
   const [status, setStatus] = React.useState("");
   const [category, setCategory] = React.useState("");
   const [page, setPage] = React.useState(1);
   const [limit, setLimit] = React.useState(20);
-  const [categories, setCategories] = React.useState<Category[]>([]);
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
 
-  React.useEffect(() => {
-    api<Category[]>("/api/categories").then(setCategories).catch(() => {});
-  }, []);
+  const { data: categories = [] } = useQuery({
+    queryKey: ["categories"],
+    queryFn: () => api<Category[]>("/api/categories"),
+  });
 
-  const load = React.useCallback(() => {
-    const params = new URLSearchParams({ page: String(page), limit: String(limit) });
-    if (q) params.set("q", q);
-    if (status) params.set("status", status);
-    if (category) params.set("category", category);
-    api<EntryList>(`/api/entries?${params}`)
-      .then(setList)
-      .catch((e) => toast.error(e.message));
-  }, [q, status, category, page, limit, toast]);
-
-  React.useEffect(load, [load]);
+  const { data: list } = useQuery({
+    queryKey: ["entries", { q, status, category, page, limit }],
+    queryFn: () => {
+      const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+      if (q) params.set("q", q);
+      if (status) params.set("status", status);
+      if (category) params.set("category", category);
+      return api<EntryList>(`/api/entries?${params}`);
+    },
+    // Refetch while visible so other users' work and dialog edits show up.
+    refetchInterval: (query) =>
+      document.visibilityState === "visible" ? 30_000 : false,
+  });
 
   // Own uploads: refetch immediately when one completes.
   const uploads = useUploads();
@@ -93,24 +96,10 @@ export default function EntriesPage() {
         changed = true;
       }
     }
-    if (changed) load();
-  }, [uploads, load]);
-
-  // Other users' work + edits made in the entry dialog: refetch while
-  // visible so the table stays in sync.
-  React.useEffect(() => {
-    const timer = window.setInterval(() => {
-      if (document.visibilityState === "visible") load();
-    }, 30_000);
-    return () => window.clearInterval(timer);
-  }, [load]);
-
-  // The entry dialog dispatches a change event after every save/reprocess.
-  React.useEffect(() => {
-    const h = () => load();
-    window.addEventListener("entries:changed", h);
-    return () => window.removeEventListener("entries:changed", h);
-  }, [load]);
+    if (changed) {
+      queryClient.invalidateQueries({ queryKey: ["entries"] });
+    }
+  }, [uploads, queryClient]);
 
   const catName = (id: number | null) =>
     categories.find((c) => c.id === id)?.name ?? "—";
@@ -133,7 +122,7 @@ export default function EntriesPage() {
     const count = selected.size;
     setSelected(new Set());
     toast.success(t("entriesDeleted", { n: count }));
-    load();
+    queryClient.invalidateQueries({ queryKey: ["entries"] });
   }
 
   function askBulkDelete() {
@@ -158,7 +147,7 @@ export default function EntriesPage() {
         try {
           await api<void>(`/api/entries/${e.id}`, { method: "DELETE" });
           toast.success(t("deleted"));
-          load();
+          queryClient.invalidateQueries({ queryKey: ["entries"] });
         } catch (err) {
           toast.error(err instanceof Error ? err.message : t("error"));
           throw err;
@@ -175,7 +164,7 @@ export default function EntriesPage() {
     }).catch((e) => toast.error(e.message));
     setSelected(new Set());
     toast.success(t("entriesReprocessed", { n: ids.length }));
-    load();
+    queryClient.invalidateQueries({ queryKey: ["entries"] });
   }
 
   function askReprocess() {

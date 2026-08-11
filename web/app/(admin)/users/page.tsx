@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PencilIcon, ShieldCheckIcon, Trash2, UserCheckIcon, UserRoundIcon, UsersIcon, UserXIcon } from "lucide-react";
 
 import { api, ApiError, displayName, type Role, type User } from "@/lib/api";
@@ -54,21 +55,21 @@ export default function UsersPage() {
   const t = useT();
   const { open, confirm } = useDialog();
   const toast = useToast();
-  const [users, setUsers] = React.useState<User[]>([]);
+  const queryClient = useQueryClient();
 
-  const load = React.useCallback(() => {
-    api<User[]>("/api/users")
-      .then(setUsers)
-      .catch((e) => toast.error(e.message));
-  }, [toast]);
-  React.useEffect(load, [load]);
+  const { data: users = [] } = useQuery({
+    queryKey: ["users"],
+    queryFn: () => api<User[]>("/api/users"),
+  });
 
-  // Create/edit dialogs dispatch a change event on save; refresh the table.
-  React.useEffect(() => {
-    const h = () => load();
-    window.addEventListener("users:changed", h);
-    return () => window.removeEventListener("users:changed", h);
-  }, [load]);
+  const removeUser = useMutation({
+    mutationFn: (id: number) => api<void>(`/api/users/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      toast.success(t("deleted"));
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
 
   function openEdit(u: User) {
     open({
@@ -86,16 +87,9 @@ export default function UsersPage() {
       variant: "destructive",
       confirmLabel: t("delete"),
       cancelLabel: t("cancel"),
-      onConfirm: async () => {
-        try {
-          await api<void>(`/api/users/${u.id}`, { method: "DELETE" });
-          toast.success(t("deleted"));
-          load();
-        } catch (err) {
-          toast.error(err instanceof Error ? err.message : t("error"));
-          throw err; // keep the dialog open
-        }
-      },
+      onConfirm: () => removeUser.mutateAsync(u.id),
+      onError: (err: unknown) =>
+        toast.error(err instanceof Error ? err.message : t("error")),
     });
   }
 
@@ -219,14 +213,33 @@ function UserFormContent({
 }) {
   const t = useT();
   const toast = useToast();
+  const queryClient = useQueryClient();
   const editing = !!initial;
   const [email, setEmail] = React.useState(initial?.email ?? "");
   const [nameSurname, setNameSurname] = React.useState(initial?.nameSurname ?? "");
   const [password, setPassword] = React.useState("");
   const [role, setRole] = React.useState<Role>(initial?.role ?? "viewer");
   const [disabled, setDisabled] = React.useState(initial?.disabled ?? false);
-  const [busy, setBusy] = React.useState(false);
   const [errors, setErrors] = React.useState<FieldErrors>({});
+
+  const saveUser = useMutation({
+    mutationFn: () =>
+      editing
+        ? api<User>(`/api/users/${initial.id}`, {
+            method: "PATCH",
+            body: JSON.stringify({ email, nameSurname, role, disabled, ...(password ? { password } : {}) }),
+          })
+        : api<User>("/api/users", {
+            method: "POST",
+            body: JSON.stringify({ email, nameSurname, password, role }),
+          }),
+    onSuccess: () => {
+      toast.success(editing ? t("userUpdated") : t("userCreated"));
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      onClose();
+    },
+    onError: (err: Error) => toast.error(err instanceof ApiError ? err.message : t("error")),
+  });
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -237,28 +250,7 @@ function UserFormContent({
       return;
     }
     setErrors({});
-    setBusy(true);
-    try {
-      if (editing) {
-        await api<User>(`/api/users/${initial.id}`, {
-          method: "PATCH",
-          body: JSON.stringify({ email, nameSurname, role, disabled, ...(password ? { password } : {}) }),
-        });
-        toast.success(t("userUpdated"));
-      } else {
-        await api<User>("/api/users", {
-          method: "POST",
-          body: JSON.stringify({ email, nameSurname, password, role }),
-        });
-        toast.success(t("userCreated"));
-      }
-      window.dispatchEvent(new Event("users:changed"));
-      onClose();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : t("error"));
-    } finally {
-      setBusy(false);
-    }
+    saveUser.mutate();
   }
 
   return (
@@ -317,11 +309,11 @@ function UserFormContent({
         </div>
       ) : null}
       <div className="flex justify-end gap-2 border-t pt-3">
-        <Button type="button" variant="outline" className="rounded-lg text-xs" onClick={onClose} disabled={busy}>
+        <Button type="button" variant="outline" className="rounded-lg text-xs" onClick={onClose} disabled={saveUser.isPending}>
           {t("cancel")}
         </Button>
-        <Button type="submit" className="rounded-lg text-xs" disabled={busy}>
-          {busy ? t("loading") : t("save")}
+        <Button type="submit" className="rounded-lg text-xs" disabled={saveUser.isPending}>
+          {saveUser.isPending ? t("loading") : t("save")}
         </Button>
       </div>
     </form>

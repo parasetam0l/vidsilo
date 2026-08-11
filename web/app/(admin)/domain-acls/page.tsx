@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PencilIcon, ShieldCheckIcon, ShieldIcon, ShieldXIcon, Trash2 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
@@ -41,21 +42,12 @@ export default function DomainAclsPage() {
   const t = useT();
   const { open, confirm } = useDialog();
   const toast = useToast();
-  const [acls, setAcls] = React.useState<DomainAcl[]>([]);
+  const queryClient = useQueryClient();
 
-  const load = React.useCallback(() => {
-    api<DomainAcl[]>("/api/acls")
-      .then(setAcls)
-      .catch((e) => toast.error(e.message));
-  }, [toast]);
-  React.useEffect(load, [load]);
-
-  // Create/edit dialogs dispatch a change event on save; refresh the table.
-  React.useEffect(() => {
-    const h = () => load();
-    window.addEventListener("acls:changed", h);
-    return () => window.removeEventListener("acls:changed", h);
-  }, [load]);
+  const { data: acls = [] } = useQuery({
+    queryKey: ["acls"],
+    queryFn: () => api<DomainAcl[]>("/api/acls"),
+  });
 
   function openEdit(a: DomainAcl) {
     open({
@@ -66,6 +58,15 @@ export default function DomainAclsPage() {
     });
   }
 
+  const removeAcl = useMutation({
+    mutationFn: (id: number) => api<void>(`/api/acls/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      toast.success(t("deleted"));
+      queryClient.invalidateQueries({ queryKey: ["acls"] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
   function askRemove(a: DomainAcl) {
     confirm({
       title: t("aclDeleteTitle"),
@@ -73,16 +74,9 @@ export default function DomainAclsPage() {
       variant: "destructive",
       confirmLabel: t("delete"),
       cancelLabel: t("cancel"),
-      onConfirm: async () => {
-        try {
-          await api<void>(`/api/acls/${a.id}`, { method: "DELETE" });
-          toast.success(t("deleted"));
-          load();
-        } catch (err) {
-          toast.error(err instanceof Error ? err.message : t("error"));
-          throw err; // keep the dialog open
-        }
-      },
+      onConfirm: () => removeAcl.mutateAsync(a.id),
+      onError: (err: unknown) =>
+        toast.error(err instanceof Error ? err.message : t("error")),
     });
   }
 
@@ -213,42 +207,41 @@ function AclFormContent({
 }) {
   const t = useT();
   const toast = useToast();
+  const queryClient = useQueryClient();
   const editing = !!initial;
   const [title, setTitle] = React.useState(initial?.title ?? "");
   const [whitelist, setWhitelist] = React.useState(initial?.whitelist.join("\n") ?? "");
   const [blocklist, setBlocklist] = React.useState(initial?.blocklist.join("\n") ?? "");
-  const [busy, setBusy] = React.useState(false);
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!title.trim()) return;
-    setBusy(true);
-    try {
+  const saveAcl = useMutation({
+    mutationFn: () => {
       const body = {
         title,
         whitelist: splitDomains(whitelist),
         blocklist: splitDomains(blocklist),
       };
-      if (editing) {
-        await api<DomainAcl>(`/api/acls/${initial.id}`, {
-          method: "PATCH",
-          body: JSON.stringify(body),
-        });
-        toast.success(t("aclUpdated"));
-      } else {
-        await api<DomainAcl>("/api/acls", {
-          method: "POST",
-          body: JSON.stringify(body),
-        });
-        toast.success(t("aclCreated"));
-      }
-      window.dispatchEvent(new Event("acls:changed"));
+      return editing
+        ? api<DomainAcl>(`/api/acls/${initial.id}`, {
+            method: "PATCH",
+            body: JSON.stringify(body),
+          })
+        : api<DomainAcl>("/api/acls", {
+            method: "POST",
+            body: JSON.stringify(body),
+          });
+    },
+    onSuccess: () => {
+      toast.success(editing ? t("aclUpdated") : t("aclCreated"));
+      queryClient.invalidateQueries({ queryKey: ["acls"] });
       onClose();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("error"));
-    } finally {
-      setBusy(false);
-    }
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!title.trim()) return;
+    saveAcl.mutate();
   }
 
   return (
@@ -281,11 +274,11 @@ function AclFormContent({
         />
       </div>
       <div className="flex justify-end gap-2 border-t pt-3">
-        <Button type="button" variant="outline" className="rounded-lg text-xs" onClick={onClose} disabled={busy}>
+        <Button type="button" variant="outline" className="rounded-lg text-xs" onClick={onClose} disabled={saveAcl.isPending}>
           {t("cancel")}
         </Button>
-        <Button type="submit" className="rounded-lg text-xs" disabled={busy || !title.trim()}>
-          {busy ? t("loading") : t("save")}
+        <Button type="submit" className="rounded-lg text-xs" disabled={saveAcl.isPending || !title.trim()}>
+          {saveAcl.isPending ? t("loading") : t("save")}
         </Button>
       </div>
     </form>

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useT } from "@/lib/i18n";
 import { useDialog } from "@/hooks/use-dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -96,58 +97,118 @@ export function EntryDetailDialog({
   const toast = useToast();
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
-  const [entry, setEntry] = React.useState<EntryDetail | null>(null);
-  const [flavors, setFlavors] = React.useState<Flavor[]>([]);
-  const [categories, setCategories] = React.useState<Category[]>([]);
-  const [ticked, setTicked] = React.useState<Set<number>>(new Set());
-  const [analytics, setAnalytics] = React.useState<AnalyticsResponse | null>(null);
-  const [acls, setAcls] = React.useState<DomainAcl[]>([]);
-  const [aclId, setAclId] = React.useState<number | null>(null);
-  const [base, setBase] = React.useState<{
+  const queryClient = useQueryClient();
+
+  // Server truth: the entry + shared reference lists (same query keys the
+  // admin pages use, so edits there reflect here immediately).
+  const { data: entry } = useQuery({
+    queryKey: ["entry", publicId],
+    queryFn: () => api<EntryDetail>(`/api/entries/${publicId}`),
+  });
+  const { data: flavors = [] } = useQuery({
+    queryKey: ["flavors"],
+    queryFn: () => api<Flavor[]>("/api/flavors"),
+  });
+  const { data: categories = [] } = useQuery({
+    queryKey: ["categories"],
+    queryFn: () => api<Category[]>("/api/categories"),
+  });
+  const { data: acls = [] } = useQuery({
+    queryKey: ["acls"],
+    queryFn: () => api<DomainAcl[]>("/api/acls"),
+  });
+  const { data: analytics } = useQuery({
+    queryKey: ["entry-analytics", publicId],
+    queryFn: () => api<AnalyticsResponse>(`/api/entries/${publicId}/analytics`),
+  });
+
+  // Editable draft, initialized from the server entry (and re-synced after
+  // every save via query invalidation).
+  const [draft, setDraft] = React.useState<{
     title: string;
     description: string;
     categoryId: number | null;
     isPublic: boolean;
     accessDenied: boolean;
-    domainAclId: number | null;
-    ticked: Set<number>;
   } | null>(null);
+  const [ticked, setTicked] = React.useState<Set<number>>(new Set());
+  const [aclId, setAclId] = React.useState<number | null>(null);
   const [posterFrame, setPosterFrame] = React.useState(0);
   const [posterTouched, setPosterTouched] = React.useState(false);
   const [preview, setPreview] = React.useState<PlayInfo | null>(null);
-  const [reloadKey, setReloadKey] = React.useState(0);
   const [active, setActive] = React.useState("metadata");
 
-  const reload = React.useCallback(() => setReloadKey((k) => k + 1), []);
-
+  // Sync the editable draft whenever the server entry changes (initial load
+  // and after every save/reprocess invalidation).
+  /* eslint-disable react-hooks/set-state-in-effect */
   React.useEffect(() => {
-    api<EntryDetail>(`/api/entries/${publicId}`)
-      .then((e) => {
-        setEntry(e);
-        setAclId(e.domainAclId);
-        const tick = new Set(
-          e.flavors.filter((f) => f.status !== "skipped").map((f) => f.flavorId),
+    if (!entry) return;
+    const tick = new Set(
+      entry.flavors.filter((f) => f.status !== "skipped").map((f) => f.flavorId),
+    );
+    setDraft({
+      title: entry.title,
+      description: entry.description,
+      categoryId: entry.categoryId,
+      isPublic: entry.isPublic,
+      accessDenied: entry.accessDenied,
+    });
+    setAclId(entry.domainAclId);
+    setTicked(tick);
+    setPosterFrame(0);
+    setPosterTouched(false);
+    setPreview(null);
+  }, [entry]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  const invalidateEntry = React.useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["entry", publicId] });
+  }, [queryClient, publicId]);
+
+  const saveEntry = useMutation({
+    mutationFn: () => {
+      if (!draft) throw new Error("draft not loaded");
+      const body: Record<string, unknown> = {
+        title: draft.title,
+        description: draft.description,
+        categoryId: draft.categoryId,
+        isPublic: draft.isPublic,
+        accessDenied: draft.accessDenied,
+        domainAclId: aclId,
+      };
+      if (entry) {
+        const baseTick = new Set(
+          entry.flavors.filter((f) => f.status !== "skipped").map((f) => f.flavorId),
         );
-        setTicked(tick);
-        setPosterFrame(0);
-        setPosterTouched(false);
-        setPreview(null);
-        setBase({
-          title: e.title,
-          description: e.description,
-          categoryId: e.categoryId,
-          isPublic: e.isPublic,
-          accessDenied: e.accessDenied,
-          domainAclId: e.domainAclId,
-          ticked: tick,
-        });
-      })
-      .catch((err) => toast.error(err.message));
-    api<Flavor[]>("/api/flavors").then(setFlavors).catch(() => {});
-    api<Category[]>("/api/categories").then(setCategories).catch(() => {});
-    api<DomainAcl[]>("/api/acls").then(setAcls).catch(() => {});
-    api<AnalyticsResponse>(`/api/entries/${publicId}/analytics`).then(setAnalytics).catch(() => {});
-  }, [publicId, reloadKey, toast]);
+        if (baseTick.size !== ticked.size || [...ticked].some((v) => !baseTick.has(v))) {
+          body.flavorIds = [...ticked];
+        }
+      }
+      if (posterTouched) {
+        body.posterFrame = posterFrame;
+      }
+      return api<void>(`/api/entries/${publicId}`, {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["entry", publicId] });
+      queryClient.invalidateQueries({ queryKey: ["entries"] });
+      toast.success(t("saved"));
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const reprocess = useMutation({
+    mutationFn: () =>
+      api<void>(`/api/entries/${publicId}/reprocess`, { method: "POST" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["entry", publicId] });
+      queryClient.invalidateQueries({ queryKey: ["entries"] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
 
   const sections = [
     { id: "metadata", label: t("tabMetadata"), icon: <PencilLineIcon className="size-4" /> },
@@ -158,7 +219,7 @@ export function EntryDetailDialog({
     { id: "analytics", label: t("tabAnalytics"), icon: <BarChart3Icon className="size-4" /> },
   ];
 
-  if (!entry) {
+  if (!entry || !draft) {
     return (
       <SidebarProvider className="!min-h-0 h-full w-full flex-1 flex overflow-hidden">
         <Sidebar collapsible="none" className="hidden w-52 border-r bg-muted/20 md:flex">
@@ -201,43 +262,56 @@ export function EntryDetailDialog({
 
   const catName = categories.find((c) => c.id === entry.categoryId)?.name ?? "—";
 
+  // Base = the server state; the entry query refetches after every save, so
+  // dirty tracking is always relative to what's actually persisted.
+  const base = {
+    title: entry.title,
+    description: entry.description,
+    categoryId: entry.categoryId,
+    isPublic: entry.isPublic,
+    accessDenied: entry.accessDenied,
+    domainAclId: entry.domainAclId,
+    ticked: new Set(
+      entry.flavors.filter((f) => f.status !== "skipped").map((f) => f.flavorId),
+    ),
+  };
+
   const setsEqual = (a: Set<number>, b: Set<number>) =>
     a.size === b.size && [...a].every((v) => b.has(v));
 
-  const isDirty = !!base && (
-    entry.title !== base.title ||
-    entry.description !== base.description ||
-    entry.categoryId !== base.categoryId ||
-    entry.isPublic !== base.isPublic ||
-    entry.accessDenied !== base.accessDenied ||
+  const isDirty = (
+    draft.title !== base.title ||
+    draft.description !== base.description ||
+    draft.categoryId !== base.categoryId ||
+    draft.isPublic !== base.isPublic ||
+    draft.accessDenied !== base.accessDenied ||
     aclId !== base.domainAclId ||
     posterTouched ||
     !setsEqual(ticked, base.ticked)
   );
 
   const buildChanges = (): string[] => {
-    if (!base) return [];
     const items: string[] = [];
     const truncate = (s: string) => (s.length > 50 ? `${s.slice(0, 50)}…` : s);
-    if (entry.title !== base.title) {
-      items.push(`${t("chgTitle")}: ${base.title || "—"} → ${entry.title || "—"}`);
+    if (draft.title !== base.title) {
+      items.push(`${t("chgTitle")}: ${base.title || "—"} → ${draft.title || "—"}`);
     }
-    if (entry.description !== base.description) {
-      items.push(`${t("chgDesc")}: ${truncate(base.description) || "—"} → ${truncate(entry.description)}`);
+    if (draft.description !== base.description) {
+      items.push(`${t("chgDesc")}: ${truncate(base.description) || "—"} → ${truncate(draft.description)}`);
     }
-    if (entry.categoryId !== base.categoryId) {
+    if (draft.categoryId !== base.categoryId) {
       const name = (id: number | null) =>
         id == null ? t("none") : categories.find((c) => c.id === id)?.name ?? String(id);
-      items.push(`${t("chgCategory")}: ${name(base.categoryId)} → ${name(entry.categoryId)}`);
+      items.push(`${t("chgCategory")}: ${name(base.categoryId)} → ${name(draft.categoryId)}`);
     }
-    if (entry.isPublic !== base.isPublic) {
+    if (draft.isPublic !== base.isPublic) {
       items.push(
-        `${t("chgVisibility")}: ${base.isPublic ? t("visibilityPublic") : t("visibilityPrivate")} → ${entry.isPublic ? t("visibilityPublic") : t("visibilityPrivate")}`,
+        `${t("chgVisibility")}: ${base.isPublic ? t("visibilityPublic") : t("visibilityPrivate")} → ${draft.isPublic ? t("visibilityPublic") : t("visibilityPrivate")}`,
       );
     }
-    if (entry.accessDenied !== base.accessDenied) {
+    if (draft.accessDenied !== base.accessDenied) {
       items.push(
-        `${t("chgVisibility")}: ${base.accessDenied ? t("accessDenied") : t("accessAllowed")} → ${entry.accessDenied ? t("accessDenied") : t("accessAllowed")}`,
+        `${t("chgVisibility")}: ${base.accessDenied ? t("accessDenied") : t("accessAllowed")} → ${draft.accessDenied ? t("accessDenied") : t("accessAllowed")}`,
       );
     }
     if (aclId !== base.domainAclId) {
@@ -260,7 +334,7 @@ export function EntryDetailDialog({
 
   const save = () => {
     const changes = buildChanges();
-    if (changes.length === 0 || !base) return;
+    if (changes.length === 0) return;
     confirm({
       title: t("changesTitle"),
       description: t("changesDesc"),
@@ -276,41 +350,9 @@ export function EntryDetailDialog({
       ),
       confirmLabel: t("save"),
       cancelLabel: t("cancel"),
-      onConfirm: async () => {
-        const body: Record<string, unknown> = {
-          title: entry.title,
-          description: entry.description,
-          categoryId: entry.categoryId,
-          isPublic: entry.isPublic,
-          accessDenied: entry.accessDenied,
-          domainAclId: aclId,
-        };
-        if (!setsEqual(ticked, base.ticked)) {
-          body.flavorIds = [...ticked];
-        }
-        if (posterTouched) {
-          body.posterFrame = posterFrame;
-        }
-        await api<void>(`/api/entries/${entry.id}`, {
-          method: "PATCH",
-          body: JSON.stringify(body),
-        });
-        reload();
-        window.dispatchEvent(new Event("entries:changed"));
-        toast.success(t("saved"));
-      },
+      onConfirm: () => saveEntry.mutateAsync(),
       onError: (err) => toast.error(err instanceof Error ? err.message : t("error")),
     });
-  };
-
-  const reprocess = async () => {
-    try {
-      await api<void>(`/api/entries/${entry.id}/reprocess`, { method: "POST" });
-      reload();
-      window.dispatchEvent(new Event("entries:changed"));
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : t("error"));
-    }
   };
 
   return (
@@ -456,9 +498,9 @@ export function EntryDetailDialog({
                     <div className="flex flex-col gap-2">
                       <Label className="text-xs font-medium">{t("labelTitle")}</Label>
                       <Input
-                        value={entry.title}
+                        value={draft.title}
                         className="rounded-lg"
-                        onChange={(e) => setEntry({ ...entry, title: e.target.value })}
+                        onChange={(e) => setDraft({ ...draft, title: e.target.value })}
                       />
                     </div>
                     <div className="flex flex-col gap-2">
@@ -469,9 +511,9 @@ export function EntryDetailDialog({
                           ...categories.map((c) => ({ value: String(c.id), label: c.name })),
                         ]}
                         className="w-full rounded-lg"
-                        value={entry.categoryId ? String(entry.categoryId) : "none"}
+                        value={draft.categoryId ? String(draft.categoryId) : "none"}
                         onChange={(v) =>
-                          setEntry({ ...entry, categoryId: v === "none" ? null : Number(v) })
+                          setDraft({ ...draft, categoryId: v === "none" ? null : Number(v) })
                         }
                       />
                     </div>
@@ -481,9 +523,9 @@ export function EntryDetailDialog({
                     <Textarea
                       rows={4}
                       className="rounded-lg resize-none"
-                      value={entry.description}
+                      value={draft.description}
                       onChange={(e) =>
-                        setEntry({ ...entry, description: e.target.value })
+                        setDraft({ ...draft, description: e.target.value })
                       }
                     />
                   </div>
@@ -495,8 +537,8 @@ export function EntryDetailDialog({
                       </p>
                     </div>
                     <Switch
-                      checked={entry.isPublic}
-                      onCheckedChange={(v) => setEntry({ ...entry, isPublic: v })}
+                      checked={draft.isPublic}
+                      onCheckedChange={(v) => setDraft({ ...draft, isPublic: v })}
                     />
                   </div>
                   <div className="flex items-center justify-between rounded-xl border bg-muted/30 p-4">
@@ -507,8 +549,8 @@ export function EntryDetailDialog({
                       </p>
                     </div>
                     <Switch
-                      checked={entry.accessDenied}
-                      onCheckedChange={(v) => setEntry({ ...entry, accessDenied: v })}
+                      checked={draft.accessDenied}
+                      onCheckedChange={(v) => setDraft({ ...draft, accessDenied: v })}
                     />
                   </div>
                 </CardContent>
@@ -603,7 +645,8 @@ export function EntryDetailDialog({
                         variant="outline"
                         size="sm"
                         className="h-8 gap-1.5 text-xs rounded-lg"
-                        onClick={reprocess}
+                        onClick={() => reprocess.mutate()}
+                        disabled={reprocess.isPending}
                       >
                         <RotateCcwIcon className="size-3.5" /> {t("entryReprocess")}
                       </Button>
@@ -629,7 +672,7 @@ export function EntryDetailDialog({
 
           {active === "subtitles" ? (
             <div className="max-w-4xl">
-              <SubtitlesTab entry={entry} onChanged={reload} />
+              <SubtitlesTab entry={entry} onChanged={invalidateEntry} />
             </div>
           ) : null}
 
@@ -675,20 +718,17 @@ export function EntryDetailDialog({
                 size="sm"
                 className="h-8 text-xs rounded-lg"
                 onClick={() => {
-                  if (base) {
-                    setEntry({
-                      ...entry,
-                      title: base.title,
-                      description: base.description,
-                      categoryId: base.categoryId,
-                      isPublic: base.isPublic,
-                      accessDenied: base.accessDenied,
-                    });
-                    setAclId(base.domainAclId);
-                    setTicked(new Set(base.ticked));
-                    setPosterFrame(0);
-                    setPosterTouched(false);
-                  }
+                  setDraft({
+                    title: base.title,
+                    description: base.description,
+                    categoryId: base.categoryId,
+                    isPublic: base.isPublic,
+                    accessDenied: base.accessDenied,
+                  });
+                  setAclId(base.domainAclId);
+                  setTicked(new Set(base.ticked));
+                  setPosterFrame(0);
+                  setPosterTouched(false);
                 }}
               >
                 {t("reset")}

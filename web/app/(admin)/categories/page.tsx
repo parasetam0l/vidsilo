@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FolderIcon, FolderTreeIcon, PencilIcon, Trash2, FolderGit2Icon } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
@@ -43,21 +44,46 @@ export default function CategoriesPage() {
   const t = useT();
   const { open, confirm } = useDialog();
   const toast = useToast();
-  const [tree, setTree] = React.useState<Category[]>([]);
+  const queryClient = useQueryClient();
 
-  const load = React.useCallback(() => {
-    api<Category[]>("/api/categories")
-      .then(setTree)
-      .catch((e) => toast.error(e.message));
-  }, [toast]);
-  React.useEffect(load, [load]);
+  const { data: tree = [] } = useQuery({
+    queryKey: ["categories"],
+    queryFn: () => api<Category[]>("/api/categories"),
+  });
 
-  // Create/edit dialogs dispatch a change event on save; refresh the tree.
-  React.useEffect(() => {
-    const h = () => load();
-    window.addEventListener("categories:changed", h);
-    return () => window.removeEventListener("categories:changed", h);
-  }, [load]);
+  const removeCategory = useMutation({
+    mutationFn: (id: number) =>
+      api<void>(`/api/categories/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      toast.success(t("deleted"));
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  function openEdit(c: Category) {
+    open({
+      content: (close) => (
+        <CategoryFormContent onClose={close} initial={c} />
+      ),
+      size: "sm",
+      dismissible: false,
+      showCloseButton: false,
+    });
+  }
+
+  function askRemove(c: Category) {
+    confirm({
+      title: t("deleteCategoryTitle"),
+      description: t("deleteCategoryDesc"),
+      variant: "destructive",
+      confirmLabel: t("delete"),
+      cancelLabel: t("cancel"),
+      onConfirm: () => removeCategory.mutateAsync(c.id),
+      onError: (err: unknown) =>
+        toast.error(err instanceof Error ? err.message : t("error")),
+    });
+  }
 
   const flat = React.useMemo(() => {
     const out: Category[] = [];
@@ -80,37 +106,6 @@ export default function CategoriesPage() {
     }
     return d;
   };
-
-  function openEdit(c: Category) {
-    open({
-      content: (close) => (
-        <CategoryFormContent onClose={close} initial={c} />
-      ),
-      size: "sm",
-      dismissible: false,
-      showCloseButton: false,
-    });
-  }
-
-  function askRemove(c: Category) {
-    confirm({
-      title: t("deleteCategoryTitle"),
-      description: t("deleteCategoryDesc"),
-      variant: "destructive",
-      confirmLabel: t("delete"),
-      cancelLabel: t("cancel"),
-      onConfirm: async () => {
-        try {
-          await api<void>(`/api/categories/${c.id}`, { method: "DELETE" });
-          toast.success(t("deleted"));
-          load();
-        } catch (err) {
-          toast.error(err instanceof Error ? err.message : t("error"));
-          throw err; // keep the dialog open
-        }
-      },
-    });
-  }
 
   const rootCount = flat.filter((c) => !c.parentId).length;
   const childCount = flat.length - rootCount;
@@ -219,17 +214,42 @@ function CategoryFormContent({
 }) {
   const t = useT();
   const toast = useToast();
-  const [categories, setCategories] = React.useState<Category[]>([]);
-  React.useEffect(() => {
-    api<Category[]>("/api/categories").then(setCategories).catch(() => {});
-  }, []);
+  const queryClient = useQueryClient();
+  const { data: categories = [] } = useQuery({
+    queryKey: ["categories"],
+    queryFn: () => api<Category[]>("/api/categories"),
+  });
   const editing = !!initial;
   const [name, setName] = React.useState(initial?.name ?? "");
   const [parent, setParent] = React.useState(
     initial?.parentId ? String(initial.parentId) : "",
   );
-  const [busy, setBusy] = React.useState(false);
   const [errors, setErrors] = React.useState<FieldErrors>({});
+
+  const saveCategory = useMutation({
+    mutationFn: () => {
+      const body = {
+        name,
+        parentId: parent ? Number(parent) : null,
+        position: initial?.position ?? 0,
+      };
+      return editing
+        ? api<Category>(`/api/categories/${initial.id}`, {
+            method: "PATCH",
+            body: JSON.stringify(body),
+          })
+        : api<Category>("/api/categories", {
+            method: "POST",
+            body: JSON.stringify(body),
+          });
+    },
+    onSuccess: () => {
+      toast.success(editing ? t("categoryUpdated") : t("categoryCreated"));
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
+      onClose();
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -242,33 +262,7 @@ function CategoryFormContent({
       return;
     }
     setErrors({});
-    setBusy(true);
-    try {
-      const body = {
-        name,
-        parentId: parent ? Number(parent) : null,
-        position: initial?.position ?? 0,
-      };
-      if (editing) {
-        await api<Category>(`/api/categories/${initial.id}`, {
-          method: "PATCH",
-          body: JSON.stringify(body),
-        });
-        toast.success(t("categoryUpdated"));
-      } else {
-        await api<Category>("/api/categories", {
-          method: "POST",
-          body: JSON.stringify(body),
-        });
-        toast.success(t("categoryCreated"));
-      }
-      window.dispatchEvent(new Event("categories:changed"));
-      onClose();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("error"));
-    } finally {
-      setBusy(false);
-    }
+    saveCategory.mutate();
   }
 
   return (
@@ -304,11 +298,11 @@ function CategoryFormContent({
         />
       </div>
       <div className="flex justify-end gap-2 border-t pt-3">
-        <Button type="button" variant="outline" className="rounded-lg text-xs" onClick={onClose} disabled={busy}>
+        <Button type="button" variant="outline" className="rounded-lg text-xs" onClick={onClose} disabled={saveCategory.isPending}>
           {t("cancel")}
         </Button>
-        <Button type="submit" className="rounded-lg text-xs" disabled={busy}>
-          {busy ? t("loading") : t("save")}
+        <Button type="submit" className="rounded-lg text-xs" disabled={saveCategory.isPending}>
+          {saveCategory.isPending ? t("loading") : t("save")}
         </Button>
       </div>
     </form>
