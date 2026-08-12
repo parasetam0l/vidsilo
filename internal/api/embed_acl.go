@@ -72,7 +72,7 @@ func refererHost(r *http.Request) string {
 // distinguish "editor with session" from "anonymous viewer".
 func (s *Server) optionalAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if c, err := r.Cookie(accessCookieName); err == nil && c.Value != "" && !s.denylist.Revoked(c.Value) {
+		if c, err := r.Cookie(accessCookieName); err == nil && c.Value != "" && !s.denylist.Revoked(r.Context(), c.Value) {
 			if claims, err := verifyAccessToken(s.secret, c.Value); err == nil {
 				if u, err := db.UserByID(r.Context(), s.pool, claims.UserID); err == nil && !u.Disabled {
 					next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), userCtxKey, u)))

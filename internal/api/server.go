@@ -37,6 +37,7 @@ type Server struct {
 
 	apiLimiter   *rateLimiter
 	loginLimiter *rateLimiter
+	loginGuard   *loginGuard
 	denylist     *Denylist
 	spoolDir     string
 }
@@ -68,7 +69,8 @@ func NewServer(log *slog.Logger, uiFS fs.FS, pool *pgxpool.Pool, secret []byte, 
 		uiFS:         uiFS,
 		apiLimiter:   newRateLimiter(apiRate, apiRate),
 		loginLimiter: newRateLimiter(loginRate, loginRate),
-		denylist:     NewDenylist(),
+		loginGuard:   &loginGuard{failures: map[string]int{}, lockedAt: map[string]time.Time{}},
+		denylist:     NewDenylist(pool),
 	}
 	if ds != nil {
 		s.tusHandler = s.newTusHandler(ds)
@@ -294,9 +296,13 @@ func writeError(w http.ResponseWriter, status int, code, msg string) {
 	writeJSON(w, status, map[string]any{"error": code, "message": msg})
 }
 
-// decodeJSON reads a JSON body into v (stdlib decoder; no custom wrapper).
+// decodeJSON reads a JSON body into v with a hard size cap (a rogue client
+// must not be able to exhaust memory before the handler validates input).
 func decodeJSON(r *http.Request, v any) error {
+	r.Body = http.MaxBytesReader(nil, r.Body, maxJSONBody)
 	dec := json.NewDecoder(r.Body)
 	dec.DisallowUnknownFields()
 	return dec.Decode(v)
 }
+
+const maxJSONBody = 1 << 20 // 1 MiB is plenty for every JSON endpoint

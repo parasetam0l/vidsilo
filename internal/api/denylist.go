@@ -1,23 +1,24 @@
 package api
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"sync"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// Denylist revokes access JWTs on logout. Tokens are stateless, so we keep
-// their sha256 hashes until natural expiry. In-memory and per-node: a
-// single-node deployment revokes instantly; multi-node setups should add a
-// shared store (documented limitation).
+// Denylist revokes access JWTs on logout. Tokens are stateless, so their
+// sha256 hashes are stored until natural expiry. DB-backed: a logout on any
+// app node revokes the token cluster-wide (multi-node safe). Expired rows
+// are pruned opportunistically on access.
 type Denylist struct {
-	mu    sync.Mutex
-	until map[string]time.Time
+	pool *pgxpool.Pool
 }
 
-func NewDenylist() *Denylist {
-	return &Denylist{until: map[string]time.Time{}}
+func NewDenylist(pool *pgxpool.Pool) *Denylist {
+	return &Denylist{pool: pool}
 }
 
 func (d *Denylist) hash(token string) string {
@@ -26,29 +27,40 @@ func (d *Denylist) hash(token string) string {
 }
 
 // Revoke marks a token invalid until it would have expired anyway.
-func (d *Denylist) Revoke(token string, ttl time.Duration) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	d.until[d.hash(token)] = time.Now().Add(ttl)
+func (d *Denylist) Revoke(ctx context.Context, token string, ttl time.Duration) {
+	if d.pool == nil {
+		return
+	}
+	_, _ = d.pool.Exec(ctx, `
+		INSERT INTO access_denylist (token_hash, expires_at)
+		VALUES ($1, $2)
+		ON CONFLICT (token_hash) DO UPDATE SET expires_at = GREATEST(access_denylist.expires_at, EXCLUDED.expires_at)`,
+		d.hash(token), time.Now().Add(ttl))
 }
 
 // Revoked reports whether the token is on the denylist, pruning expired
-// entries on access.
-func (d *Denylist) Revoked(token string) bool {
-	if token == "" {
+// entries opportunistically.
+func (d *Denylist) Revoked(ctx context.Context, token string) bool {
+	if token == "" || d.pool == nil {
 		return false
 	}
-	h := d.hash(token)
-	now := time.Now()
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	exp, ok := d.until[h]
-	if !ok {
-		return false
+	var revoked bool
+	err := d.pool.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1 FROM access_denylist
+			WHERE token_hash = $1 AND expires_at > now()
+		)`, d.hash(token)).Scan(&revoked)
+	if err != nil {
+		return false // DB hiccup: fail open, the JWT TTL still applies
 	}
-	if exp.Before(now) {
-		delete(d.until, h)
-		return false
-	}
-	return true
+	// Opportunistic prune: rows expired over an hour ago are dead weight.
+	// Bounded by a subquery so a huge backlog can't stall one request.
+	_, _ = d.pool.Exec(ctx, `
+		DELETE FROM access_denylist
+		WHERE token_hash IN (
+			SELECT token_hash FROM access_denylist
+			WHERE expires_at <= now() - interval '1 hour'
+			LIMIT 500
+		)`)
+	return revoked
 }

@@ -3,6 +3,7 @@ package api
 import (
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 )
@@ -48,8 +49,19 @@ func (l *rateLimiter) allow(key string) bool {
 	return true
 }
 
-// clientIP extracts the peer address (no proxy headers — trusted deployments).
+// clientIP extracts the client address. When a reverse proxy forwards the
+// request, X-Forwarded-For carries the real peer — take its left-most entry
+// (the original client; later hops are untrusted). Direct deployments use
+// RemoteAddr as before.
 func clientIP(r *http.Request) string {
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		if i := strings.IndexByte(xff, ','); i > 0 {
+			xff = xff[:i]
+		}
+		if ip := strings.TrimSpace(xff); ip != "" {
+			return ip
+		}
+	}
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
 		return r.RemoteAddr

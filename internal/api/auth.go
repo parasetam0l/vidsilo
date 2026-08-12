@@ -6,7 +6,9 @@ import (
 	"encoding/hex"
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -22,6 +24,53 @@ const (
 	refreshTTL        = 7 * 24 * time.Hour
 	userCtxKey        = ctxKey("user")
 )
+
+// Per-account login throttling: after N failed attempts an account is
+// locked for a cooldown window regardless of the source IP, stopping
+// distributed brute force (the IP limiter still bounds the raw volume).
+const (
+	loginMaxFailures = 5
+	loginLockout     = 10 * time.Minute
+)
+
+type loginGuard struct {
+	mu       sync.Mutex
+	failures map[string]int
+	lockedAt map[string]time.Time
+}
+
+func (g *loginGuard) locked(email string) (time.Duration, bool) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if at, ok := g.lockedAt[strings.ToLower(email)]; ok {
+		left := loginLockout - time.Since(at)
+		if left > 0 {
+			return left, true
+		}
+		delete(g.lockedAt, strings.ToLower(email))
+		delete(g.failures, strings.ToLower(email))
+	}
+	return 0, false
+}
+
+func (g *loginGuard) failure(email string) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	key := strings.ToLower(email)
+	g.failures[key]++
+	if g.failures[key] >= loginMaxFailures {
+		g.lockedAt[key] = time.Now()
+		delete(g.failures, key)
+	}
+}
+
+func (g *loginGuard) success(email string) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	key := strings.ToLower(email)
+	delete(g.failures, key)
+	delete(g.lockedAt, key)
+}
 
 type ctxKey string
 
@@ -52,10 +101,18 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if left, locked := s.loginGuard.locked(req.Email); locked {
+		w.Header().Set("Retry-After", strconv.Itoa(int(left.Seconds())+1))
+		writeError(w, http.StatusTooManyRequests, "too_many_attempts",
+			"too many failed sign-in attempts — try again later")
+		return
+	}
+
 	u, err := db.UserByEmail(r.Context(), s.pool, req.Email)
 	if errors.Is(err, pgx.ErrNoRows) {
 		// Constant-ish time: burn a verify against a dummy hash.
 		password.Verify(req.Password, "$argon2id$v=19,m=65536,t=1,p=4$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+		s.loginGuard.failure(req.Email)
 		writeError(w, http.StatusUnauthorized, "unauthorized", "invalid credentials")
 		return
 	}
@@ -65,6 +122,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	ok, upgrade := password.Verify(req.Password, u.PasswordHash)
 	if !ok {
+		s.loginGuard.failure(req.Email)
 		writeError(w, http.StatusUnauthorized, "unauthorized", "invalid credentials")
 		return
 	}
@@ -72,6 +130,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusForbidden, "forbidden", "account disabled")
 		return
 	}
+	s.loginGuard.success(req.Email)
 	if upgrade {
 		// Legacy bcrypt hash: transparently re-hash with argon2id.
 		if newHash, err := password.Hash(req.Password); err == nil {
@@ -131,7 +190,7 @@ func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 	// Revoke the access JWT immediately (stateless tokens otherwise live
 	// out their TTL); also drop the refresh token from the DB.
 	if c, err := r.Cookie(accessCookieName); err == nil && c.Value != "" {
-		s.denylist.Revoke(c.Value, accessTokenTTL)
+		s.denylist.Revoke(r.Context(), c.Value, accessTokenTTL)
 	}
 	if c, err := r.Cookie(refreshCookieName); err == nil && c.Value != "" {
 		hash := sha256.Sum256([]byte(c.Value))
@@ -258,7 +317,7 @@ func (s *Server) requireAuth(next http.Handler) http.Handler {
 			writeError(w, http.StatusUnauthorized, "unauthorized", "not signed in")
 			return
 		}
-		if s.denylist.Revoked(c.Value) {
+		if s.denylist.Revoked(r.Context(), c.Value) {
 			writeError(w, http.StatusUnauthorized, "unauthorized", "session revoked")
 			return
 		}
