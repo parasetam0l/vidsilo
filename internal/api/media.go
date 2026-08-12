@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"io"
 	"net/http"
 	"strings"
@@ -104,16 +105,19 @@ func (c *countingReadSeeker) Read(p []byte) (int, error) {
 
 // playInfo is what the player page needs to boot.
 type playInfo struct {
-	Title        string        `json:"title"`
-	Description  string        `json:"description"`
+	Title        string         `json:"title"`
+	Description  string         `json:"description"`
 	Status       db.EntryStatus `json:"status"`
-	DurationMs   *int64        `json:"durationMs"`
-	Master       string        `json:"master,omitempty"`
-	Poster       string        `json:"poster,omitempty"`
-	Sprite       string        `json:"sprite,omitempty"`
-	SpriteFrames int           `json:"spriteFrames"`
-	Subtitles    []subtitleOut `json:"subtitles"`
-	EmbedURL     string        `json:"embedUrl"`
+	DurationMs   *int64         `json:"durationMs"`
+	Master       string         `json:"master,omitempty"`
+	Poster       string         `json:"poster,omitempty"`
+	Sprite       string         `json:"sprite,omitempty"`
+	SpriteFrames int            `json:"spriteFrames"`
+	Subtitles    []subtitleOut  `json:"subtitles"`
+	EmbedURL     string         `json:"embedUrl"`
+	// Player is the resolved player design (entry's player, or the Default
+	// one). Empty when the Default design is in effect.
+	Player json.RawMessage `json:"player,omitempty"`
 }
 
 type subtitleOut struct {
@@ -159,6 +163,9 @@ func (s *Server) handlePlayInfo(w http.ResponseWriter, r *http.Request) {
 		SpriteFrames: e.SpriteFrames,
 		Subtitles:    []subtitleOut{},
 		EmbedURL:     "/embed/" + e.PublicID,
+	}
+	if cfg := s.resolvedPlayerConfig(r, e.PlayerID); len(cfg) > 2 {
+		out.Player = cfg
 	}
 	if e.PosterKey != "" {
 		out.Poster = "/media/" + strings.TrimPrefix(e.PosterKey, "/")

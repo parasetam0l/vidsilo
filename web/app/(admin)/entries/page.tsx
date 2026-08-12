@@ -323,7 +323,7 @@ export default function EntriesPage() {
                   >
                     <RowActions
                       onOpen={() => openEntryDetail(e.id)}
-                      onEmbed={() => openEmbed(e.id)}
+                      onEmbed={() => openEmbed(e)}
                       onDelete={() => askDelete(e)}
                     />
                   </TableCell>

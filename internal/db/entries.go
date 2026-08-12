@@ -20,7 +20,8 @@ func scanEntry(row pgx.Row) (Entry, error) {
 		&e.SourceKey, &e.SourceSize, &e.IsPublic,
 		&e.AccessDenied,
 		&e.DomainACLID,
-		&e.PosterKey, &e.SpriteKey, &e.SpriteFrames, &e.Error,
+		&e.PlayerID,
+		&e.PosterKey, &e.PosterFrame, &e.SpriteKey, &e.SpriteFrames, &e.Error,
 		&e.CreatedAt, &e.UpdatedAt,
 	)
 	return e, err
@@ -32,7 +33,8 @@ const entryColumns = `
 	coalesce(e.source_key, ''), e.source_size, e.is_public,
 	e.access_denied,
 	e.domain_acl_id,
-	coalesce(e.poster_key, ''), coalesce(e.sprite_key, ''), coalesce(e.sprite_frames, 0), coalesce(e.error, ''),
+	e.player_id,
+	coalesce(e.poster_key, ''), coalesce(e.poster_frame, 0), coalesce(e.sprite_key, ''), coalesce(e.sprite_frames, 0), coalesce(e.error, ''),
 	e.created_at, e.updated_at`
 
 func EntryByID(ctx context.Context, pool *pgxpool.Pool, id int64) (Entry, error) {
@@ -177,10 +179,11 @@ func ListAllEntries(ctx context.Context, pool *pgxpool.Pool) ([]Entry, error) {
 func UpdateEntry(ctx context.Context, pool *pgxpool.Pool, id int64, patch EntryPatch) (Entry, error) {
 	if _, err := pool.Exec(ctx, `
 		UPDATE entries SET title = $1, description = $2, category_id = $3, is_public = $4,
-			domain_acl_id = $5, access_denied = COALESCE($6::boolean, access_denied), updated_at = now()
-		WHERE id = $7`,
+			domain_acl_id = $5, access_denied = COALESCE($6::boolean, access_denied),
+			player_id = $7, updated_at = now()
+		WHERE id = $8`,
 		patch.Title, patch.Description, patch.CategoryID, patch.IsPublic, patch.DomainACLID,
-		patch.AccessDenied, id); err != nil {
+		patch.AccessDenied, patch.PlayerID, id); err != nil {
 		return Entry{}, err
 	}
 	return EntryByID(ctx, pool, id)
@@ -193,6 +196,8 @@ type EntryPatch struct {
 	IsPublic    bool     `json:"isPublic"`
 	// DomainACLID is the named embed ACL; nil = "Allow All".
 	DomainACLID *int64   `json:"domainAclId"`
+	// PlayerID is the assigned player design; nil = the Default player.
+	PlayerID *int64 `json:"playerId"`
 	// AccessDenied hides the entry from all viewers (editors/admins can
 	// still manage it). Omit to leave access untouched.
 	AccessDenied *bool `json:"accessDenied"`

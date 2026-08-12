@@ -3,7 +3,7 @@
 import * as React from "react";
 import Hls from "hls.js";
 
-import type { PlayInfo } from "@/lib/api";
+import type { PlayInfo, PlayerConfig } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import { viewerId } from "@/lib/format";
 
@@ -31,16 +31,20 @@ export function VODPlayer({
   autoplay,
   muted,
   loop,
+  branding,
 }: {
   info: PlayInfo;
   publicId: string;
   autoplay?: boolean;
   muted?: boolean;
   loop?: boolean;
+  /** Player design (accent color, logo, loader). Absent = the Default look. */
+  branding?: PlayerConfig;
 }) {
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const [playing, setPlaying] = React.useState(false);
+  const [buffering, setBuffering] = React.useState(false);
   const [current, setCurrent] = React.useState(0);
   const [duration, setDuration] = React.useState(info.durationMs ?? 0);
   const [volume, setVolume] = React.useState(() => {
@@ -145,12 +149,18 @@ export function VODPlayer({
       setMutedState(video.muted);
     };
     const onFsChange = () => setFullscreen(document.fullscreenElement != null);
+    const onWaiting = () => setBuffering(true);
+    const onPlaying = () => setBuffering(false);
+    const onCanPlay = () => setBuffering(false);
 
     video.addEventListener("timeupdate", onTime);
     video.addEventListener("loadedmetadata", onMeta);
     video.addEventListener("play", onPlay);
     video.addEventListener("pause", onPause);
     video.addEventListener("volumechange", onVolume);
+    video.addEventListener("waiting", onWaiting);
+    video.addEventListener("playing", onPlaying);
+    video.addEventListener("canplay", onCanPlay);
     document.addEventListener("fullscreenchange", onFsChange);
 
     const flushWatch = () => {
@@ -178,6 +188,9 @@ export function VODPlayer({
       video.removeEventListener("play", onPlay);
       video.removeEventListener("pause", onPause);
       video.removeEventListener("volumechange", onVolume);
+      video.removeEventListener("waiting", onWaiting);
+      video.removeEventListener("playing", onPlaying);
+      video.removeEventListener("canplay", onCanPlay);
       document.removeEventListener("fullscreenchange", onFsChange);
       clearInterval(ticker);
       window.removeEventListener("beforeunload", flushWatch);
@@ -307,10 +320,22 @@ export function VODPlayer({
         }
       : undefined;
 
+  const b = branding ?? {};
+  const accent = b.accentColor && /^#[0-9a-fA-F]{3,8}$/.test(b.accentColor) ? b.accentColor : "#ffffff";
+  const showLoader = b.showLoader !== false;
+  const autoHideControls = b.autoHideControls !== false;
+  const logoPositionClass = {
+    "top-left": "left-3 top-3",
+    "top-right": "right-3 top-3",
+    "bottom-left": "left-3 bottom-12",
+    "bottom-right": "right-3 bottom-12",
+  }[b.logoPosition ?? "top-right"];
+
   return (
     <div
       ref={containerRef}
       className="group relative aspect-video w-full overflow-hidden rounded-xl bg-black select-none"
+      style={{ "--player-accent": accent } as React.CSSProperties}
     >
       <video
         ref={videoRef}
@@ -326,6 +351,29 @@ export function VODPlayer({
         <track key={s.lang} kind="subtitles" srcLang={s.lang} label={s.label} src={s.url} />
       ))}
 
+      {b.logoUrl ? (
+        <a
+          href={b.logoHref || undefined}
+          target={b.logoHref ? "_blank" : undefined}
+          rel="noreferrer"
+          onClick={(e) => !b.logoHref && e.preventDefault()}
+          className={`pointer-events-auto absolute z-10 ${logoPositionClass}`}
+          style={{ width: b.logoSize ?? 64, height: b.logoSize ?? 64, opacity: b.logoOpacity ?? 0.8 }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={b.logoUrl} alt="" className="h-full w-full object-contain" draggable={false} />
+        </a>
+      ) : null}
+
+      {buffering && showLoader && !error ? (
+        <div className="absolute inset-0 z-10 grid place-items-center bg-black/20">
+          <div
+            className="size-12 animate-spin rounded-full border-4 border-white/20"
+            style={{ borderTopColor: accent }}
+          />
+        </div>
+      ) : null}
+
       {error ? (
         <div className="absolute inset-0 grid place-items-center bg-black/80 text-sm text-red-400">
           {error}
@@ -338,7 +386,7 @@ export function VODPlayer({
           onClick={togglePlay}
           aria-label={t("playerPlay")}
         >
-          <div className="grid size-20 place-items-center rounded-full bg-white/90 text-black">
+          <div className="grid size-20 place-items-center rounded-full text-black" style={{ backgroundColor: accent }}>
             <svg viewBox="0 0 24 24" className="ml-1 size-10 fill-current">
               <path d="M8 5v14l11-7z" />
             </svg>
@@ -347,7 +395,11 @@ export function VODPlayer({
       ) : null}
 
       {/* controls */}
-      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-3 opacity-0 transition-opacity group-hover:opacity-100">
+      <div
+        className={`absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-3 transition-opacity ${
+          autoHideControls ? "opacity-0 group-hover:opacity-100" : "opacity-100"
+        }`}
+      >
         {scrubTime != null && scrubFrame != null && info.sprite ? (
           <div className="pointer-events-none absolute bottom-12 -translate-x-1/2 overflow-hidden rounded border bg-black"
             style={{ left: `${scrubAt}%`, width: 160, height: 90, ...scrubberStyle }}
@@ -365,7 +417,10 @@ export function VODPlayer({
             seekTo(((e.clientX - rect.left) / rect.width) * duration);
           }}
         >
-          <div className="absolute h-full rounded-full bg-white" style={{ width: `${scrubAt ?? progress}%` }} />
+          <div
+            className="absolute h-full rounded-full"
+            style={{ width: `${scrubAt ?? progress}%`, backgroundColor: accent }}
+          />
         </div>
         <div className="mt-2 flex items-center gap-3 text-xs text-white">
           <button onClick={togglePlay} aria-label={playing ? t("playerPause") : t("playerPlay")} className="opacity-80 hover:opacity-100">
@@ -397,6 +452,7 @@ export function VODPlayer({
               }
             }}
             className="w-20"
+            style={{ accentColor: accent }}
           />
           <span className="tabular-nums opacity-80">
             {fmt(current)} / {fmt(duration)}
@@ -407,6 +463,7 @@ export function VODPlayer({
                 value={level}
                 onChange={(e) => setQuality(Number(e.target.value))}
                 className="rounded bg-black/40 px-1 py-0.5"
+                style={{ accentColor: accent }}
                 aria-label={t("colCodec")}
               >
                 <option value={-1}>{t("playerAuto")}</option>

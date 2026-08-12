@@ -9,14 +9,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { EmbedPreview } from "@/components/embed-preview";
+import { PlaybackPreview } from "@/components/playback-preview";
+import type { Entry } from "@/lib/api";
+
+type EmbedSource = Pick<Entry, "id" | "posterKey" | "updatedAt" | "durationMs">;
 
 export function useEmbedDialog() {
   const dialog = useDialog();
   return React.useCallback(
-    (publicId: string) => {
+    (entry: EmbedSource) => {
       dialog.open({
-        content: (close) => <EmbedDialogContent publicId={publicId} onClose={close} />,
+        content: (close) => <EmbedDialogContent entry={entry} onClose={close} />,
         size: "xl",
         className: "sm:max-w-[640px] max-h-[85vh] overflow-hidden flex flex-col p-0",
         dismissible: true,
@@ -27,13 +30,13 @@ export function useEmbedDialog() {
   );
 }
 
-function EmbedDialogContent({ publicId, onClose }: { publicId: string; onClose: () => void }) {
+function EmbedDialogContent({ entry, onClose }: { entry: EmbedSource; onClose: () => void }) {
   const t = useT();
   const [copiedDirect, setCopiedDirect] = React.useState(false);
   const [copiedSnippet, setCopiedSnippet] = React.useState(false);
 
   const origin = typeof window !== "undefined" ? window.location.origin : "http://localhost:8080";
-  const directUrl = `${origin}/embed/${publicId}`;
+  const directUrl = `${origin}/embed/${entry.id}`;
   const snippet = `<iframe src="${directUrl}" width="640" height="360" frameborder="0" allowfullscreen></iframe>`;
 
   const handleCopyDirect = () => {
@@ -59,7 +62,13 @@ function EmbedDialogContent({ publicId, onClose }: { publicId: string; onClose: 
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 space-y-4">
         {/* Embedded Video Player Preview */}
-        <EmbedPreview publicId={publicId} maxH="max-h-56" />
+        <PlaybackPreview
+          publicId={entry.id}
+          posterKey={entry.posterKey}
+          updatedAt={entry.updatedAt}
+          durationMs={entry.durationMs}
+          maxH="max-h-56"
+        />
 
         {/* Gray Area 1: Direct Link */}
         <div className="flex flex-col gap-2.5 rounded-xl border border-border/60 bg-muted/40 p-4 shrink-0">

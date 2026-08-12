@@ -10,6 +10,7 @@ import { useCreateUserAction } from "@/app/(admin)/users/page";
 import { useCreateCategoryAction } from "@/app/(admin)/categories/page";
 import { useCreateFlavorAction } from "@/app/(admin)/flavors/page";
 import { useCreateAclAction } from "@/app/(admin)/domain-acls/page";
+import { useCreatePlayerAction } from "@/app/(admin)/players/page";
 import { useAuth } from "@/components/auth-provider";
 import { PlusIcon, UploadCloudIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const createCategory = useCreateCategoryAction();
   const createFlavor = useCreateFlavorAction();
   const createAcl = useCreateAclAction();
+  const createPlayer = useCreatePlayerAction();
 
   // Per-page app-bar action (page title lives in this header already).
   const action =
@@ -47,7 +49,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             ? { label: t("flavorsNew"), icon: <PlusIcon className="size-4" />, onClick: createFlavor }
             : pathname === "/domain-acls"
               ? { label: t("aclNew"), icon: <PlusIcon className="size-4" />, onClick: createAcl }
-              : null;
+              : pathname === "/players"
+                ? { label: t("playersNew"), icon: <PlusIcon className="size-4" />, onClick: createPlayer }
+                : null;
   const pageTitles: Record<string, string> = {
     "/dashboard": t("navDashboard"),
     "/entries": t("navEntries"),
@@ -58,6 +62,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     "/categories": t("navCategories"),
     "/flavors": t("navFlavors"),
     "/domain-acls": t("navDomainAcls"),
+    "/players": t("navPlayers"),
     "/storage": t("navStorage"),
     "/settings": t("navSettings"),
   };

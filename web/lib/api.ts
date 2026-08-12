@@ -104,7 +104,11 @@ export interface Entry {
   accessDenied: boolean;
   /** null = "Allow All" (embed anywhere); otherwise references a DomainAcl. */
   domainAclId: number | null;
+  /** Assigned player design id; null = the Default player. */
+  playerId: number | null;
   posterKey: string;
+  /** Sprite-frame index the current poster was extracted from. */
+  posterFrame: number;
   spriteKey: string;
   spriteFrames: number;
   error?: string;
@@ -208,6 +212,28 @@ export interface PlayInfo {
   spriteFrames: number;
   subtitles: { lang: string; label: string; url: string }[];
   embedUrl: string;
+  /** Resolved player design; absent = the Default look. */
+  player?: PlayerConfig;
+}
+
+export interface PlayerConfig {
+  accentColor?: string;
+  logoUrl?: string;
+  logoHref?: string;
+  logoPosition?: "top-left" | "top-right" | "bottom-left" | "bottom-right";
+  logoSize?: number;
+  logoOpacity?: number;
+  showLoader?: boolean;
+  autoHideControls?: boolean;
+}
+
+export interface Player {
+  id: number;
+  name: string;
+  isDefault: boolean;
+  config: PlayerConfig;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface UploadConfig {

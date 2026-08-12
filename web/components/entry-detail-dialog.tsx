@@ -7,6 +7,7 @@ import { useDialog } from "@/hooks/use-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/components/auth-provider";
 import {
+  ArrowRight,
   BarChart3Icon,
   CaptionsIcon,
   Check,
@@ -18,7 +19,6 @@ import {
   Loader2,
   Loader2Icon,
   PencilLineIcon,
-  PlayIcon,
   PlusIcon,
   RotateCcwIcon,
   SaveIcon,
@@ -26,7 +26,6 @@ import {
   Trash2Icon,
   UploadIcon,
   VideoIcon,
-  XIcon,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -37,12 +36,11 @@ import {
   type DomainAcl,
   type EntryDetail,
   type Flavor,
-  type PlayInfo,
+  type Player,
 } from "@/lib/api";
 import { formatBytes, formatDate, formatDuration, formatGb, formatWatchHours } from "@/lib/format";
 import { StatusBadge } from "@/components/status-badge";
-import { VODPlayer } from "@/components/vod-player";
-import { EmbedPreview } from "@/components/embed-preview";
+import { PlaybackPreview } from "@/components/playback-preview";
 import { LoadingCircle } from "@/components/loading";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -133,6 +131,10 @@ export function EntryDetailDialog({
     queryKey: ["acls"],
     queryFn: () => api<DomainAcl[]>("/api/acls"),
   });
+  const { data: players = [] } = useQuery({
+    queryKey: ["players"],
+    queryFn: () => api<Player[]>("/api/players"),
+  });
   const { data: analytics } = useQuery({
     queryKey: ["entry-analytics", publicId],
     queryFn: () => api<AnalyticsResponse>(`/api/entries/${publicId}/analytics`),
@@ -149,9 +151,9 @@ export function EntryDetailDialog({
   } | null>(null);
   const [ticked, setTicked] = React.useState<Set<number>>(new Set());
   const [aclId, setAclId] = React.useState<number | null>(null);
+  const [playerId, setPlayerId] = React.useState<number | null>(null);
   const [posterFrame, setPosterFrame] = React.useState(0);
   const [posterTouched, setPosterTouched] = React.useState(false);
-  const [preview, setPreview] = React.useState<PlayInfo | null>(null);
   const [active, setActive] = React.useState("metadata");
 
   // Sync the editable draft whenever the server entry changes (initial load
@@ -170,10 +172,14 @@ export function EntryDetailDialog({
       accessDenied: entry.accessDenied,
     });
     setAclId(entry.domainAclId);
+    setPlayerId(entry.playerId);
     setTicked(tick);
-    setPosterFrame(0);
+    // Reopen the poster tab on the frame that produced the current poster
+    // (clamped — the sprite may have been regenerated with fewer frames).
+    setPosterFrame(
+      entry.spriteFrames > 0 ? Math.min(entry.posterFrame, entry.spriteFrames - 1) : 0,
+    );
     setPosterTouched(false);
-    setPreview(null);
   }, [entry]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
@@ -191,6 +197,7 @@ export function EntryDetailDialog({
         isPublic: draft.isPublic,
         accessDenied: draft.accessDenied,
         domainAclId: aclId,
+        playerId,
       };
       if (entry) {
         const baseTick = new Set(
@@ -303,6 +310,7 @@ export function EntryDetailDialog({
     isPublic: entry.isPublic,
     accessDenied: entry.accessDenied,
     domainAclId: entry.domainAclId,
+    playerId: entry.playerId,
     ticked: new Set(
       entry.flavors.filter((f) => f.status !== "skipped").map((f) => f.flavorId),
     ),
@@ -318,48 +326,85 @@ export function EntryDetailDialog({
     draft.isPublic !== base.isPublic ||
     draft.accessDenied !== base.accessDenied ||
     aclId !== base.domainAclId ||
+    playerId !== base.playerId ||
     posterTouched ||
     !setsEqual(ticked, base.ticked)
   );
 
-  const buildChanges = (): string[] => {
-    const items: string[] = [];
+  const buildChanges = (): { label: string; from: string; to: string }[] => {
+    const items: { label: string; from: string; to: string }[] = [];
     const truncate = (s: string) => (s.length > 50 ? `${s.slice(0, 50)}…` : s);
     if (draft.title !== base.title) {
-      items.push(`${t("chgTitle")}: ${base.title || "—"} → ${draft.title || "—"}`);
+      items.push({
+        label: t("chgTitle"),
+        from: base.title || "—",
+        to: draft.title || "—",
+      });
     }
     if (draft.description !== base.description) {
-      items.push(`${t("chgDesc")}: ${truncate(base.description) || "—"} → ${truncate(draft.description)}`);
+      items.push({
+        label: t("chgDesc"),
+        from: truncate(base.description) || "—",
+        to: truncate(draft.description) || "—",
+      });
     }
     if (draft.categoryId !== base.categoryId) {
       const name = (id: number | null) =>
         id == null ? t("none") : categories.find((c) => c.id === id)?.name ?? String(id);
-      items.push(`${t("chgCategory")}: ${name(base.categoryId)} → ${name(draft.categoryId)}`);
+      items.push({
+        label: t("chgCategory"),
+        from: name(base.categoryId),
+        to: name(draft.categoryId),
+      });
     }
     if (draft.isPublic !== base.isPublic) {
-      items.push(
-        `${t("chgVisibility")}: ${base.isPublic ? t("visibilityPublic") : t("visibilityPrivate")} → ${draft.isPublic ? t("visibilityPublic") : t("visibilityPrivate")}`,
-      );
+      const vis = (v: boolean) => (v ? t("visibilityPublic") : t("visibilityPrivate"));
+      items.push({ label: t("chgVisibility"), from: vis(base.isPublic), to: vis(draft.isPublic) });
     }
     if (draft.accessDenied !== base.accessDenied) {
-      items.push(
-        `${t("chgVisibility")}: ${base.accessDenied ? t("accessDenied") : t("accessAllowed")} → ${draft.accessDenied ? t("accessDenied") : t("accessAllowed")}`,
-      );
+      const acc = (v: boolean) => (v ? t("accessDenied") : t("accessAllowed"));
+      items.push({
+        label: t("chgAccess"),
+        from: acc(base.accessDenied),
+        to: acc(draft.accessDenied),
+      });
     }
     if (aclId !== base.domainAclId) {
       const name = (id: number | null) =>
         id == null ? t("allowAll") : acls.find((a) => a.id === id)?.title ?? String(id);
-      items.push(`${t("chgAcl")}: ${name(base.domainAclId)} → ${name(aclId)}`);
+      items.push({
+        label: t("chgAcl"),
+        from: name(base.domainAclId),
+        to: name(aclId),
+      });
+    }
+    if (playerId !== base.playerId) {
+      const name = (id: number | null) => {
+        if (id == null) return t("playersDefault");
+        return players.find((p) => p.id === id)?.name ?? String(id);
+      };
+      items.push({
+        label: t("chgPlayer"),
+        from: name(base.playerId),
+        to: name(playerId),
+      });
     }
     if (!setsEqual(ticked, base.ticked)) {
       const name = (id: number) => flavors.find((f) => f.id === id)?.name ?? String(id);
       const added = [...ticked].filter((v) => !base.ticked.has(v)).map(name);
       const removed = [...base.ticked].filter((v) => !ticked.has(v)).map(name);
-      if (added.length) items.push(`${t("chgFlavors")}: +${added.join(", ")}`);
-      if (removed.length) items.push(`${t("chgFlavors")}: -${removed.join(", ")}`);
+      items.push({
+        label: t("chgFlavors"),
+        from: removed.length ? removed.join(", ") : "—",
+        to: added.length ? added.join(", ") : "—",
+      });
     }
     if (posterTouched) {
-      items.push(`${t("chgPoster")}: ${t("chgPosterFrame", { n: posterFrame })}`);
+      items.push({
+        label: t("chgPoster"),
+        from: t("chgPosterFrame", { n: entry.posterFrame }),
+        to: t("chgPosterFrame", { n: posterFrame }),
+      });
     }
     return items;
   };
@@ -371,14 +416,18 @@ export function EntryDetailDialog({
       title: t("changesTitle"),
       description: t("changesDesc"),
       body: (
-        <ul className="flex flex-col gap-1.5 py-2 text-sm">
-          {changes.map((c, i) => (
-            <li key={i} className="flex gap-2">
-              <span className="text-muted-foreground">•</span>
-              <span className="break-words">{c}</span>
-            </li>
+        <div className="mb-2 divide-y rounded-lg border bg-muted/20">
+          {changes.map((c) => (
+            <div key={c.label} className="flex flex-col gap-0.5 px-3 py-2">
+              <span className="text-xs font-medium text-muted-foreground">{c.label}</span>
+              <div className="flex items-center gap-2 text-sm">
+                <span className="min-w-0 break-words text-muted-foreground line-through">{c.from}</span>
+                <ArrowRight className="size-3 shrink-0 text-muted-foreground" />
+                <span className="min-w-0 break-words font-medium">{c.to}</span>
+              </div>
+            </div>
           ))}
-        </ul>
+        </div>
       ),
       confirmLabel: t("save"),
       cancelLabel: t("cancel"),
@@ -471,48 +520,13 @@ export function EntryDetailDialog({
         <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-6">
           {active === "metadata" ? (
             <div className="space-y-6 max-w-4xl">
-              {entry.status === "ready" && entry.posterKey ? (
-                preview ? (
-                  <div className="relative overflow-hidden rounded-2xl border bg-black/80 shadow-md">
-                    <VODPlayer info={preview} publicId={entry.id} autoplay />
-                    <button
-                      type="button"
-                      onClick={() => setPreview(null)}
-                      aria-label={t("close")}
-                      className="absolute top-3 right-3 grid size-8 place-items-center rounded-full bg-black/60 text-white/90 opacity-0 transition-opacity hover:bg-black/80 group-hover:opacity-100"
-                    >
-                      <XIcon className="size-4" />
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    className="group relative block w-full overflow-hidden rounded-2xl border bg-black/80 shadow-md text-left"
-                    onClick={() => {
-                      api<PlayInfo>(`/play/${entry.id}/playinfo.json`)
-                        .then(setPreview)
-                        .catch((e) => toast.error(e instanceof Error ? e.message : t("error")));
-                    }}
-                    aria-label={t("entryWatch")}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={`/media/${entry.posterKey}?v=${encodeURIComponent(entry.updatedAt)}`}
-                      alt="poster"
-                      className="aspect-video max-h-60 w-full object-contain mx-auto transition-transform duration-300 group-hover:scale-102"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex items-end p-4">
-                      <span className="text-xs font-medium text-white/90 bg-black/40 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/10">
-                        {formatDuration(entry.durationMs)}
-                      </span>
-                    </div>
-                    <div className="absolute inset-0 grid place-items-center bg-black/0 transition-colors group-hover:bg-black/30">
-                      <span className="grid size-14 place-items-center rounded-full bg-white/90 text-black opacity-0 shadow-lg transition-all group-hover:opacity-100">
-                        <PlayIcon className="ml-0.5 size-6 fill-current" />
-                      </span>
-                    </div>
-                  </button>
-                )
+              {entry.status === "ready" ? (
+                <PlaybackPreview
+                  publicId={entry.id}
+                  posterKey={entry.posterKey}
+                  updatedAt={entry.updatedAt}
+                  durationMs={entry.durationMs}
+                />
               ) : (
                 <div className="flex aspect-video max-h-60 w-full items-center justify-center rounded-2xl border border-border/60 bg-muted/40 mx-auto">
                   <div className="flex flex-col items-center gap-2 text-muted-foreground">
@@ -683,6 +697,9 @@ export function EntryDetailDialog({
                 aclId={aclId}
                 acls={acls}
                 onAclChange={setAclId}
+                playerId={playerId}
+                players={players}
+                onPlayerChange={setPlayerId}
                 isPublic={draft.isPublic}
                 onPublicChange={(v) => setDraft({ ...draft, isPublic: v })}
                 accessDenied={draft.accessDenied}
@@ -693,7 +710,7 @@ export function EntryDetailDialog({
 
           {active === "embed" ? (
             <div className="max-w-4xl">
-              <EmbedTab publicId={entry.id} />
+              <EmbedTab entry={entry} />
             </div>
           ) : null}
 
@@ -736,8 +753,13 @@ export function EntryDetailDialog({
                     accessDenied: base.accessDenied,
                   });
                   setAclId(base.domainAclId);
+                  setPlayerId(base.playerId);
                   setTicked(new Set(base.ticked));
-                  setPosterFrame(0);
+                  setPosterFrame(
+                    entry.spriteFrames > 0
+                      ? Math.min(entry.posterFrame, entry.spriteFrames - 1)
+                      : 0,
+                  );
                   setPosterTouched(false);
                 }}
               >
@@ -1072,6 +1094,9 @@ function SecurityTab({
   aclId,
   acls,
   onAclChange,
+  playerId,
+  players,
+  onPlayerChange,
   isPublic,
   onPublicChange,
   accessDenied,
@@ -1080,6 +1105,9 @@ function SecurityTab({
   aclId: number | null;
   acls: DomainAcl[];
   onAclChange: (id: number | null) => void;
+  playerId: number | null;
+  players: Player[];
+  onPlayerChange: (id: number | null) => void;
   isPublic: boolean;
   onPublicChange: (v: boolean) => void;
   accessDenied: boolean;
@@ -1143,17 +1171,36 @@ function SecurityTab({
           onChange={(v) => onAclChange(v ? Number(v) : null)}
         />
       </div>
+
+      {/* Card 4: Player Design Select (hidden when only the Default exists) */}
+      {players.length > 1 ? (
+        <div className="flex flex-col gap-3 rounded-xl border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-0.5">
+            <Label className="text-sm font-medium">{t("playersSelectLabel")}</Label>
+            <p className="text-xs text-muted-foreground">{t("playersSelectHint")}</p>
+          </div>
+          <Select
+            options={[
+              { value: "", label: t("playersDefault") },
+              ...players.map((p) => ({ value: String(p.id), label: p.name })),
+            ]}
+            className="w-full sm:w-56 shrink-0 rounded-lg"
+            value={playerId ? String(playerId) : ""}
+            onChange={(v) => onPlayerChange(v ? Number(v) : null)}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }
 
-function EmbedTab({ publicId }: { publicId: string }) {
+function EmbedTab({ entry }: { entry: EntryDetail }) {
   const t = useT();
   const [copiedDirect, setCopiedDirect] = React.useState(false);
   const [copiedSnippet, setCopiedSnippet] = React.useState(false);
 
   const origin = typeof window !== "undefined" ? window.location.origin : "http://localhost:8080";
-  const directUrl = `${origin}/embed/${publicId}`;
+  const directUrl = `${origin}/embed/${entry.id}`;
   const snippet = `<iframe src="${directUrl}" width="640" height="360" frameborder="0" allowfullscreen></iframe>`;
 
   const handleCopyDirect = () => {
@@ -1171,7 +1218,12 @@ function EmbedTab({ publicId }: { publicId: string }) {
   return (
     <div className="space-y-5">
       {/* Embedded Video Player Preview */}
-      <EmbedPreview publicId={publicId} />
+      <PlaybackPreview
+        publicId={entry.id}
+        posterKey={entry.posterKey}
+        updatedAt={entry.updatedAt}
+        durationMs={entry.durationMs}
+      />
 
       {/* Gray Area 1: Direct Link */}
       <div className="flex flex-col gap-2.5 rounded-xl border border-border/60 bg-muted/40 p-4">

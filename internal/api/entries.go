@@ -153,8 +153,9 @@ func (s *Server) handleEntryPatch(w http.ResponseWriter, r *http.Request) {
 	}
 	if patch.PosterFrame != nil {
 		_, err := s.pool.Exec(r.Context(), `
-			UPDATE entries SET poster_key = $1, updated_at = now() WHERE id = $2`,
-			store.PosterKey(e.ID), e.ID)
+			UPDATE entries SET poster_key = $1, poster_frame = $2, updated_at = now()
+			WHERE id = $3`,
+			store.PosterKey(e.ID), *patch.PosterFrame, e.ID)
 		if err != nil {
 			s.internalError(w, r, "update poster key", err)
 			return

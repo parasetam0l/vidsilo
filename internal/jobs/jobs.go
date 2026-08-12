@@ -317,8 +317,26 @@ func (r *Runner) Probe(ctx context.Context, job db.Job) error {
 	if err != nil {
 		r.Log.Warn("sprite generation", "err", err)
 	} else {
-		_, _ = r.Pool.Exec(ctx, `UPDATE entries SET sprite_key = $1, sprite_frames = $2 WHERE id = $3`,
-			store.SpriteKey(e.ID), frames, e.ID)
+		// Record the sprite frame closest to the initial poster (extracted
+		// above at atMs) so the admin poster picker reopens on it. The sprite
+		// window is the first min(duration, 60s); clamp when the poster time
+		// falls outside it.
+		scanEnd := res.DurationMs
+		if scanEnd > 60000 {
+			scanEnd = 60000
+		}
+		if scanEnd < 2000 {
+			scanEnd = 2000
+		}
+		posterFrame := int(float64(atMs) / float64(scanEnd) * float64(frames))
+		if posterFrame < 0 {
+			posterFrame = 0
+		}
+		if posterFrame >= frames {
+			posterFrame = frames - 1
+		}
+		_, _ = r.Pool.Exec(ctx, `UPDATE entries SET sprite_key = $1, sprite_frames = $2, poster_frame = $3 WHERE id = $4`,
+			store.SpriteKey(e.ID), frames, posterFrame, e.ID)
 	}
 
 	// Effective flavors: enabled ∩ ticked ∩ (height <= source height).

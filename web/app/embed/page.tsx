@@ -56,7 +56,7 @@ export default function EmbedPage() {
           {t("playerVideoStatus")}
         </div>
       ) : (
-        <VODPlayer info={info} publicId={uuid} autoplay={opts.autoplay} muted={opts.muted} loop={opts.loop} />
+        <VODPlayer info={info} publicId={uuid} autoplay={opts.autoplay} muted={opts.muted} loop={opts.loop} branding={info.player} />
       )}
     </div>
   );

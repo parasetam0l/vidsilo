@@ -79,7 +79,9 @@ type Entry struct {
 	IsPublic     bool        `json:"isPublic"`
 	AccessDenied bool        `json:"accessDenied"`
 	DomainACLID  *int64      `json:"domainAclId"`
+	PlayerID     *int64      `json:"playerId"`
 	PosterKey    string      `json:"posterKey"`
+	PosterFrame  int         `json:"posterFrame"`
 	SpriteKey    string      `json:"spriteKey"`
 	SpriteFrames int         `json:"spriteFrames"`
 	Error        string      `json:"error,omitempty"`

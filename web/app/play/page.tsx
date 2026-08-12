@@ -69,7 +69,7 @@ export default function PlayPage() {
         <p className="text-sm text-muted-foreground">{t("playerVideoStatus")}</p>
       ) : (
         <>
-          <VODPlayer info={info} publicId={uuid} autoplay={opts.autoplay} muted={opts.muted} loop={opts.loop} />
+          <VODPlayer info={info} publicId={uuid} autoplay={opts.autoplay} muted={opts.muted} loop={opts.loop} branding={info.player} />
           <h1 className="mt-4 text-xl font-semibold">{info.title}</h1>
           {info.description ? (
             <p className="mt-1 text-sm text-muted-foreground">{info.description}</p>

@@ -99,6 +99,7 @@ func (s *Server) Handler() http.Handler {
 	s.registerUserRoutes(mux)
 	s.registerCategoryRoutes(mux)
 	s.registerFlavorRoutes(mux)
+	s.registerPlayerRoutes(mux)
 	s.registerDashboardRoutes(mux)
 	s.registerUploadConfigRoute(mux)
 	s.registerActivityRoutes(mux)
