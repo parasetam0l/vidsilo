@@ -4,6 +4,7 @@ import * as React from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 import { AppSidebar } from "@/components/app-sidebar";
+import { PageLoader } from "@/components/loading";
 import { useUploadDialog } from "@/components/upload-dialog";
 import { useCreateUserAction } from "@/app/(admin)/users/page";
 import { useCreateCategoryAction } from "@/app/(admin)/categories/page";
@@ -81,11 +82,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }, [loading, user, pathname, router]);
 
   if (loading || !user) {
-    return (
-      <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">
-        {t("loading")}
-      </div>
-    );
+    return <PageLoader />;
   }
 
   return (

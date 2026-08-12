@@ -6,6 +6,7 @@ import { api, type PlayInfo } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import { useToast } from "@/hooks/use-toast";
 import { VODPlayer } from "@/components/vod-player";
+import { LoadingCircle } from "@/components/loading";
 
 function uuidFromPath(): string {
   if (typeof window === "undefined") return "";
@@ -46,7 +47,7 @@ export default function EmbedPage() {
         {t("videoUnavailable")}
       </div>
     );
-  if (!info) return <div className="grid h-full min-h-[100px] place-items-center text-xs text-muted-foreground">{t("loading")}</div>;
+  if (!info) return <div className="grid h-full min-h-[100px] place-items-center text-xs text-muted-foreground"><LoadingCircle className="size-6" /></div>;
 
   return (
     <div className="h-full w-full bg-black">

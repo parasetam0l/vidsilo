@@ -6,6 +6,7 @@ import { api, type PlayInfo } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import { useToast } from "@/hooks/use-toast";
 import { VODPlayer } from "@/components/vod-player";
+import { LoadingCircle } from "@/components/loading";
 import { ClapperboardIcon } from "lucide-react";
 
 function uuidFromPath(): string {
@@ -60,7 +61,10 @@ export default function PlayPage() {
       {error ? (
         <p className="text-sm text-muted-foreground">{t("videoUnavailable")}</p>
       ) : !info ? (
-        <p className="text-sm text-muted-foreground">{t("loading")}</p>
+        <div className="flex flex-col items-center gap-3 py-12">
+          <LoadingCircle />
+          <span className="text-sm text-muted-foreground">{t("loading")}</span>
+        </div>
       ) : info.status !== "ready" ? (
         <p className="text-sm text-muted-foreground">{t("playerVideoStatus")}</p>
       ) : (

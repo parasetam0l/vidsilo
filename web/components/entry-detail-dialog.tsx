@@ -43,6 +43,7 @@ import { formatBytes, formatDate, formatDuration, formatGb, formatWatchHours } f
 import { StatusBadge } from "@/components/status-badge";
 import { VODPlayer } from "@/components/vod-player";
 import { EmbedPreview } from "@/components/embed-preview";
+import { LoadingCircle } from "@/components/loading";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -701,8 +702,8 @@ export function EntryDetailDialog({
               {analytics ? (
                 <AnalyticsTab data={analytics} />
               ) : (
-                <div className="flex h-48 items-center justify-center rounded-2xl border bg-card text-sm text-muted-foreground">
-                  {t("loading")}
+                <div className="flex h-48 items-center justify-center rounded-2xl border bg-card">
+                  <LoadingCircle />
                 </div>
               )}
             </div>
