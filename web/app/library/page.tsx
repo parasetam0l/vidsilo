@@ -21,7 +21,14 @@ export default function LibraryPage() {
   const [page, setPage] = React.useState(1);
   const [data, setData] = React.useState<CatalogResponse | null>(null);
   const [categories, setCategories] = React.useState<CatalogCategory[]>([]);
-  const loading = data === null;
+  const [error, setError] = React.useState<string | null>(null);
+  const loading = data === null && error === null;
+  // Refs of the active filters so async responses can detect stale state.
+  const filtersRef = React.useRef({ debouncedQ, category, sort });
+  const loadingMoreRef = React.useRef(false);
+  React.useEffect(() => {
+    filtersRef.current = { debouncedQ, category, sort };
+  }, [debouncedQ, category, sort]);
 
   React.useEffect(() => {
     const id = window.setTimeout(() => setDebouncedQ(q), 300);
@@ -45,34 +52,44 @@ export default function LibraryPage() {
     api<CatalogResponse>(`/api/catalog?${params}`)
       .then((res) => {
         if (!cancelled) {
+          setError(null);
           setData(res);
           setPage(1);
         }
       })
       .catch(() => {
-        if (!cancelled) setData({ items: [], total: 0, page: 1, limit: PAGE_SIZE });
+        if (!cancelled) setError(t("libraryError"));
       });
     return () => {
       cancelled = true;
     };
-  }, [debouncedQ, category, sort]);
+  }, [debouncedQ, category, sort, t]);
 
   const loadMore = () => {
-    const next = page + 1;
-    const params = new URLSearchParams({ page: String(next), limit: String(PAGE_SIZE) });
-    if (debouncedQ) params.set("q", debouncedQ);
-    if (category) params.set("category", category);
-    if (sort === "title") params.set("sort", "title");
-    if (sort === "oldest") params.set("sort", "oldest");
-    if (sort === "duration") params.set("sort", "duration");
+    if (loadingMoreRef.current) return; // one in-flight request at a time
+    const snapshot = { ...filtersRef.current, next: page + 1 };
+    loadingMoreRef.current = true;
+    const params = new URLSearchParams({ page: String(snapshot.next), limit: String(PAGE_SIZE) });
+    if (snapshot.debouncedQ) params.set("q", snapshot.debouncedQ);
+    if (snapshot.category) params.set("category", snapshot.category);
+    if (snapshot.sort === "title") params.set("sort", "title");
+    if (snapshot.sort === "oldest") params.set("sort", "oldest");
+    if (snapshot.sort === "duration") params.set("sort", "duration");
     api<CatalogResponse>(`/api/catalog?${params}`)
       .then((res) => {
-        setData((prev) =>
-          prev ? { ...res, items: [...prev.items, ...res.items] } : res,
-        );
-        setPage(next);
+        // Filters changed while the request was in flight: drop the stale
+        // page instead of appending it to a different query's results.
+        const f = filtersRef.current;
+        if (f.debouncedQ !== snapshot.debouncedQ || f.category !== snapshot.category || f.sort !== snapshot.sort) {
+          return;
+        }
+        setData((prev) => (prev ? { ...res, items: [...prev.items, ...res.items] } : res));
+        setPage(snapshot.next);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        loadingMoreRef.current = false;
+      });
   };
 
   const items = data?.items ?? [];
@@ -102,7 +119,7 @@ export default function LibraryPage() {
           <select
             value={sort}
             onChange={(e) => setSort(e.target.value)}
-            aria-label={t("colActions")}
+            aria-label={t("librarySortLabel")}
             className="h-9 rounded-md border bg-background px-2 text-sm"
           >
             <option value="newest">{t("librarySortNewest")}</option>
@@ -165,10 +182,15 @@ export default function LibraryPage() {
       ) : null}
 
       <p className="mt-4 text-sm text-muted-foreground">
-        {t("libraryResults", { total })}
+        {t("libraryResults", { total, n: total })}
       </p>
 
-      {loading && items.length === 0 ? (
+      {error ? (
+        <div className="flex flex-col items-center gap-2 py-16 text-center">
+          <FilmIcon className="size-8 text-muted-foreground/50" />
+          <p className="text-sm text-muted-foreground">{error}</p>
+        </div>
+      ) : loading && items.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-16">
           <LoadingCircle />
           <span className="text-sm text-muted-foreground">{t("loading")}</span>

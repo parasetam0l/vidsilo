@@ -426,13 +426,14 @@ const en = {
   librarySearchPlaceholder: "Search videos…",
   libraryAllCategories: "All categories",
   libraryEmpty: "No public videos yet — check back soon.",
+  libraryError: "Could not load the library — try again later.",
   libraryResults: "{total} video{s}",
+  librarySortLabel: "Sort videos",
   librarySortNewest: "Newest",
   librarySortOldest: "Oldest",
   librarySortTitle: "Title",
   librarySortDuration: "Longest",
   libraryLoadMore: "Load more",
-  libraryBack: "Back to library",
 
   // summary strips (shared stat pills)
   sumTotalCategories: "Total categories",
