@@ -4,6 +4,7 @@ import { ClapperboardIcon } from "lucide-react";
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useT } from "@/lib/i18n";
+import { getSiteConfig } from "@/lib/site-config";
 import { useToast } from "@/hooks/use-toast";
 import { fieldErrors, loginSchema, type FieldErrors } from "@/lib/validators";
 import { FormError } from "@/components/form-error";
@@ -49,8 +50,15 @@ function LoginForm() {
 
   React.useEffect(() => {
     // The <title> element is React-managed; re-apply after every commit.
+    // Site name comes from the cached site-config.
     const id = window.setTimeout(() => {
-      document.title = `${t("loginTitle")} | ${t("appTitle")}`;
+      getSiteConfig()
+        .then((cfg) => {
+          document.title = `${t("loginTitle")} | ${cfg.siteName || t("appTitle")}`;
+        })
+        .catch(() => {
+          document.title = `${t("loginTitle")} | ${t("appTitle")}`;
+        });
     }, 0);
     return () => window.clearTimeout(id);
   });

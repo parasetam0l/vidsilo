@@ -34,6 +34,8 @@ interface SettingSpec {
   hint: string;
   /** Pretty-formats the current value under the field (e.g. bytes). */
   pretty?: (v: number | string) => string;
+  /** Unit suffix rendered inside the input group. */
+  unit?: string;
 }
 
 const specs: Record<string, SettingSpec> = {
@@ -47,8 +49,9 @@ const specs: Record<string, SettingSpec> = {
   },
   "upload.max_size_bytes": {
     label: "Max Upload Size",
-    hint: "Largest allowed file per upload; anything larger is rejected.",
-    pretty: (v) => `≈ ${formatBytes(Number(v))}`,
+    hint: "Largest allowed file per upload, in megabytes.",
+    unit: "MB",
+    pretty: (v) => `≈ ${formatBytes(Number(v) * 1024 * 1024)}`,
   },
   "upload.allowed_extensions": {
     label: "Allowed File Extensions",
@@ -60,8 +63,9 @@ const specs: Record<string, SettingSpec> = {
   },
   "cache.max_bytes": {
     label: "Max Cache Size",
-    hint: "The cache evicts least-recently-used files beyond this.",
-    pretty: (v) => `≈ ${formatBytes(Number(v))}`,
+    hint: "The cache evicts least-recently-used files beyond this, in megabytes.",
+    unit: "MB",
+    pretty: (v) => `≈ ${formatBytes(Number(v) * 1024 * 1024)}`,
   },
   "transcode.concurrency": {
     label: "Parallel Encoders",
@@ -175,7 +179,13 @@ export default function SettingsPage() {
       });
       const fresh = await api<SettingsResponse>("/api/settings");
       setData(fresh);
-      toast.success(t("settingsSaved", { keys: Object.keys(patch).join(", ") }));
+      toast.success(
+        t("settingsSaved", {
+          keys: Object.keys(patch)
+            .map((k) => specs[k]?.label ?? k)
+            .join(", "),
+        }),
+      );
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t("error"));
     } finally {
@@ -278,15 +288,22 @@ export default function SettingsPage() {
                             }}
                           />
                         ) : (
-                          <Input
-                            defaultValue={typeof s[k] === "number" ? String(num(k)) : str(k)}
-                            type={typeof s[k] === "number" ? "number" : "text"}
-                            className="w-full sm:w-56 shrink-0 rounded-lg"
-                            onChange={(e) => {
-                              s[k] = typeof s[k] === "number" ? Number(e.target.value) : e.target.value;
-                              setData({ ...data });
-                            }}
-                          />
+                          <div className="relative w-full sm:w-56 shrink-0">
+                            <Input
+                              defaultValue={typeof s[k] === "number" ? String(num(k)) : str(k)}
+                              type={typeof s[k] === "number" ? "number" : "text"}
+                              className={`rounded-lg ${spec.unit ? "pr-12" : ""}`}
+                              onChange={(e) => {
+                                s[k] = typeof s[k] === "number" ? Number(e.target.value) : e.target.value;
+                                setData({ ...data });
+                              }}
+                            />
+                            {spec.unit ? (
+                              <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs font-medium text-muted-foreground">
+                                {spec.unit}
+                              </span>
+                            ) : null}
+                          </div>
                         )}
                       </div>
                     </div>

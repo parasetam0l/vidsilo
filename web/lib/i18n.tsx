@@ -4,6 +4,8 @@
 
 import * as React from "react";
 
+import { getSiteConfig } from "@/lib/site-config";
+
 export const locales = ["en"] as const;
 export type Locale = (typeof locales)[number];
 
@@ -443,6 +445,22 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     const stored = localStorage.getItem("lang");
     return (locales as readonly string[]).includes(stored ?? "") ? (stored as Locale) : "en";
   });
+
+  // No stored preference: fall back to the site's default_lang (cached
+  // site-config — no fetch when the cache is fresh).
+  const defaultLangApplied = React.useRef(false);
+  React.useEffect(() => {
+    if (typeof window === "undefined" || defaultLangApplied.current) return;
+    if (localStorage.getItem("lang")) return; // user preference wins
+    defaultLangApplied.current = true;
+    getSiteConfig()
+      .then((cfg) => {
+        if ((locales as readonly string[]).includes(cfg.defaultLang)) {
+          setLocaleState(cfg.defaultLang as Locale);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const t = React.useCallback(
     (key: MessageKey, vars?: Record<string, string | number>) => {

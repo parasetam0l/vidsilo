@@ -12,6 +12,7 @@ import { useCreateFlavorAction } from "@/app/(admin)/flavors/page";
 import { useCreateAclAction } from "@/app/(admin)/domain-acls/page";
 import { useCreatePlayerAction } from "@/app/(admin)/players/page";
 import { useAuth } from "@/components/auth-provider";
+import { getSiteConfig } from "@/lib/site-config";
 import { PlusIcon, UploadCloudIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -71,10 +72,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   // Translatable window title per page: "Dashboard | VOD Admin".
   // The <title> element is React-managed (RSC payload) and gets re-asserted
   // on re-renders (e.g. the auth loading transition), so re-apply the title
-  // after every commit, deferred past React's head sync.
+  // after every commit, deferred past React's head sync. The site name comes
+  // from the cached site-config (defaults to the app title on first paint).
   React.useEffect(() => {
     const id = window.setTimeout(() => {
-      document.title = `${pageTitle} | ${t("appTitle")}`;
+      getSiteConfig()
+        .then((cfg) => {
+          document.title = `${pageTitle} | ${cfg.siteName || t("appTitle")}`;
+        })
+        .catch(() => {
+          document.title = `${pageTitle} | ${t("appTitle")}`;
+        });
     }, 0);
     return () => window.clearTimeout(id);
   });
