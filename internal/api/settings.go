@@ -2,6 +2,8 @@ package api
 
 import (
 	"net/http"
+	"sort"
+	"strings"
 
 	"github.com/parasetam0l/vod-app/internal/settings"
 )
@@ -77,5 +79,15 @@ func (s *Server) handleSettingsPatch(w http.ResponseWriter, r *http.Request) {
 		}
 		updated[key] = value
 	}
+	s.audit(r, "update", "setting", "", keysString(updated))
 	writeJSON(w, http.StatusOK, map[string]any{"updated": updated})
+}
+
+func keysString(m map[string]any) string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return strings.Join(keys, ",")
 }

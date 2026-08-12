@@ -183,7 +183,44 @@ func (s *Server) handleEntryPatch(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	s.audit(r, "update", "entry", e.PublicID, patchSummary(patch))
 	writeJSON(w, http.StatusOK, updated)
+}
+
+// patchSummary renders a compact change description for the audit trail.
+func patchSummary(p db.EntryPatch) string {
+	var parts []string
+	if p.Title != nil {
+		parts = append(parts, "title")
+	}
+	if p.Description != nil {
+		parts = append(parts, "description")
+	}
+	if p.CategoryID.Set {
+		parts = append(parts, "category")
+	}
+	if p.IsPublic != nil {
+		parts = append(parts, "visibility")
+	}
+	if p.DomainACLID.Set {
+		parts = append(parts, "embed-acl")
+	}
+	if p.AccessDenied != nil {
+		parts = append(parts, "access")
+	}
+	if p.FlavorIDs != nil {
+		parts = append(parts, "flavors")
+	}
+	if p.PosterFrame != nil {
+		parts = append(parts, "poster")
+	}
+	if p.PlayerID.Set {
+		parts = append(parts, "player")
+	}
+	if len(parts) == 0 {
+		return "metadata"
+	}
+	return strings.Join(parts, ",")
 }
 
 // applyFlavors applies a flavor-set change WITHOUT re-processing the whole
@@ -383,6 +420,7 @@ func (s *Server) handleEntryDelete(w http.ResponseWriter, r *http.Request) {
 		s.internalError(w, r, "delete entry", err)
 		return
 	}
+	s.audit(r, "delete", "entry", e.PublicID, e.Title)
 	// Second pass: catch anything a racing worker wrote between the first
 	// pass and the row delete (in-flight ffmpeg/downloads).
 	deleteMedia()
@@ -404,6 +442,7 @@ func (s *Server) handleEntryReprocess(w http.ResponseWriter, r *http.Request) {
 	}
 	_, _ = s.pool.Exec(r.Context(), `
 		UPDATE entries SET status = 'probing', error = NULL, updated_at = now() WHERE id = $1`, e.ID)
+	s.audit(r, "reprocess", "entry", e.PublicID, e.Title)
 	w.WriteHeader(http.StatusAccepted)
 }
 

@@ -47,6 +47,7 @@ func (s *Server) handleCategoriesCreate(w http.ResponseWriter, r *http.Request) 
 		s.internalError(w, r, "create category", err)
 		return
 	}
+	s.audit(r, "create", "category", strconv.FormatInt(c.ID, 10), c.Name)
 	writeJSON(w, http.StatusCreated, c)
 }
 
@@ -70,6 +71,7 @@ func (s *Server) handleCategoriesPatch(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "bad_request", err.Error())
 		return
 	}
+	s.audit(r, "update", "category", strconv.FormatInt(c.ID, 10), c.Name)
 	writeJSON(w, http.StatusOK, c)
 }
 
@@ -83,6 +85,7 @@ func (s *Server) handleCategoriesDelete(w http.ResponseWriter, r *http.Request) 
 		writeError(w, http.StatusNotFound, "not_found", "category not found")
 		return
 	}
+	s.audit(r, "delete", "category", strconv.FormatInt(id, 10), "")
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -116,6 +119,7 @@ func (s *Server) handleFlavorsCreate(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "bad_request", err.Error())
 		return
 	}
+	s.audit(r, "create", "flavor", strconv.FormatInt(f.ID, 10), f.Name)
 	writeJSON(w, http.StatusCreated, f)
 }
 
@@ -135,6 +139,7 @@ func (s *Server) handleFlavorsPatch(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "bad_request", err.Error())
 		return
 	}
+	s.audit(r, "update", "flavor", strconv.FormatInt(f.ID, 10), f.Name)
 	writeJSON(w, http.StatusOK, f)
 }
 
@@ -148,5 +153,6 @@ func (s *Server) handleFlavorsDelete(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "not_found", "flavor not found")
 		return
 	}
+	s.audit(r, "delete", "flavor", strconv.FormatInt(id, 10), "")
 	w.WriteHeader(http.StatusNoContent)
 }

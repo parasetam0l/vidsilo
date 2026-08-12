@@ -73,6 +73,7 @@ func (s *Server) handleUsersCreate(w http.ResponseWriter, r *http.Request) {
 		s.internalError(w, r, "create user", err)
 		return
 	}
+	s.audit(r, "create", "user", strconv.FormatInt(u.ID, 10), u.Email)
 	writeJSON(w, http.StatusCreated, u)
 }
 
@@ -133,6 +134,7 @@ func (s *Server) handleUsersPatch(w http.ResponseWriter, r *http.Request) {
 		s.internalError(w, r, "reload user", err)
 		return
 	}
+	s.audit(r, "update", "user", strconv.FormatInt(id, 10), u.Email)
 	writeJSON(w, http.StatusOK, u)
 }
 
@@ -151,5 +153,6 @@ func (s *Server) handleUsersDelete(w http.ResponseWriter, r *http.Request) {
 		s.internalError(w, r, "delete user", err)
 		return
 	}
+	s.audit(r, "delete", "user", strconv.FormatInt(id, 10), "")
 	w.WriteHeader(http.StatusNoContent)
 }
