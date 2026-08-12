@@ -65,11 +65,12 @@ function ChangePasswordContent() {
   }
 
   return (
-    <form className="flex flex-col gap-4 px-4 pt-4" onSubmit={submit} noValidate>
-      <DialogHeader>
+    <form className="flex flex-col gap-4" onSubmit={submit} noValidate>
+      <DialogHeader className="px-4 pt-4">
         <DialogTitle>{t("changePasswordTitle")}</DialogTitle>
         <DialogDescription>{t("changePasswordDesc")}</DialogDescription>
       </DialogHeader>
+<div className="flex flex-col gap-4 px-4">
       <div className="flex flex-col gap-1.5">
         <Label>{t("currentPassword")}</Label>
         <Input
@@ -109,7 +110,8 @@ function ChangePasswordContent() {
         />
         <FormError message={errors.confirm} />
       </div>
-      <DialogFooter className="mx-0 mb-0">
+      </div>
+<DialogFooter className="mx-0 mb-0">
         <Button type="submit" disabled={busy}>
           {busy ? t("loading") : t("save")}
         </Button>

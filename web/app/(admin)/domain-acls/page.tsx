@@ -246,10 +246,11 @@ function AclFormContent({
   }
 
   return (
-    <form className="flex flex-col gap-4 px-4 pt-4" onSubmit={submit} noValidate>
-      <DialogHeader>
+    <form className="flex flex-col gap-4" onSubmit={submit} noValidate>
+      <DialogHeader className="px-4 pt-4">
         <DialogTitle>{editing ? t("aclEditTitle") : t("aclNew")}</DialogTitle>
       </DialogHeader>
+<div className="flex flex-col gap-4 px-4">
       <div className="flex flex-col gap-1.5">
         <Label className="text-xs font-medium">{t("aclColTitle")}</Label>
         <Input className="rounded-lg" value={title} onChange={(e) => setTitle(e.target.value)} />
@@ -274,7 +275,8 @@ function AclFormContent({
           onChange={(e) => setBlocklist(e.target.value)}
         />
       </div>
-      <DialogFooter className="mx-0 mb-0">
+      </div>
+<DialogFooter className="mx-0 mb-0">
         <Button type="button" variant="outline" onClick={onClose} disabled={saveAcl.isPending}>
           {t("cancel")}
         </Button>

@@ -275,10 +275,11 @@ function FlavorFormContent({
   }
 
   return (
-    <form className="flex flex-col gap-4 px-4 pt-4" onSubmit={submit} noValidate>
-      <DialogHeader>
+    <form className="flex flex-col gap-4" onSubmit={submit} noValidate>
+      <DialogHeader className="px-4 pt-4">
         <DialogTitle>{editing ? t("editFlavorTitle") : t("newFlavorTitle")}</DialogTitle>
       </DialogHeader>
+<div className="flex flex-col gap-4 px-4">
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-medium">{t("colName")}</label>
@@ -370,7 +371,8 @@ function FlavorFormContent({
           />
         </div>
       </div>
-      <DialogFooter className="mx-0 mb-0">
+      </div>
+<DialogFooter className="mx-0 mb-0">
         <Button type="button" variant="outline" onClick={onClose} disabled={saveFlavor.isPending}>
           {t("cancel")}
         </Button>
