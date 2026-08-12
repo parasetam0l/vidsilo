@@ -108,7 +108,7 @@ export default function UsersPage() {
         items={[
           { label: t("sumTotalUsers"), value: total },
           { label: t("sumActiveUsers"), value: activeCount },
-          { label: "Administrators", value: adminCount },
+          { label: t("usersAdministrators"), value: adminCount },
           ...(disabledCount > 0
             ? [{ label: t("sumDisabledUsers"), value: disabledCount }]
             : []),

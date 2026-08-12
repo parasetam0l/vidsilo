@@ -93,6 +93,11 @@ const en = {
 
   // dashboard
   dashEntries: "Entries",
+  dashEntryCount: "{n} entr{s}",
+  dashByStatusDesc: "Entries grouped by pipeline status.",
+  usersAdministrators: "Administrators",
+  loginShowPassword: "Show password",
+  loginHidePassword: "Hide password",
   dashEntriesHint: "total in catalog",
   dashStorage: "Storage used",
   dashStorageHint: "media across all entries",

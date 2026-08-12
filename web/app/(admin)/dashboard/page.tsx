@@ -357,7 +357,7 @@ export default function DashboardPage() {
               </span>
             </div>
             <CardDescription className="text-xs text-muted-foreground">
-              {t("dashStatusEmpty")}
+              {Object.keys(data.entriesByStatus).length === 0 ? t("dashStatusEmpty") : t("dashByStatusDesc")}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
@@ -393,10 +393,10 @@ export default function DashboardPage() {
                           />
                           <div className="flex flex-col">
                             <span className="text-sm font-semibold capitalize text-foreground leading-snug">
-                              {t(statusKeys[status] ?? "dashEmpty")}
+                              {statusKeys[status] ? t(statusKeys[status]) : status}
                             </span>
                             <span className="text-xs text-muted-foreground">
-                              {count} {t("dashEntries")}
+                              {t("dashEntryCount", { n: count })}
                             </span>
                           </div>
                         </div>

@@ -18,6 +18,7 @@ export function SummaryStrip({
         <span
           key={it.label}
           title={it.hint}
+          aria-label={it.hint ? `${it.label}: ${it.value} — ${it.hint}` : undefined}
           className="inline-flex items-center gap-1.5 rounded-md border bg-card px-2.5 py-1 text-xs text-muted-foreground"
         >
           <span>{it.label}</span>
