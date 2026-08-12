@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { PencilIcon, ShieldCheckIcon, ShieldIcon, ShieldXIcon, Trash2 } from "lucide-react";
+import { PencilIcon, ShieldIcon, Trash2 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 import { api, type DomainAcl } from "@/lib/api";
@@ -15,6 +15,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { EmptyState } from "@/components/empty-state";
+import { SummaryStrip } from "@/components/summary-strip";
+import { Skeleton } from "@/components/ui/skeleton";
 import { DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -33,7 +35,6 @@ export function useCreateAclAction() {
     open({
       content: (close) => <AclFormContent onClose={close} />,
       size: "md",
-      className: "p-0",
       dismissible: false,
       showCloseButton: false,
     });
@@ -46,7 +47,7 @@ export default function DomainAclsPage() {
   const toast = useToast();
   const queryClient = useQueryClient();
 
-  const { data: acls = [] } = useQuery({
+  const { data: acls = [], isLoading } = useQuery({
     queryKey: ["acls"],
     queryFn: () => api<DomainAcl[]>("/api/acls"),
   });
@@ -55,7 +56,6 @@ export default function DomainAclsPage() {
     open({
       content: (close) => <AclFormContent onClose={close} initial={a} />,
       size: "md",
-      className: "p-0",
       dismissible: false,
       showCloseButton: false,
     });
@@ -90,23 +90,13 @@ export default function DomainAclsPage() {
   return (
     <div className="flex flex-1 flex-col gap-4 px-4 pb-4 pt-0">
       {/* Top summary strip */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2 rounded-xl border bg-card px-3.5 py-2 shadow-2xs">
-          <ShieldIcon className="size-4 text-primary" />
-          <span className="text-xs text-muted-foreground">ACL Profiles:</span>
-          <span className="text-sm font-bold text-foreground tabular-nums">{total}</span>
-        </div>
-        <div className="flex items-center gap-2 rounded-xl border bg-emerald-500/10 border-emerald-500/20 px-3.5 py-2 shadow-2xs">
-          <ShieldCheckIcon className="size-4 text-emerald-500" />
-          <span className="text-xs text-emerald-700 dark:text-emerald-300 font-medium">Whitelisted Domains:</span>
-          <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">{totalWhitelist}</span>
-        </div>
-        <div className="flex items-center gap-2 rounded-xl border bg-red-500/10 border-red-500/20 px-3.5 py-2 shadow-2xs">
-          <ShieldXIcon className="size-4 text-red-500" />
-          <span className="text-xs text-red-700 dark:text-red-300 font-medium">Blocklisted Domains:</span>
-          <span className="text-sm font-bold text-red-600 dark:text-red-400 tabular-nums">{totalBlocklist}</span>
-        </div>
-      </div>
+      <SummaryStrip
+        items={[
+          { label: t("sumTotalAcls"), value: total },
+          { label: t("aclColWhitelist"), value: totalWhitelist },
+          { label: t("aclColBlocklist"), value: totalBlocklist },
+        ]}
+      />
 
       <Card className="overflow-hidden py-0 ">
         <CardContent className="p-0">
@@ -120,8 +110,30 @@ export default function DomainAclsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {acls.map((a) => (
-                <TableRow key={a.id} className="transition-colors hover:bg-muted/40">
+              {isLoading ? (
+                Array.from({ length: 4 }).map((_, i) => (
+                  <TableRow key={i} className="hover:bg-transparent">
+                    <TableCell colSpan={4}>
+                      <Skeleton className="h-9 w-full" />
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : null}
+              {!isLoading && acls.map((a) => (
+                <TableRow
+                  key={a.id}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`${t("edit")} ${a.title}`}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      openEdit(a);
+                    }
+                  }}
+                  className="cursor-pointer transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                  onClick={() => openEdit(a)}
+                >
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-3">
                       <Avatar className="size-8 rounded-lg">
@@ -167,19 +179,19 @@ export default function DomainAclsPage() {
                     )}
                   </TableCell>
                   <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                    <Button variant="ghost" size="icon" onClick={() => openEdit(a)}>
+                    <Button variant="ghost" size="icon" aria-label={`${t("edit")} ${a.title}`} onClick={() => openEdit(a)}>
                       <PencilIcon className="size-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={() => askRemove(a)}>
+                    <Button variant="ghost" size="icon" aria-label={`${t("delete")} ${a.title}`} onClick={() => askRemove(a)}>
                       <Trash2 className="size-4" />
                     </Button>
                   </TableCell>
                 </TableRow>
               ))}
-              {acls.length === 0 ? (
+              {!isLoading && acls.length === 0 ? (
                 <TableRow className="hover:bg-transparent">
                   <TableCell colSpan={4}>
-                    <EmptyState icon={ShieldIcon} description={t("aclEmpty")} />
+                    <EmptyState icon={ShieldIcon} title={t("navDomainAcls")} description={t("aclEmpty")} />
                   </TableCell>
                 </TableRow>
               ) : null}

@@ -20,6 +20,8 @@ import { formatBytes } from "@/lib/format";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/empty-state";
+import { SummaryStrip } from "@/components/summary-strip";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -58,7 +60,7 @@ export default function StoragePage() {
   const t = useT();
   const openEntryDetail = useEntryDetailDialog();
 
-  const { data: entries = [] } = useQuery({
+  const { data: entries = [], isLoading } = useQuery({
     queryKey: ["storage-files"],
     queryFn: () => api<StorageEntry[]>("/api/storage/files"),
     refetchInterval: () =>
@@ -74,23 +76,13 @@ export default function StoragePage() {
   return (
     <div className="flex flex-1 flex-col gap-4 px-4 pb-4 pt-0">
       {/* Top summary strip */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2 rounded-xl border bg-card px-3.5 py-2 shadow-2xs">
-          <HardDriveIcon className="size-4 text-primary" />
-          <span className="text-xs text-muted-foreground">Total Storage:</span>
-          <span className="text-sm font-bold text-foreground tabular-nums">{formatBytes(totalBytes)}</span>
-        </div>
-        <div className="flex items-center gap-2 rounded-xl border bg-blue-500/10 border-blue-500/20 px-3.5 py-2 shadow-2xs">
-          <FilmIcon className="size-4 text-blue-500" />
-          <span className="text-xs text-blue-700 dark:text-blue-300 font-medium">Entries with Media:</span>
-          <span className="text-sm font-bold text-blue-600 dark:text-blue-400 tabular-nums">{entries.length}</span>
-        </div>
-        <div className="flex items-center gap-2 rounded-xl border bg-emerald-500/10 border-emerald-500/20 px-3.5 py-2 shadow-2xs">
-          <ArchiveIcon className="size-4 text-emerald-500" />
-          <span className="text-xs text-emerald-700 dark:text-emerald-300 font-medium">Total Files:</span>
-          <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">{totalFiles}</span>
-        </div>
-      </div>
+      <SummaryStrip
+        items={[
+          { label: t("dashStorage"), value: formatBytes(totalBytes) },
+          { label: t("dashEntries"), value: entries.length },
+          { label: t("colFiles"), value: totalFiles },
+        ]}
+      />
 
       <Card className="overflow-hidden py-0">
         <CardContent className="p-0">
@@ -103,12 +95,38 @@ export default function StoragePage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {entries.map((e) => {
+              {isLoading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <TableRow key={i} className="hover:bg-transparent">
+                    <TableCell colSpan={3}>
+                      <Skeleton className="h-9 w-full" />
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : null}
+              {!isLoading && entries.map((e) => {
                 const isSystem = e.publicId === "";
                 return (
                 <React.Fragment key={e.publicId || "system"}>
                   <TableRow
-                    className={isSystem ? "transition-colors hover:bg-muted/40" : "cursor-pointer transition-colors hover:bg-muted/40"}
+                    tabIndex={isSystem ? undefined : 0}
+                    role={isSystem ? undefined : "button"}
+                    aria-label={isSystem ? undefined : `${t("actOpen")} ${e.title}`}
+                    onKeyDown={
+                      isSystem
+                        ? undefined
+                        : (ev) => {
+                            if (ev.key === "Enter" || ev.key === " ") {
+                              ev.preventDefault();
+                              openEntryDetail(e.publicId);
+                            }
+                          }
+                    }
+                    className={
+                      isSystem
+                        ? "transition-colors hover:bg-muted/40"
+                        : "cursor-pointer transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                    }
                     onClick={isSystem ? undefined : () => openEntryDetail(e.publicId)}
                   >
                     <TableCell className="py-1.5 font-medium">
@@ -157,10 +175,10 @@ export default function StoragePage() {
                 </React.Fragment>
                 );
               })}
-              {entries.length === 0 ? (
+              {!isLoading && entries.length === 0 ? (
                 <TableRow className="hover:bg-transparent">
                   <TableCell colSpan={3}>
-                    <EmptyState icon={HardDriveIcon} description={t("storageEmpty")} />
+                    <EmptyState icon={HardDriveIcon} title={t("navStorage")} description={t("storageEmpty")} />
                   </TableCell>
                 </TableRow>
               ) : null}

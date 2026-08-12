@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FolderIcon, FolderTreeIcon, PencilIcon, Trash2, FolderGit2Icon } from "lucide-react";
+import { FolderTreeIcon, PencilIcon, Trash2 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 import { api, type Category } from "@/lib/api";
@@ -16,6 +16,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { EmptyState } from "@/components/empty-state";
+import { SummaryStrip } from "@/components/summary-strip";
+import { Skeleton } from "@/components/ui/skeleton";
 import { DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -35,7 +37,6 @@ export function useCreateCategoryAction() {
     open({
       content: (close) => <CategoryFormContent onClose={close} />,
       size: "sm",
-      className: "p-0",
       dismissible: false,
       showCloseButton: false,
     });
@@ -48,7 +49,7 @@ export default function CategoriesPage() {
   const toast = useToast();
   const queryClient = useQueryClient();
 
-  const { data: tree = [] } = useQuery({
+  const { data: tree = [], isLoading } = useQuery({
     queryKey: ["categories"],
     queryFn: () => api<Category[]>("/api/categories"),
   });
@@ -69,7 +70,6 @@ export default function CategoriesPage() {
         <CategoryFormContent onClose={close} initial={c} />
       ),
       size: "sm",
-      className: "p-0",
       dismissible: false,
       showCloseButton: false,
     });
@@ -116,25 +116,15 @@ export default function CategoriesPage() {
   return (
     <div className="flex flex-1 flex-col gap-4 px-4 pb-4 pt-0">
       {/* Top summary strip */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2 rounded-xl border bg-card px-3.5 py-2 shadow-2xs">
-          <FolderTreeIcon className="size-4 text-primary" />
-          <span className="text-xs text-muted-foreground">Total Categories:</span>
-          <span className="text-sm font-bold text-foreground tabular-nums">{flat.length}</span>
-        </div>
-        <div className="flex items-center gap-2 rounded-xl border bg-blue-500/10 border-blue-500/20 px-3.5 py-2 shadow-2xs">
-          <FolderIcon className="size-4 text-blue-500" />
-          <span className="text-xs text-blue-700 dark:text-blue-300 font-medium">Root Categories:</span>
-          <span className="text-sm font-bold text-blue-600 dark:text-blue-400 tabular-nums">{rootCount}</span>
-        </div>
-        {childCount > 0 ? (
-          <div className="flex items-center gap-2 rounded-xl border bg-violet-500/10 border-violet-500/20 px-3.5 py-2 shadow-2xs">
-            <FolderGit2Icon className="size-4 text-violet-500" />
-            <span className="text-xs text-violet-700 dark:text-violet-300 font-medium">Subcategories:</span>
-            <span className="text-sm font-bold text-violet-600 dark:text-violet-400 tabular-nums">{childCount}</span>
-          </div>
-        ) : null}
-      </div>
+      <SummaryStrip
+        items={[
+          { label: t("sumTotalCategories"), value: flat.length },
+          { label: t("sumRootCategories"), value: rootCount },
+          ...(childCount > 0
+            ? [{ label: t("sumSubcategories"), value: childCount }]
+            : []),
+        ]}
+      />
 
       <Card className="overflow-hidden py-0 ">
         <CardContent className="p-0">
@@ -148,10 +138,32 @@ export default function CategoriesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {flat.map((c) => {
+              {isLoading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <TableRow key={i} className="hover:bg-transparent">
+                    <TableCell colSpan={4}>
+                      <Skeleton className="h-8 w-full" />
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : null}
+              {!isLoading && flat.map((c) => {
                 const depth = depthOf(c.id);
                 return (
-                  <TableRow key={c.id} className="cursor-pointer transition-colors hover:bg-muted/40" onClick={() => openEdit(c)}>
+                  <TableRow
+                    key={c.id}
+                    tabIndex={0}
+                    role="button"
+                    aria-label={`${t("edit")} ${c.name}`}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        openEdit(c);
+                      }
+                    }}
+                    className="cursor-pointer transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                    onClick={() => openEdit(c)}
+                  >
                     <TableCell className="font-medium">
                       <span
                         style={{ paddingLeft: depth * 24 }}
@@ -180,21 +192,22 @@ export default function CategoriesPage() {
                       {flat.find((x) => x.id === c.parentId)?.name ?? "—"}
                     </TableCell>
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(c)}>
+                      <Button variant="ghost" size="icon" aria-label={`${t("edit")} ${c.name}`} onClick={() => openEdit(c)}>
                         <PencilIcon className="size-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => askRemove(c)}>
+                      <Button variant="ghost" size="icon" aria-label={`${t("delete")} ${c.name}`} onClick={() => askRemove(c)}>
                         <Trash2 className="size-4" />
                       </Button>
                     </TableCell>
                   </TableRow>
                 );
               })}
-              {flat.length === 0 ? (
+              {!isLoading && flat.length === 0 ? (
                 <TableRow className="hover:bg-transparent">
                   <TableCell colSpan={4}>
                     <EmptyState
                       icon={FolderTreeIcon}
+                      title={t("navCategories")}
                       description={t("dashEmpty")}
                     />
                   </TableCell>
@@ -270,39 +283,39 @@ function CategoryFormContent({
 
   return (
     <form className="flex flex-col gap-4" onSubmit={submit} noValidate>
-      <DialogHeader className="px-4 pt-4">
+      <DialogHeader>
         <DialogTitle>{editing ? t("editCategoryTitle") : t("newCategory")}</DialogTitle>
       </DialogHeader>
-<div className="flex flex-col gap-4 px-4">
-      <div className="flex flex-col gap-1.5">
-        <Label className="text-xs font-medium">{t("colName")}</Label>
-        <Input
-          className="rounded-lg"
-          value={name}
-          onChange={(e) => {
-            setName(e.target.value);
-            setErrors((prev) => ({ ...prev, name: "" }));
-          }}
-        />
-        <FormError message={errors.name} />
+      <div className="flex flex-col gap-4 px-5">
+        <div className="flex flex-col gap-1.5">
+          <Label className="text-xs font-medium">{t("colName")}</Label>
+          <Input
+            className="rounded-lg"
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value);
+              setErrors((prev) => ({ ...prev, name: "" }));
+            }}
+          />
+          <FormError message={errors.name} />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label className="text-xs font-medium">{t("colParent")}</Label>
+          <Select
+            className="rounded-lg"
+            options={[
+              { value: "", label: t("none") },
+              ...categories
+                .filter((c) => c.id !== initial?.id)
+                .map((c) => ({ value: String(c.id), label: c.name })),
+            ]}
+            value={parent}
+            onChange={(v) => setParent(v ?? "")}
+            placeholder={t("parentNone")}
+          />
+        </div>
       </div>
-      <div className="flex flex-col gap-1.5">
-        <Label className="text-xs font-medium">{t("colParent")}</Label>
-        <Select
-          className="rounded-lg"
-          options={[
-            { value: "", label: t("none") },
-            ...categories
-              .filter((c) => c.id !== initial?.id)
-              .map((c) => ({ value: String(c.id), label: c.name })),
-          ]}
-          value={parent}
-          onChange={(v) => setParent(v ?? "")}
-          placeholder={t("parentNone")}
-        />
-      </div>
-      </div>
-<DialogFooter className="mx-0 mb-0">
+      <DialogFooter>
         <Button type="button" variant="outline" onClick={onClose} disabled={saveCategory.isPending}>
           {t("cancel")}
         </Button>

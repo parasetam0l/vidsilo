@@ -17,6 +17,8 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select } from "@/components/ui/select";
 import { EmptyState } from "@/components/empty-state";
+import { SummaryStrip } from "@/components/summary-strip";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
@@ -37,7 +39,6 @@ export function useCreatePlayerAction() {
     open({
       content: (close) => <PlayerFormContent onClose={close} />,
       size: "2xl",
-      className: "p-0",
       dismissible: false,
       showCloseButton: false,
     });
@@ -50,7 +51,7 @@ export default function PlayersPage() {
   const toast = useToast();
   const queryClient = useQueryClient();
 
-  const { data: players = [] } = useQuery({
+  const { data: players = [], isLoading } = useQuery({
     queryKey: ["players"],
     queryFn: () => api<Player[]>("/api/players"),
   });
@@ -68,7 +69,6 @@ export default function PlayersPage() {
     open({
       content: (close) => <PlayerFormContent onClose={close} initial={p} />,
       size: "2xl",
-      className: "p-0",
       dismissible: false,
       showCloseButton: false,
     });
@@ -94,6 +94,12 @@ export default function PlayersPage() {
 
   return (
     <div className="flex flex-1 flex-col gap-4 px-4 pb-4 pt-0">
+      <SummaryStrip
+        items={[
+          { label: t("sumTotalPlayers"), value: players.length },
+          { label: t("sumDefaultPlayer"), value: players.filter((p) => p.isDefault).length },
+        ]}
+      />
       <Card className="overflow-hidden py-0">
         <CardContent className="p-0">
           <Table>
@@ -105,10 +111,28 @@ export default function PlayersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {players.map((p) => (
+              {isLoading ? (
+                Array.from({ length: 4 }).map((_, i) => (
+                  <TableRow key={i} className="hover:bg-transparent">
+                    <TableCell colSpan={3}>
+                      <Skeleton className="h-9 w-full" />
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : null}
+              {!isLoading && players.map((p) => (
                 <TableRow
                   key={p.id}
-                  className="cursor-pointer transition-colors hover:bg-muted/40"
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`${t("edit")} ${p.name}`}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      openEdit(p);
+                    }
+                  }}
+                  className="cursor-pointer transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
                   onClick={() => openEdit(p)}
                 >
                   <TableCell>
@@ -131,7 +155,7 @@ export default function PlayersPage() {
                   </TableCell>
                   <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1.5">
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(p)} aria-label={t("edit")}>
+                      <Button variant="ghost" size="icon" onClick={() => openEdit(p)} aria-label={`${t("edit")} ${p.name}`}>
                         <PencilIcon className="size-4" />
                       </Button>
                       {!p.isDefault ? (
@@ -139,7 +163,7 @@ export default function PlayersPage() {
                           variant="ghost"
                           size="icon"
                           onClick={() => askRemove(p)}
-                          aria-label={t("delete")}
+                          aria-label={`${t("delete")} ${p.name}`}
                         >
                           <Trash2 className="size-4" />
                         </Button>
@@ -148,11 +172,15 @@ export default function PlayersPage() {
                   </TableCell>
                 </TableRow>
               ))}
+              {!isLoading && players.length === 0 ? (
+                <TableRow className="hover:bg-transparent">
+                  <TableCell colSpan={3}>
+                    <EmptyState icon={MonitorPlayIcon} title={t("navPlayers")} description={t("playersEmpty")} />
+                  </TableCell>
+                </TableRow>
+              ) : null}
             </TableBody>
           </Table>
-          {players.length === 0 ? (
-            <EmptyState icon={MonitorPlayIcon} description={t("playersEmpty")} />
-          ) : null}
         </CardContent>
       </Card>
     </div>

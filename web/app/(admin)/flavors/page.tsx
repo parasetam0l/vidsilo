@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { PencilIcon, Save, SlidersHorizontalIcon, Trash2, VideoIcon, CheckCircle2Icon, XCircleIcon } from "lucide-react";
+import { PencilIcon, Save, Trash2, VideoIcon } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 import { api, type Flavor } from "@/lib/api";
@@ -16,6 +16,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { EmptyState } from "@/components/empty-state";
+import { SummaryStrip } from "@/components/summary-strip";
+import { Skeleton } from "@/components/ui/skeleton";
 import { DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Table,
@@ -50,7 +52,6 @@ export function useCreateFlavorAction() {
     open({
       content: (close) => <FlavorFormContent onClose={close} initial={blank()} />,
       size: "md",
-      className: "p-0",
       dismissible: false,
       showCloseButton: false,
     });
@@ -73,7 +74,7 @@ export default function FlavorsPage() {
   const toast = useToast();
   const queryClient = useQueryClient();
 
-  const { data: flavors = [] } = useQuery({
+  const { data: flavors = [], isLoading } = useQuery({
     queryKey: ["flavors"],
     queryFn: () => api<Flavor[]>("/api/flavors"),
   });
@@ -124,23 +125,13 @@ export default function FlavorsPage() {
   return (
     <div className="flex flex-1 flex-col gap-4 px-4 pb-4 pt-0">
       {/* Top summary strip */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2 rounded-xl border bg-card px-3.5 py-2 shadow-2xs">
-          <SlidersHorizontalIcon className="size-4 text-primary" />
-          <span className="text-xs text-muted-foreground">Total Presets:</span>
-          <span className="text-sm font-bold text-foreground tabular-nums">{total}</span>
-        </div>
-        <div className="flex items-center gap-2 rounded-xl border bg-emerald-500/10 border-emerald-500/20 px-3.5 py-2 shadow-2xs">
-          <CheckCircle2Icon className="size-4 text-emerald-500" />
-          <span className="text-xs text-emerald-700 dark:text-emerald-300 font-medium">Enabled for Encoding:</span>
-          <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">{enabledCount}</span>
-        </div>
-        <div className="flex items-center gap-2 rounded-xl border bg-muted/40 px-3.5 py-2 shadow-2xs">
-          <XCircleIcon className="size-4 text-muted-foreground" />
-          <span className="text-xs text-muted-foreground">Disabled:</span>
-          <span className="text-sm font-bold text-muted-foreground tabular-nums">{disabledCount}</span>
-        </div>
-      </div>
+      <SummaryStrip
+        items={[
+          { label: t("sumTotalFlavors"), value: total },
+          { label: t("sumEnabledFlavors"), value: enabledCount },
+          { label: t("flavorDisabled"), value: disabledCount },
+        ]}
+      />
 
       <Card className="overflow-hidden py-0 ">
         <CardContent className="p-0">
@@ -157,14 +148,32 @@ export default function FlavorsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {flavors.map((f) => (
+              {isLoading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <TableRow key={i} className="hover:bg-transparent">
+                    <TableCell colSpan={7}>
+                      <Skeleton className="h-9 w-full" />
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : null}
+              {!isLoading && flavors.map((f) => (
                 <TableRow
                   key={f.id}
-                  className={`cursor-pointer transition-colors hover:bg-muted/40 ${!f.enabled ? "opacity-60" : ""}`}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`${t("edit")} ${f.name}`}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      openEdit(f);
+                    }
+                  }}
+                  className={`cursor-pointer transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring ${!f.enabled ? "opacity-60" : ""}`}
                   onClick={() => openEdit(f)}
                 >
                   <TableCell onClick={(e) => e.stopPropagation()}>
-                    <Switch checked={f.enabled} onCheckedChange={() => toggleFlavor.mutate(f)} />
+                    <Switch aria-label={`${f.name} ${t("colEnabled")}`} checked={f.enabled} onCheckedChange={() => toggleFlavor.mutate(f)} />
                   </TableCell>
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-3">
@@ -194,19 +203,19 @@ export default function FlavorsPage() {
                   </TableCell>
                   <TableCell className="text-xs font-mono text-muted-foreground">{f.audioBitrate}k</TableCell>
                   <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                    <Button variant="ghost" size="icon" onClick={() => openEdit(f)}>
+                    <Button variant="ghost" size="icon" aria-label={`${t("edit")} ${f.name}`} onClick={() => openEdit(f)}>
                       <PencilIcon className="size-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={() => askRemove(f)}>
+                    <Button variant="ghost" size="icon" aria-label={`${t("delete")} ${f.name}`} onClick={() => askRemove(f)}>
                       <Trash2 className="size-4" />
                     </Button>
                   </TableCell>
                 </TableRow>
               ))}
-              {flavors.length === 0 ? (
+              {!isLoading && flavors.length === 0 ? (
                 <TableRow className="hover:bg-transparent">
                   <TableCell colSpan={7}>
-                    <EmptyState icon={SlidersHorizontalIcon} description={t("dashEmpty")} />
+                    <EmptyState icon={VideoIcon} title={t("flavorsTitle")} description={t("dashEmpty")} />
                   </TableCell>
                 </TableRow>
               ) : null}

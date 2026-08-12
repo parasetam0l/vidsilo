@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { PencilIcon, ShieldCheckIcon, Trash2, UserCheckIcon, UsersIcon, UserXIcon } from "lucide-react";
+import { PencilIcon, Trash2, UsersIcon } from "lucide-react";
 
 import { api, ApiError, displayName, type Role, type User } from "@/lib/api";
 import { useT } from "@/lib/i18n";
@@ -19,6 +19,8 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { EmptyState } from "@/components/empty-state";
+import { SummaryStrip } from "@/components/summary-strip";
+import { Skeleton } from "@/components/ui/skeleton";
 import { DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select } from "@/components/ui/select";
 import {
@@ -46,7 +48,6 @@ export function useCreateUserAction() {
     open({
       content: (close) => <UserFormContent onClose={close} />,
       size: "sm",
-      className: "p-0",
       dismissible: false,
       showCloseButton: false,
     });
@@ -59,7 +60,7 @@ export default function UsersPage() {
   const toast = useToast();
   const queryClient = useQueryClient();
 
-  const { data: users = [] } = useQuery({
+  const { data: users = [], isLoading } = useQuery({
     queryKey: ["users"],
     queryFn: () => api<User[]>("/api/users"),
   });
@@ -77,7 +78,6 @@ export default function UsersPage() {
     open({
       content: (close) => <UserFormContent onClose={close} initial={u} />,
       size: "sm",
-      className: "p-0",
       dismissible: false,
       showCloseButton: false,
     });
@@ -104,30 +104,16 @@ export default function UsersPage() {
   return (
     <div className="flex flex-1 flex-col gap-4 px-4 pb-4 pt-0">
       {/* Top summary strip */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2 rounded-xl border bg-card px-3.5 py-2 shadow-2xs">
-          <UsersIcon className="size-4 text-primary" />
-          <span className="text-xs text-muted-foreground">Total Users:</span>
-          <span className="text-sm font-bold text-foreground tabular-nums">{total}</span>
-        </div>
-        <div className="flex items-center gap-2 rounded-xl border bg-emerald-500/10 border-emerald-500/20 px-3.5 py-2 shadow-2xs">
-          <UserCheckIcon className="size-4 text-emerald-500" />
-          <span className="text-xs text-emerald-700 dark:text-emerald-300 font-medium">Active:</span>
-          <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">{activeCount}</span>
-        </div>
-        <div className="flex items-center gap-2 rounded-xl border bg-blue-500/10 border-blue-500/20 px-3.5 py-2 shadow-2xs">
-          <ShieldCheckIcon className="size-4 text-blue-500" />
-          <span className="text-xs text-blue-700 dark:text-blue-300 font-medium">Administrators:</span>
-          <span className="text-sm font-bold text-blue-600 dark:text-blue-400 tabular-nums">{adminCount}</span>
-        </div>
-        {disabledCount > 0 ? (
-          <div className="flex items-center gap-2 rounded-xl border bg-red-500/10 border-red-500/20 px-3.5 py-2 shadow-2xs">
-            <UserXIcon className="size-4 text-red-500" />
-            <span className="text-xs text-red-700 dark:text-red-300 font-medium">Disabled:</span>
-            <span className="text-sm font-bold text-red-600 dark:text-red-400 tabular-nums">{disabledCount}</span>
-          </div>
-        ) : null}
-      </div>
+      <SummaryStrip
+        items={[
+          { label: t("sumTotalUsers"), value: total },
+          { label: t("sumActiveUsers"), value: activeCount },
+          { label: "Administrators", value: adminCount },
+          ...(disabledCount > 0
+            ? [{ label: t("sumDisabledUsers"), value: disabledCount }]
+            : []),
+        ]}
+      />
 
       <Card className="overflow-hidden py-0 ">
         <CardContent className="p-0">
@@ -143,12 +129,30 @@ export default function UsersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users.map((u) => {
+              {isLoading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <TableRow key={i} className="hover:bg-transparent">
+                    <TableCell colSpan={6}>
+                      <Skeleton className="h-9 w-full" />
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : null}
+              {!isLoading && users.map((u) => {
                 const initials = (displayName(u).slice(0, 2) || u.email.slice(0, 2)).toUpperCase();
                 return (
                   <TableRow
                     key={u.id}
-                    className={`cursor-pointer transition-colors hover:bg-muted/40 ${u.disabled ? "opacity-60" : ""}`}
+                    tabIndex={0}
+                    role="button"
+                    aria-label={`${t("edit")} ${u.email}`}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        openEdit(u);
+                      }
+                    }}
+                    className={`cursor-pointer transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring ${u.disabled ? "opacity-60" : ""}`}
                     onClick={() => openEdit(u)}
                   >
                     <TableCell>
@@ -183,20 +187,20 @@ export default function UsersPage() {
                       {formatDate(u.createdAt)}
                     </TableCell>
                     <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(u)}>
+                      <Button variant="ghost" size="icon" aria-label={`${t("edit")} ${u.email}`} onClick={() => openEdit(u)}>
                         <PencilIcon className="size-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => askRemove(u)}>
+                      <Button variant="ghost" size="icon" aria-label={`${t("delete")} ${u.email}`} onClick={() => askRemove(u)}>
                         <Trash2 className="size-4" />
                       </Button>
                     </TableCell>
                   </TableRow>
                 );
               })}
-              {users.length === 0 ? (
+              {!isLoading && users.length === 0 ? (
                 <TableRow className="hover:bg-transparent">
                   <TableCell colSpan={6}>
-                    <EmptyState icon={UsersIcon} description={t("dashEmpty")} />
+                    <EmptyState icon={UsersIcon} title={t("usersTitle")} description={t("dashEmpty")} />
                   </TableCell>
                 </TableRow>
               ) : null}
@@ -259,60 +263,60 @@ function UserFormContent({
 
   return (
     <form className="flex flex-col gap-4" onSubmit={submit} noValidate>
-      <DialogHeader className="px-4 pt-4">
+      <DialogHeader>
         <DialogTitle>{editing ? t("editUserTitle") : t("newUserTitle")}</DialogTitle>
       </DialogHeader>
-<div className="flex flex-col gap-4 px-4">
-      <div className="flex flex-col gap-1.5">
-        <Label className="text-xs font-medium">{t("loginEmail")}</Label>
-        <Input
-          type="email"
-          className="rounded-lg"
-          value={email}
-          onChange={(e) => {
-            setEmail(e.target.value);
-            setErrors((prev) => ({ ...prev, email: "" }));
-          }}
-        />
-        <FormError message={errors.email} />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <Label className="text-xs font-medium">{t("colNameSurname")}</Label>
-        <Input className="rounded-lg" value={nameSurname} onChange={(e) => setNameSurname(e.target.value)} />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <Label className="text-xs font-medium">{t("loginPassword")}</Label>
-        <Input
-          type="password"
-          className="rounded-lg"
-          value={password}
-          autoComplete="new-password"
-          placeholder={editing ? t("passwordKeep") : undefined}
-          onChange={(e) => {
-            setPassword(e.target.value);
-            setErrors((prev) => ({ ...prev, password: "" }));
-          }}
-        />
-        <FormError message={errors.password} />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <Label className="text-xs font-medium">{t("colRole")}</Label>
-        <Select
-          className="rounded-lg"
-          options={roles.map((r) => ({ value: r, label: r.toUpperCase() }))}
-          value={role}
-          onChange={(v) => setRole(v as Role)}
-          placeholder={t("colRole")}
-        />
-      </div>
-      {editing ? (
-        <div className="flex items-center justify-between rounded-xl border bg-muted/30 p-3">
-          <Label className="text-xs font-medium">{t("statusDisabled")}</Label>
-          <Switch checked={disabled} onCheckedChange={setDisabled} />
+      <div className="flex flex-col gap-4 px-5">
+        <div className="flex flex-col gap-1.5">
+          <Label className="text-xs font-medium">{t("loginEmail")}</Label>
+          <Input
+            type="email"
+            className="rounded-lg"
+            value={email}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              setErrors((prev) => ({ ...prev, email: "" }));
+            }}
+          />
+          <FormError message={errors.email} />
         </div>
-      ) : null}
+        <div className="flex flex-col gap-1.5">
+          <Label className="text-xs font-medium">{t("colNameSurname")}</Label>
+          <Input className="rounded-lg" value={nameSurname} onChange={(e) => setNameSurname(e.target.value)} />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label className="text-xs font-medium">{t("loginPassword")}</Label>
+          <Input
+            type="password"
+            className="rounded-lg"
+            value={password}
+            autoComplete="new-password"
+            placeholder={editing ? t("passwordKeep") : undefined}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              setErrors((prev) => ({ ...prev, password: "" }));
+            }}
+          />
+          <FormError message={errors.password} />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label className="text-xs font-medium">{t("colRole")}</Label>
+          <Select
+            className="rounded-lg"
+            options={roles.map((r) => ({ value: r, label: r.toUpperCase() }))}
+            value={role}
+            onChange={(v) => setRole(v as Role)}
+            placeholder={t("colRole")}
+          />
+        </div>
+        {editing ? (
+          <div className="flex items-center justify-between rounded-xl border bg-muted/30 p-3">
+            <Label className="text-xs font-medium">{t("statusDisabled")}</Label>
+            <Switch checked={disabled} onCheckedChange={setDisabled} />
+          </div>
+        ) : null}
       </div>
-<DialogFooter className="mx-0 mb-0">
+      <DialogFooter>
         <Button type="button" variant="outline" onClick={onClose} disabled={saveUser.isPending}>
           {t("cancel")}
         </Button>
