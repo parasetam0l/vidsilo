@@ -161,9 +161,8 @@ func (s *Service) Run(ctx context.Context, interval time.Duration) {
 
 // KeySpec describes one editable key for validation in the API layer.
 type KeySpec struct {
-	Type            string // "string" | "int" | "bool" | "strings" | "enum"
-	Enums           []string
-	RestartRequired bool
+	Type   string // "string" | "int" | "bool" | "strings" | "enum"
+	Enums  []string
 }
 
 // Specs is the registry of panel-editable keys (code defaults live in seed).

@@ -271,7 +271,6 @@ export interface JobActivity {
 
 export interface SettingsResponse {
   settings: Record<string, unknown>;
-  restartRequired: string[];
 }
 
 export interface StorageUsage {

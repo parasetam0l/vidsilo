@@ -16,15 +16,8 @@ func (s *Server) registerSettingsRoutes(mux *http.ServeMux) {
 const settingsAdminRole = "admin"
 
 func (s *Server) handleSettingsGet(w http.ResponseWriter, r *http.Request) {
-	restart := []string{}
-	for key, spec := range settings.Specs {
-		if spec.RestartRequired {
-			restart = append(restart, key)
-		}
-	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"settings":        s.settings.All(),
-		"restartRequired": restart,
+		"settings": s.settings.All(),
 	})
 }
 

@@ -15,9 +15,11 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatBytes } from "@/lib/format";
 
 interface GroupDef {
   id: string;
@@ -27,20 +29,68 @@ interface GroupDef {
   keys: string[];
 }
 
-const labels: Record<string, string> = {
-  site_name: "Site Name",
-  default_lang: "Default Language",
-  "upload.max_size_bytes": "Max Upload Size (Bytes)",
-  "upload.allowed_extensions": "Allowed File Extensions",
-  "cache.enabled": "Enable Disk Caching",
-  "cache.max_bytes": "Max Cache Size (Bytes)",
-  "transcode.concurrency": "Parallel Encoders (0 = CPU count − 1)",
-  "transcode.segment_seconds": "HLS Segment Length (Seconds)",
-  "transcode.gop_seconds": "GOP Keyframe Interval (Seconds)",
-  "transcode.preset": "Encoder Speed Preset",
-  "analytics.enabled": "Enable Playback Analytics",
-  "analytics.retention_days": "Data Retention (Days)",
-  "analytics.flush_interval_s": "Flush Buffer Interval (Seconds)",
+interface SettingSpec {
+  label: string;
+  hint: string;
+  /** Pretty-formats the current value under the field (e.g. bytes). */
+  pretty?: (v: number | string) => string;
+}
+
+const specs: Record<string, SettingSpec> = {
+  site_name: {
+    label: "Site Name",
+    hint: "Shown in the admin UI and the browser title.",
+  },
+  default_lang: {
+    label: "Default Language",
+    hint: "Used when a viewer hasn't chosen a language.",
+  },
+  "upload.max_size_bytes": {
+    label: "Max Upload Size",
+    hint: "Largest allowed file per upload; anything larger is rejected.",
+    pretty: (v) => `≈ ${formatBytes(Number(v))}`,
+  },
+  "upload.allowed_extensions": {
+    label: "Allowed File Extensions",
+    hint: "Comma-separated list; other extensions are rejected.",
+  },
+  "cache.enabled": {
+    label: "Enable Disk Caching",
+    hint: "Read-through cache in front of the media store.",
+  },
+  "cache.max_bytes": {
+    label: "Max Cache Size",
+    hint: "The cache evicts least-recently-used files beyond this.",
+    pretty: (v) => `≈ ${formatBytes(Number(v))}`,
+  },
+  "transcode.concurrency": {
+    label: "Parallel Encoders",
+    hint: "How many videos transcode at once. 0 = CPU count − 1; each encoder needs ~1–2 GB RAM.",
+  },
+  "transcode.segment_seconds": {
+    label: "HLS Segment Length",
+    hint: "Shorter segments reduce start latency; longer ones reduce overhead.",
+  },
+  "transcode.gop_seconds": {
+    label: "GOP Keyframe Interval",
+    hint: "Keyframe frequency — usually 2s with 4s segments.",
+  },
+  "transcode.preset": {
+    label: "Encoder Speed Preset",
+    hint: "Faster = less CPU and larger files; slower = better compression.",
+  },
+  "analytics.enabled": {
+    label: "Playback Analytics",
+    hint: "Collects play, bandwidth and watch-time beacons.",
+  },
+  "analytics.retention_days": {
+    label: "Data Retention (Days)",
+    hint: "Beacon rows older than this are purged.",
+  },
+  "analytics.flush_interval_s": {
+    label: "Flush Buffer Interval (Seconds)",
+    hint: "How often buffered analytics are written to the database.",
+  },
 };
 
 export default function SettingsPage() {
@@ -192,53 +242,53 @@ export default function SettingsPage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-6 pt-6">
-              <div className="grid gap-5 md:grid-cols-2">
+              <div className="flex flex-col gap-4">
                 {activeGroup.keys.map((k) => {
+                  const spec = specs[k] ?? { label: k, hint: "" };
                   const isBool = typeof s[k] === "boolean";
                   const isPreset = k === "transcode.preset";
-
-                  if (isBool) {
-                    return (
-                      <div
-                        key={k}
-                        className="flex items-center justify-between rounded-xl border bg-muted/30 p-4 md:col-span-2"
-                      >
-                        <div className="space-y-0.5">
-                          <label className="text-sm font-medium text-foreground">{labels[k] ?? k}</label>
-                          <p className="text-xs text-muted-foreground">Toggle setting immediately across the system.</p>
-                        </div>
-                        <Switch checked={bool(k)} onCheckedChange={(v) => setBool(k, v)} />
-                      </div>
-                    );
-                  }
+                  const pretty =
+                    spec.pretty && !isBool ? (
+                      <span className="text-xs font-semibold text-primary">
+                        {spec.pretty(typeof s[k] === "number" ? num(k) : str(k))}
+                      </span>
+                    ) : null;
 
                   return (
-                    <div key={k} className="flex flex-col gap-2">
-                      <label className="text-xs font-medium text-foreground">{labels[k] ?? k}</label>
-                      {isPreset ? (
-                        <Select
-                          options={["ultrafast", "superfast", "veryfast", "faster", "fast", "medium"].map((p) => ({
-                            value: p,
-                            label: p,
-                          }))}
-                          className="w-full rounded-lg"
-                          value={str(k)}
-                          onChange={(v) => {
-                            s[k] = v;
-                            setData({ ...data });
-                          }}
-                        />
-                      ) : (
-                        <Input
-                          defaultValue={typeof s[k] === "number" ? String(num(k)) : str(k)}
-                          type={typeof s[k] === "number" ? "number" : "text"}
-                          className="rounded-lg"
-                          onChange={(e) => {
-                            s[k] = typeof s[k] === "number" ? Number(e.target.value) : e.target.value;
-                            setData({ ...data });
-                          }}
-                        />
-                      )}
+                    <div key={k} className="rounded-xl border bg-card p-4">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0 space-y-0.5">
+                          <Label className="text-sm font-medium">{spec.label}</Label>
+                          <p className="text-xs text-muted-foreground">{spec.hint}</p>
+                          {pretty ? <div>{pretty}</div> : null}
+                        </div>
+                        {isBool ? (
+                          <Switch checked={bool(k)} onCheckedChange={(v) => setBool(k, v)} />
+                        ) : isPreset ? (
+                          <Select
+                            options={["ultrafast", "superfast", "veryfast", "faster", "fast", "medium"].map((p) => ({
+                              value: p,
+                              label: p,
+                            }))}
+                            className="w-full sm:w-56 shrink-0 rounded-lg"
+                            value={str(k)}
+                            onChange={(v) => {
+                              s[k] = v;
+                              setData({ ...data });
+                            }}
+                          />
+                        ) : (
+                          <Input
+                            defaultValue={typeof s[k] === "number" ? String(num(k)) : str(k)}
+                            type={typeof s[k] === "number" ? "number" : "text"}
+                            className="w-full sm:w-56 shrink-0 rounded-lg"
+                            onChange={(e) => {
+                              s[k] = typeof s[k] === "number" ? Number(e.target.value) : e.target.value;
+                              setData({ ...data });
+                            }}
+                          />
+                        )}
+                      </div>
                     </div>
                   );
                 })}
