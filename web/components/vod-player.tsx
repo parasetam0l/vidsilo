@@ -67,6 +67,10 @@ export function VODPlayer({
   const [fullscreen, setFullscreen] = React.useState(false);
   const [scrub, setScrub] = React.useState<number | null>(null);
   const [error, setError] = React.useState<string | null>(null);
+  // Touch devices don't have hover: show the control bar whenever the video
+  // is tapped; auto-hide stays in effect for pointer (mouse) users.
+  const [tapped, setTapped] = React.useState(false);
+  const hideTimer = React.useRef<number | null>(null);
 
   const t = useT();
   const viewId = React.useMemo(() => viewerId(), []);
@@ -336,6 +340,20 @@ export function VODPlayer({
       ref={containerRef}
       className="group relative aspect-video w-full overflow-hidden rounded-xl bg-black select-none"
       style={{ "--player-accent": accent } as React.CSSProperties}
+      onPointerUp={() => {
+        setTapped((prev) => !prev);
+        if (hideTimer.current) window.clearTimeout(hideTimer.current);
+        if (autoHideControls) {
+          hideTimer.current = window.setTimeout(() => setTapped(false), 3000);
+        }
+      }}
+      onPointerMove={() => {
+        setTapped(true);
+        if (hideTimer.current) window.clearTimeout(hideTimer.current);
+        if (autoHideControls) {
+          hideTimer.current = window.setTimeout(() => setTapped(false), 3000);
+        }
+      }}
     >
       <video
         ref={videoRef}
@@ -397,7 +415,11 @@ export function VODPlayer({
       {/* controls */}
       <div
         className={`absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-3 transition-opacity ${
-          autoHideControls ? "opacity-0 group-hover:opacity-100" : "opacity-100"
+          autoHideControls
+            ? tapped || playing
+              ? "opacity-100"
+              : "opacity-0 group-hover:opacity-100"
+            : "opacity-100"
         }`}
       >
         {scrubTime != null && scrubFrame != null && info.sprite ? (
@@ -406,12 +428,29 @@ export function VODPlayer({
           />
         ) : null}
         <div
-          className="relative h-1.5 cursor-pointer rounded-full bg-white/25"
+          role="slider"
+          tabIndex={0}
+          aria-label="Seek"
+          aria-valuemin={0}
+          aria-valuemax={Math.max(1, Math.round(duration))}
+          aria-valuenow={Math.round(scrubTime ?? current)}
+          className="relative h-1.5 cursor-pointer rounded-full bg-white/25 focus-visible:ring-2 focus-visible:ring-white/60"
           onMouseMove={(e) => {
             const rect = e.currentTarget.getBoundingClientRect();
             setScrub(((e.clientX - rect.left) / rect.width) * 100);
           }}
           onMouseLeave={() => setScrub(null)}
+          onKeyDown={(e) => {
+            const video = videoRef.current;
+            if (!video) return;
+            if (e.key === "ArrowRight") {
+              e.preventDefault();
+              video.currentTime = Math.min(video.duration, video.currentTime + 10);
+            } else if (e.key === "ArrowLeft") {
+              e.preventDefault();
+              video.currentTime = Math.max(0, video.currentTime - 10);
+            }
+          }}
           onClick={(e) => {
             const rect = e.currentTarget.getBoundingClientRect();
             seekTo(((e.clientX - rect.left) / rect.width) * duration);
@@ -437,23 +476,27 @@ export function VODPlayer({
               <svg viewBox="0 0 24 24" className="size-5 fill-current"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.8-1-3.3-2.5-4v8c1.5-.7 2.5-2.2 2.5-4zM14 3.2v2.1c2.9.9 5 3.5 5 6.7s-2.1 5.8-5 6.7v2.1c4-.9 7-4.4 7-8.8s-3-7.9-7-8.8z" /></svg>
             )}
           </button>
-          <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.05}
-            value={mutedState ? 0 : volume}
-            onChange={(e) => {
-              const v = Number(e.target.value);
-              const video = videoRef.current;
-              if (video) {
-                video.volume = v;
-                video.muted = v === 0;
-              }
-            }}
-            className="w-20"
-            style={{ accentColor: accent }}
-          />
+          <label className="flex items-center gap-2">
+            <span className="sr-only">{mutedState ? t("playerUnmute") : t("playerMute")}</span>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={mutedState ? 0 : volume}
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                const video = videoRef.current;
+                if (video) {
+                  video.volume = v;
+                  video.muted = v === 0;
+                }
+              }}
+              className="h-1.5 w-20 cursor-pointer appearance-none rounded-full bg-white/30 accent-current"
+              style={{ accentColor: accent }}
+              aria-label={t("playerMute")}
+            />
+          </label>
           <span className="tabular-nums opacity-80">
             {fmt(current)} / {fmt(duration)}
           </span>
@@ -462,13 +505,12 @@ export function VODPlayer({
               <select
                 value={level}
                 onChange={(e) => setQuality(Number(e.target.value))}
-                className="rounded bg-black/40 px-1 py-0.5"
-                style={{ accentColor: accent }}
+                className="rounded border border-white/20 bg-black/60 px-1.5 py-1 text-xs text-white outline-none focus-visible:ring-2 focus-visible:ring-white/60"
                 aria-label={t("colCodec")}
               >
-                <option value={-1}>{t("playerAuto")}</option>
+                <option value={-1} className="bg-background text-foreground">{t("playerAuto")}</option>
                 {levels.map((l) => (
-                  <option key={l.index} value={l.index}>
+                  <option key={l.index} value={l.index} className="bg-background text-foreground">
                     {l.height}p
                   </option>
                 ))}
@@ -478,12 +520,12 @@ export function VODPlayer({
               <select
                 value={subtitle}
                 onChange={(e) => setSubtitle(e.target.value)}
-                className="rounded bg-black/40 px-1 py-0.5"
+                className="rounded border border-white/20 bg-black/60 px-1.5 py-1 text-xs text-white outline-none focus-visible:ring-2 focus-visible:ring-white/60"
                 aria-label={t("tabSubtitles")}
               >
-                <option value="">{t("playerOff")}</option>
+                <option value="" className="bg-background text-foreground">{t("playerOff")}</option>
                 {(info.subtitles ?? []).map((s) => (
-                  <option key={s.lang} value={s.lang}>
+                  <option key={s.lang} value={s.lang} className="bg-background text-foreground">
                     {s.label || s.lang}
                   </option>
                 ))}
@@ -492,11 +534,11 @@ export function VODPlayer({
             <select
               value={rate}
               onChange={(e) => setPlaybackRate(Number(e.target.value))}
-              className="rounded bg-black/40 px-1 py-0.5"
+              className="rounded border border-white/20 bg-black/60 px-1.5 py-1 text-xs text-white outline-none focus-visible:ring-2 focus-visible:ring-white/60"
               aria-label={t("playerSpeed")}
             >
               {[0.5, 0.75, 1, 1.25, 1.5, 2].map((r) => (
-                <option key={r} value={r}>
+                <option key={r} value={r} className="bg-background text-foreground">
                   {r}x
                 </option>
               ))}
