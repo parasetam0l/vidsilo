@@ -106,7 +106,7 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	list, err := db.ListEntries(r.Context(), s.pool, db.EntryFilter{Page: 1, Limit: 8})
+	list, err := db.ListEntries(r.Context(), s.pool, db.EntryFilter{Page: 1, Limit: 5})
 	if err != nil {
 		s.internalError(w, r, "dashboard recent", err)
 		return

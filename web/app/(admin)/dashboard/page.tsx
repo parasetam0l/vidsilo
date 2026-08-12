@@ -256,83 +256,6 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        {/* Entries by Status Card */}
-        <Card className="relative flex flex-col justify-between overflow-hidden">
-          <div className="pointer-events-none absolute -top-10 -right-10 size-32 rounded-full bg-blue-500/10 blur-3xl" />
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base font-semibold tracking-tight">{t("dashByStatus")}</CardTitle>
-              <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground tabular-nums">
-                {totalStatusCount} total
-              </span>
-            </div>
-            <CardDescription className="text-xs text-muted-foreground">
-              Current status of videos in your processing pipeline.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-1 flex-col justify-between space-y-5">
-            {Object.keys(data.entriesByStatus).length > 0 ? (
-              <div className="space-y-5">
-                {/* Segmented status distribution bar */}
-                <div className="flex h-3 w-full overflow-hidden rounded-full bg-muted/60">
-                  {Object.entries(data.entriesByStatus).map(([status, count]) => {
-                    const pct = (count / (totalStatusCount || 1)) * 100;
-                    return (
-                      <div
-                        key={status}
-                        style={{ width: `${pct}%` }}
-                        className={`h-full transition-all ${statusColors[status] ?? "bg-primary"}`}
-                        title={`${status}: ${count} (${pct.toFixed(1)}%)`}
-                      />
-                    );
-                  })}
-                </div>
-
-                {/* Pipeline Status List */}
-                <div className="space-y-3.5 pt-1">
-                  {Object.entries(data.entriesByStatus).map(([status, count]) => {
-                    const pct = totalStatusCount > 0 ? Math.round((count / totalStatusCount) * 100) : 0;
-                    return (
-                      <div
-                        key={status}
-                        className="flex items-center justify-between gap-3 transition-colors"
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <span
-                            className={`size-3 rounded-full shrink-0 ${statusColors[status] ?? "bg-primary"}`}
-                          />
-                          <div className="flex flex-col">
-                            <span className="text-sm font-semibold capitalize text-foreground leading-snug">
-                              {status}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              {count} {count === 1 ? "entry" : "entries"}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-3 shrink-0">
-                          <div className="h-2 w-16 sm:w-20 rounded-full bg-muted overflow-hidden">
-                            <div
-                              style={{ width: `${pct}%` }}
-                              className={`h-full transition-all ${statusColors[status] ?? "bg-primary"}`}
-                            />
-                          </div>
-                          <span className="w-8 text-right text-xs font-medium text-muted-foreground tabular-nums">
-                            {pct}%
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : (
-              <EmptyState icon={FilmIcon} description={t("dashStatusEmpty")} />
-            )}
-          </CardContent>
-        </Card>
-
         {/* Recent Uploads Card */}
         <Card className="relative flex flex-col justify-between overflow-hidden">
           <div className="pointer-events-none absolute -top-10 -right-10 size-32 rounded-full bg-violet-500/10 blur-3xl" />
@@ -404,6 +327,83 @@ export default function DashboardPage() {
             )}
           </CardContent>
         </Card>
+        {/* Entries by Status Card */}
+        <Card className="relative overflow-hidden">
+          <div className="pointer-events-none absolute -top-10 -right-10 size-32 rounded-full bg-blue-500/10 blur-3xl" />
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-semibold tracking-tight">{t("dashByStatus")}</CardTitle>
+              <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground tabular-nums">
+                {totalStatusCount} total
+              </span>
+            </div>
+            <CardDescription className="text-xs text-muted-foreground">
+              Current status of videos in your processing pipeline.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            {Object.keys(data.entriesByStatus).length > 0 ? (
+              <div className="space-y-5">
+                {/* Segmented status distribution bar */}
+                <div className="flex h-3 w-full overflow-hidden rounded-full bg-muted/60">
+                  {Object.entries(data.entriesByStatus).map(([status, count]) => {
+                    const pct = (count / (totalStatusCount || 1)) * 100;
+                    return (
+                      <div
+                        key={status}
+                        style={{ width: `${pct}%` }}
+                        className={`h-full transition-all ${statusColors[status] ?? "bg-primary"}`}
+                        title={`${status}: ${count} (${pct.toFixed(1)}%)`}
+                      />
+                    );
+                  })}
+                </div>
+
+                {/* Pipeline Status List */}
+                <div className="space-y-3.5 pt-1">
+                  {Object.entries(data.entriesByStatus).map(([status, count]) => {
+                    const pct = totalStatusCount > 0 ? Math.round((count / totalStatusCount) * 100) : 0;
+                    return (
+                      <div
+                        key={status}
+                        className="flex items-center justify-between gap-3 transition-colors"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span
+                            className={`size-3 rounded-full shrink-0 ${statusColors[status] ?? "bg-primary"}`}
+                          />
+                          <div className="flex flex-col">
+                            <span className="text-sm font-semibold capitalize text-foreground leading-snug">
+                              {status}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {count} {count === 1 ? "entry" : "entries"}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3 shrink-0">
+                          <div className="h-2 w-16 sm:w-20 rounded-full bg-muted overflow-hidden">
+                            <div
+                              style={{ width: `${pct}%` }}
+                              className={`h-full transition-all ${statusColors[status] ?? "bg-primary"}`}
+                            />
+                          </div>
+                          <span className="w-8 text-right text-xs font-medium text-muted-foreground tabular-nums">
+                            {pct}%
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <EmptyState icon={FilmIcon} description={t("dashStatusEmpty")} />
+            )}
+          </CardContent>
+        </Card>
+
       </div>
     </div>
   );
