@@ -167,6 +167,32 @@ func (s *Server) handleStorageFiles(w http.ResponseWriter, r *http.Request) {
 			out = append(out, sys)
 		}
 	}
+
+	// Optional pagination: slice the final (sorted) list in memory. Listing
+	// keys is already bounded by the store; this keeps the JSON response
+	// bounded on huge catalogs.
+	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	if page > 0 {
+		if limit <= 0 || limit > 200 {
+			limit = 50
+		}
+		start := (page - 1) * limit
+		end := start + limit
+		if start > len(out) {
+			start = len(out)
+		}
+		if end > len(out) {
+			end = len(out)
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"items": out[start:end],
+			"total": len(out),
+			"page":  page,
+			"limit": limit,
+		})
+		return
+	}
 	writeJSON(w, http.StatusOK, out)
 }
 

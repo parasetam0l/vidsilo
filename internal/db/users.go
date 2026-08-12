@@ -56,6 +56,37 @@ func ListUsers(ctx context.Context, pool *pgxpool.Pool) ([]User, error) {
 	return users, rows.Err()
 }
 
+// ListUsersPage returns one page of users plus the total count (admin UI
+// pagination for large teams).
+func ListUsersPage(ctx context.Context, pool *pgxpool.Pool, page, limit int) ([]User, int, error) {
+	if page < 1 {
+		page = 1
+	}
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
+	var total int
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM users`).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+	rows, err := pool.Query(ctx,
+		`SELECT `+userColumns+` FROM users ORDER BY id
+		 LIMIT $1 OFFSET $2`, limit, (page-1)*limit)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+	users := []User{}
+	for rows.Next() {
+		u, err := scanUser(rows)
+		if err != nil {
+			return nil, 0, err
+		}
+		users = append(users, u)
+	}
+	return users, total, rows.Err()
+}
+
 func CreateUser(ctx context.Context, pool *pgxpool.Pool, email, nameSurname, hash string, role Role) (User, error) {
 	var u User
 	err := pool.QueryRow(ctx, `

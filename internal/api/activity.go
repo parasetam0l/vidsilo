@@ -73,9 +73,25 @@ func (s *Server) registerActivityRoutes(mux *http.ServeMux) {
 }
 
 func (s *Server) handleJobs(w http.ResponseWriter, r *http.Request) {
+	// Optional pagination (page/limit query params); the default plain array
+	// keeps the admin UI compatible.
+	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	paginated := page > 0
+	if !paginated {
+		limit = 50
+	} else {
+		if limit <= 0 || limit > 100 {
+			limit = 50
+		}
+	}
+	offset := 0
+	if paginated {
+		offset = (page - 1) * limit
+	}
 	rows, err := s.pool.Query(r.Context(), jobSelect+`
 		ORDER BY j.id DESC
-		LIMIT 50`)
+		LIMIT $1 OFFSET $2`, limit, offset)
 	if err != nil {
 		s.internalError(w, r, "list jobs", err)
 		return
@@ -87,7 +103,13 @@ func (s *Server) handleJobs(w http.ResponseWriter, r *http.Request) {
 		s.internalError(w, r, "list jobs", err)
 		return
 	}
-	writeJSON(w, http.StatusOK, out)
+	if !paginated {
+		writeJSON(w, http.StatusOK, out)
+		return
+	}
+	var total int
+	_ = s.pool.QueryRow(r.Context(), `SELECT count(*) FROM jobs`).Scan(&total)
+	writeJSON(w, http.StatusOK, map[string]any{"items": out, "total": total, "page": page, "limit": limit})
 }
 
 // handleJobRetry re-queues a failed or cancelled job (attempts reset,

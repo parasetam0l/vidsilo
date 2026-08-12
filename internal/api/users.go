@@ -20,6 +20,23 @@ func (s *Server) registerUserRoutes(mux *http.ServeMux) {
 }
 
 func (s *Server) handleUsersList(w http.ResponseWriter, r *http.Request) {
+	// Paginated variant; the plain array stays for the existing admin UI.
+	if pageStr := r.URL.Query().Get("page"); pageStr != "" {
+		page, _ := strconv.Atoi(pageStr)
+		limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+		users, total, err := db.ListUsersPage(r.Context(), s.pool, page, limit)
+		if err != nil {
+			s.internalError(w, r, "list users", err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"items": users,
+			"total": total,
+			"page":  page,
+			"limit": limit,
+		})
+		return
+	}
 	users, err := db.ListUsers(r.Context(), s.pool)
 	if err != nil {
 		s.internalError(w, r, "list users", err)
