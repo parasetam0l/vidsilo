@@ -188,14 +188,14 @@ function ConfirmDialogContent({
 
   return (
     <>
-      <DialogHeader className="px-4 pt-4">
+      <DialogHeader>
         <DialogTitle className={variant === "destructive" ? "text-destructive" : ""}>
           {title}
         </DialogTitle>
         {description && <DialogDescription>{description}</DialogDescription>}
       </DialogHeader>
-      {body ? <div className="px-4">{body}</div> : null}
-      <DialogFooter className="mx-0 mb-0">
+      {body ? <div className="px-5 py-2">{body}</div> : null}
+      <DialogFooter>
         <Button variant="outline" onClick={onClose} disabled={isPending}>
           {cancelLabel}
         </Button>

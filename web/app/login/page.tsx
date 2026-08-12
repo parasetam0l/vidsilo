@@ -1,6 +1,6 @@
 "use client";
 
-import { ClapperboardIcon } from "lucide-react";
+import { ClapperboardIcon, EyeIcon, EyeOffIcon } from "lucide-react";
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useT } from "@/lib/i18n";
@@ -44,6 +44,7 @@ function LoginForm() {
   const next = rawNext && rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/dashboard";
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
+  const [showPassword, setShowPassword] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
   const [errors, setErrors] = React.useState<FieldErrors>({});
   const toast = useToast();
@@ -123,16 +124,27 @@ function LoginForm() {
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="password">{t("loginPassword")}</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                  setErrors((prev) => ({ ...prev, password: "" }));
-                }}
-                autoComplete="current-password"
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setErrors((prev) => ({ ...prev, password: "" }));
+                  }}
+                  autoComplete="current-password"
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground"
+                >
+                  {showPassword ? <EyeOffIcon className="size-4" /> : <EyeIcon className="size-4" />}
+                </button>
+              </div>
               <FormError message={errors.password} />
             </div>
             <Button type="submit" className="w-full" disabled={busy}>

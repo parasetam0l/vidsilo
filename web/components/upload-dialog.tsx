@@ -320,7 +320,10 @@ export function UploadDialogContent({ onClose }: { onClose: () => void }) {
           <TabsContent value="computer" className="flex flex-col gap-3 w-full min-w-0 outline-none">
             {jobs.length === 0 ? (
               <div
-                className={`flex min-h-44 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-6 text-center transition-colors ${
+                role="button"
+                tabIndex={0}
+                aria-label={t("uploadDragDrop")}
+                className={`flex min-h-44 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-6 text-center transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${
                   dragOver ? "border-primary bg-muted/40" : "border-border/60"
                 }`}
                 onDragOver={(e) => {
@@ -334,6 +337,12 @@ export function UploadDialogContent({ onClose }: { onClose: () => void }) {
                   addSelected(Array.from(e.dataTransfer.files));
                 }}
                 onClick={pickFiles}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    pickFiles();
+                  }
+                }}
               >
                 <div className="flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                   <UploadCloudIcon className="size-6" />
