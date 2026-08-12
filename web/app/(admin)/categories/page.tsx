@@ -149,7 +149,7 @@ export default function CategoriesPage() {
               {flat.map((c) => {
                 const depth = depthOf(c.id);
                 return (
-                  <TableRow key={c.id} className="transition-colors hover:bg-muted/40">
+                  <TableRow key={c.id} className="cursor-pointer transition-colors hover:bg-muted/40" onClick={() => openEdit(c)}>
                     <TableCell className="font-medium">
                       <span
                         style={{ paddingLeft: depth * 24 }}
@@ -177,7 +177,7 @@ export default function CategoriesPage() {
                     <TableCell className="text-muted-foreground text-xs font-medium">
                       {flat.find((x) => x.id === c.parentId)?.name ?? "—"}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <Button variant="ghost" size="icon" onClick={() => openEdit(c)}>
                         <PencilIcon className="size-4" />
                       </Button>

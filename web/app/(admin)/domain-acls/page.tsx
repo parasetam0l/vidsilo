@@ -164,7 +164,7 @@ export default function DomainAclsPage() {
                       <span className="text-xs text-muted-foreground">—</span>
                     )}
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                     <Button variant="ghost" size="icon" onClick={() => openEdit(a)}>
                       <PencilIcon className="size-4" />
                     </Button>

@@ -159,7 +159,8 @@ export default function FlavorsPage() {
               {flavors.map((f) => (
                 <TableRow
                   key={f.id}
-                  className={`transition-colors hover:bg-muted/40 ${!f.enabled ? "opacity-60" : ""}`}
+                  className={`cursor-pointer transition-colors hover:bg-muted/40 ${!f.enabled ? "opacity-60" : ""}`}
+                  onClick={() => openEdit(f)}
                 >
                   <TableCell>
                     <Switch checked={f.enabled} onCheckedChange={() => toggleFlavor.mutate(f)} />
@@ -191,7 +192,7 @@ export default function FlavorsPage() {
                     {f.videoMode === "crf" ? `crf ${f.crf}` : `${f.videoBitrate}k`} · {f.preset}
                   </TableCell>
                   <TableCell className="text-xs font-mono text-muted-foreground">{f.audioBitrate}k</TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                     <Button variant="ghost" size="icon" onClick={() => openEdit(f)}>
                       <PencilIcon className="size-4" />
                     </Button>

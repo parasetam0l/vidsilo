@@ -146,7 +146,8 @@ export default function UsersPage() {
                 return (
                   <TableRow
                     key={u.id}
-                    className={`transition-colors hover:bg-muted/40 ${u.disabled ? "opacity-60" : ""}`}
+                    className={`cursor-pointer transition-colors hover:bg-muted/40 ${u.disabled ? "opacity-60" : ""}`}
+                    onClick={() => openEdit(u)}
                   >
                     <TableCell>
                       <div className="flex items-center gap-3">
@@ -179,7 +180,7 @@ export default function UsersPage() {
                     <TableCell className="text-xs text-muted-foreground">
                       {formatDate(u.createdAt)}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                       <Button variant="ghost" size="icon" onClick={() => openEdit(u)}>
                         <PencilIcon className="size-4" />
                       </Button>
