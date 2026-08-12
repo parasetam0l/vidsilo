@@ -39,9 +39,29 @@ type loginGuard struct {
 	lockedAt map[string]time.Time
 }
 
+// prune drops stale entries so the maps stay bounded: an attacker rotating
+// through random emails must not be able to grow them without limit.
+func (g *loginGuard) prune(now time.Time) {
+	if len(g.failures)+len(g.lockedAt) < 10_000 {
+		return
+	}
+	for k, n := range g.failures {
+		if n <= 0 {
+			delete(g.failures, k)
+		}
+	}
+	for k, at := range g.lockedAt {
+		if loginLockout-time.Since(at) <= 0 {
+			delete(g.lockedAt, k)
+			delete(g.failures, k)
+		}
+	}
+}
+
 func (g *loginGuard) locked(email string) (time.Duration, bool) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
+	g.prune(time.Now())
 	if at, ok := g.lockedAt[strings.ToLower(email)]; ok {
 		left := loginLockout - time.Since(at)
 		if left > 0 {
@@ -56,6 +76,7 @@ func (g *loginGuard) locked(email string) (time.Duration, bool) {
 func (g *loginGuard) failure(email string) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
+	g.prune(time.Now())
 	key := strings.ToLower(email)
 	g.failures[key]++
 	if g.failures[key] >= loginMaxFailures {

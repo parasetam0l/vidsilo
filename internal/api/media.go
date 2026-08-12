@@ -35,8 +35,9 @@ func (s *Server) registerMediaRoutes(mux *http.ServeMux) {
 
 	// Public catalog: the library/browse page for end users. The category
 	// tree is cached briefly; the entry list filters per visitor (private
-	// entries for signed-in users) and stays uncached.
-	mux.Handle("GET /api/catalog", http.HandlerFunc(s.handleCatalog))
+	// entries for signed-in users) and stays uncached. optionalAuth so the
+	// signed-in branch of handleCatalog actually runs.
+	mux.Handle("GET /api/catalog", s.optionalAuth(http.HandlerFunc(s.handleCatalog)))
 	mux.Handle("GET /api/catalog/categories", s.cacheGET(30*time.Second, s.handleCatalogCategories))
 }
 
@@ -164,6 +165,9 @@ func (s *Server) handleCatalog(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	offset := (page - 1) * limit
+	if offset < 0 {
+		offset = 0 // absurd page value: never a negative OFFSET
+	}
 
 	// Auth context: signed-in users see private entries they can watch;
 	// anonymous visitors only public ones.

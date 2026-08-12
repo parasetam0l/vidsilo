@@ -168,20 +168,23 @@ func (s *Server) handleStorageFiles(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Optional pagination: slice the final (sorted) list in memory. Listing
-	// keys is already bounded by the store; this keeps the JSON response
-	// bounded on huge catalogs.
+	// Optional pagination: slice the final (sorted) list in memory. Note
+	// this bounds only the JSON response — the underlying listing walks the
+	// whole store (S3 lists every object), so it stays heavy on large
+	// catalogs.
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 	if page > 0 {
 		if limit <= 0 || limit > 200 {
 			limit = 50
 		}
+		// Guard the offset math: absurd page values must not overflow into
+		// a negative slice index (which would 500).
 		start := (page - 1) * limit
-		end := start + limit
-		if start > len(out) {
+		if start < 0 || start > len(out) {
 			start = len(out)
 		}
+		end := start + limit
 		if end > len(out) {
 			end = len(out)
 		}

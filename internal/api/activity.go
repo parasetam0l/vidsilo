@@ -88,6 +88,9 @@ func (s *Server) handleJobs(w http.ResponseWriter, r *http.Request) {
 	offset := 0
 	if paginated {
 		offset = (page - 1) * limit
+		if offset < 0 {
+			offset = 0 // absurd page value: never a negative OFFSET
+		}
 	}
 	rows, err := s.pool.Query(r.Context(), jobSelect+`
 		ORDER BY j.id DESC

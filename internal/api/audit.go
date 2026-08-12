@@ -64,6 +64,9 @@ func (s *Server) handleAuditList(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	offset := (page - 1) * limit
+	if offset < 0 {
+		offset = 0 // absurd page value: never a negative OFFSET
+	}
 	args = append(args, limit, offset)
 	rows, err := s.pool.Query(r.Context(), `
 		SELECT id, actor_id, actor_email, action, entity, entity_id, detail, created_at

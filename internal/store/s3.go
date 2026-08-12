@@ -76,6 +76,8 @@ type s3Reader struct {
 	pos    int64
 	body   io.ReadCloser // open ranged response, nil when idle
 	closed bool
+
+	emptyReads int // consecutive zero-progress ranged responses
 }
 
 func (r *s3Reader) Read(p []byte) (int, error) {
@@ -100,8 +102,16 @@ func (r *s3Reader) Read(p []byte) (int, error) {
 		if r.pos >= r.size {
 			return n, io.EOF
 		}
+		// No-progress guard: if the object is smaller than the Stat size
+		// (replaced object) an empty ranged response would otherwise loop
+		// forever, reopening the same range and fetching nothing.
+		r.emptyReads++
+		if r.emptyReads > 3 {
+			return 0, errors.New("store: object shrank below expected size")
+		}
 		return n, nil
 	}
+	r.emptyReads = 0
 	return n, err
 }
 
