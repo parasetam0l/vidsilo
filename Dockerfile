@@ -29,7 +29,10 @@ USER vod
 WORKDIR /data
 VOLUME /data
 COPY --from=build /out/vod-app /usr/local/bin/vod-app
-EXPOSE 8080
+EXPOSE 8080 8443
+# Healthcheck hits the plain-HTTP listener (HTTP_PORT, default 8080 in the
+# image). It stays correct for every TLS mode since /healthz is exempt from
+# the HTTP->HTTPS redirect.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -fsS http://127.0.0.1:8080/healthz >/dev/null 2>&1 || exit 1
 ENTRYPOINT ["/usr/local/bin/vod-app"]

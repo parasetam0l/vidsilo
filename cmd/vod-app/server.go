@@ -2,13 +2,23 @@ package main
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"log/slog"
+	"math/big"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -122,30 +132,47 @@ func cmdServer(args []string) {
 
 	appHandler := srv.Handler()
 
-	// tls.mode=auto: Let's Encrypt via autocert (HTTP-01 on cfg.Port,
-	// HTTPS on :443, HTTP->HTTPS redirect); off: plain HTTP.
+	// TLS_MODE: off = plain HTTP; letsencrypt = Let's Encrypt via autocert
+	// (HTTP-01 on HTTP_PORT, HTTPS on HTTPS_PORT); selfsigned = locally
+	// generated cert; files = TLS_CERT_FILE/TLS_KEY_FILE with a self-signed
+	// fallback when they are missing or unreadable. Every TLS mode serves an
+	// HTTP listener on HTTP_PORT that redirects to https (except /healthz)
+	// and doubles as the ACME challenge endpoint.
 	var servers []*http.Server
-	if svc.String("tls.mode", "off") == "auto" {
-		https, httpPlain, err := newAutoTLSServers(log, cfg, svc, appHandler)
+	switch cfg.TLSMode {
+	case "letsencrypt":
+		https, httpPlain := newAutoTLSServers(log, cfg, appHandler)
+		servers = append(servers, https, httpPlain)
+	case "selfsigned", "files":
+		cert, err := serverTLSCertificate(cfg, log)
 		if err != nil {
 			log.Error("tls", "err", err)
 			os.Exit(1)
 		}
-		servers = append(servers, https, httpPlain)
-	} else {
-		servers = append(servers, &http.Server{
-			Addr:              fmt.Sprintf(":%d", cfg.Port),
+		https := &http.Server{
+			Addr:              fmt.Sprintf(":%d", cfg.HTTPSPort),
 			Handler:           appHandler,
+			TLSConfig:         &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12},
 			ReadHeaderTimeout: 10 * time.Second,
 			IdleTimeout:       120 * time.Second,
-		})
+		}
+		servers = append(servers, https, plainServer(cfg.HTTPPort, newHTTPSRedirect(cfg)))
+	default: // "off"
+		servers = append(servers, plainServer(cfg.HTTPPort, appHandler))
 	}
 
 	for _, srv := range servers {
 		srv := srv
 		go func() {
 			log.Info("listening", "addr", srv.Addr)
-			if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			var err error
+			if srv.TLSConfig != nil {
+				// Uses srv.TLSConfig (autocert manager or static certs).
+				err = srv.ListenAndServeTLS("", "")
+			} else {
+				err = srv.ListenAndServe()
+			}
+			if err != nil && !errors.Is(err, http.ErrServerClosed) {
 				log.Error("server failed", "err", err)
 				stop()
 			}
@@ -163,15 +190,12 @@ func cmdServer(args []string) {
 	}
 }
 
-// newAutoTLSServers builds the autocert-managed HTTPS listener (:443) and the
-// HTTP listener (cfg.Port) that answers ACME challenges and redirects to
-// https. Certs cache in tls.cert_dir.
-func newAutoTLSServers(log *slog.Logger, cfg *config.Config, svc *settings.Service, app http.Handler) (https, httpPlain *http.Server, err error) {
-	domains := svc.StringSlice("tls.acme_domains", nil)
-	if len(domains) == 0 {
-		return nil, nil, errors.New("tls.mode=auto requires tls.acme_domains (public DNS + ports 80/443)")
-	}
-	certDir := svc.String("tls.cert_dir", filepath.Join(cfg.DataDir, "certs"))
+// newAutoTLSServers builds the autocert-managed HTTPS listener (HTTPS_PORT)
+// and the HTTP listener (HTTP_PORT) that answers ACME challenges and
+// redirects to https. Certs cache in TLS_CERT_DIR (default DATA_DIR/certs).
+func newAutoTLSServers(log *slog.Logger, cfg *config.Config, app http.Handler) (https, httpPlain *http.Server) {
+	domains := cfg.TLSDomains
+	certDir := cfg.TLSCertDir
 	m := &autocert.Manager{
 		Prompt:     autocert.AcceptTOS,
 		Cache:      autocert.DirCache(certDir),
@@ -179,7 +203,7 @@ func newAutoTLSServers(log *slog.Logger, cfg *config.Config, svc *settings.Servi
 	}
 
 	https = &http.Server{
-		Addr:              ":443",
+		Addr:              fmt.Sprintf(":%d", cfg.HTTPSPort),
 		Handler:           app,
 		TLSConfig:         m.TLSConfig(),
 		ReadHeaderTimeout: 10 * time.Second,
@@ -187,22 +211,115 @@ func newAutoTLSServers(log *slog.Logger, cfg *config.Config, svc *settings.Servi
 	}
 	// HTTP: ACME challenges are answered by the manager; everything else
 	// redirects to https (except /healthz so orchestrators keep working).
-	httpPlain = &http.Server{
-		Addr:              fmt.Sprintf(":%d", cfg.Port),
-		Handler:           m.HTTPHandler(http.HandlerFunc(redirectToHTTPS)),
+	httpPlain = plainServer(cfg.HTTPPort, m.HTTPHandler(newHTTPSRedirect(cfg)))
+	log.Info("tls letsencrypt mode", "domains", domains, "cert_dir", certDir)
+	return https, httpPlain
+}
+
+// serverTLSCertificate resolves the HTTPS serving certificate. In files mode
+// the operator's TLS_CERT_FILE/TLS_KEY_FILE are used; when they are missing
+// or unreadable the server logs a warning and falls back to a self-signed
+// certificate so the service never refuses to start. Self-signed certs are
+// generated once and cached in TLS_CERT_DIR for stable restarts.
+func serverTLSCertificate(cfg *config.Config, log *slog.Logger) (tls.Certificate, error) {
+	if cfg.TLSMode == "files" {
+		cert, err := tls.LoadX509KeyPair(cfg.TLSCertFile, cfg.TLSKeyFile)
+		if err == nil {
+			log.Info("tls files mode", "cert_file", cfg.TLSCertFile)
+			return cert, nil
+		}
+		log.Warn("tls files cert unreadable — falling back to self-signed", "err", err)
+	}
+	return loadOrCreateSelfSigned(log, cfg)
+}
+
+// loadOrCreateSelfSigned returns the cached self-signed certificate, or
+// generates, persists and returns a fresh one (ECDSA P-256, 10-year validity,
+// SANs covering localhost plus TLS_DOMAINS when set).
+func loadOrCreateSelfSigned(log *slog.Logger, cfg *config.Config) (tls.Certificate, error) {
+	if err := os.MkdirAll(cfg.TLSCertDir, 0o755); err != nil {
+		return tls.Certificate{}, err
+	}
+	certPath := filepath.Join(cfg.TLSCertDir, "selfsigned.pem")
+	keyPath := filepath.Join(cfg.TLSCertDir, "selfsigned-key.pem")
+	if cert, err := tls.LoadX509KeyPair(certPath, keyPath); err == nil {
+		log.Info("tls self-signed mode", "cert", certPath, "cached", true)
+		return cert, nil
+	}
+
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return tls.Certificate{}, err
+	}
+	serial, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
+	if err != nil {
+		return tls.Certificate{}, err
+	}
+	tmpl := x509.Certificate{
+		SerialNumber:          serial,
+		Subject:               pkix.Name{CommonName: "vod-app self-signed"},
+		NotBefore:             time.Now().Add(-time.Hour),
+		NotAfter:              time.Now().AddDate(10, 0, 0),
+		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment | x509.KeyUsageCertSign,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		BasicConstraintsValid: true,
+		DNSNames:              append([]string{"localhost"}, cfg.TLSDomains...),
+		IPAddresses:           []net.IP{net.ParseIP("127.0.0.1"), net.ParseIP("::1")},
+	}
+	der, err := x509.CreateCertificate(rand.Reader, &tmpl, &tmpl, &key.PublicKey, key)
+	if err != nil {
+		return tls.Certificate{}, err
+	}
+	keyDER, err := x509.MarshalECPrivateKey(key)
+	if err != nil {
+		return tls.Certificate{}, err
+	}
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
+	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER})
+	if err := os.WriteFile(certPath, certPEM, 0o644); err != nil {
+		return tls.Certificate{}, err
+	}
+	if err := os.WriteFile(keyPath, keyPEM, 0o600); err != nil {
+		return tls.Certificate{}, err
+	}
+	cert, err := tls.X509KeyPair(certPEM, keyPEM)
+	if err != nil {
+		return tls.Certificate{}, err
+	}
+	log.Info("tls self-signed mode", "cert", certPath, "cached", false)
+	return cert, nil
+}
+
+// plainServer is an HTTP listener with sane timeouts.
+func plainServer(port int, h http.Handler) *http.Server {
+	return &http.Server{
+		Addr:              fmt.Sprintf(":%d", port),
+		Handler:           h,
 		ReadHeaderTimeout: 10 * time.Second,
 		IdleTimeout:       120 * time.Second,
 	}
-	log.Info("tls auto mode", "domains", domains, "cert_dir", certDir)
-	return https, httpPlain, nil
 }
 
-func redirectToHTTPS(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path == "/healthz" {
-		w.WriteHeader(http.StatusOK)
-		return
+// newHTTPSRedirect redirects plain-HTTP requests to https, keeping the host.
+// A port is stripped when it is the HTTP port (or 80 — the Docker host-port
+// mapping), and HTTPS_PUBLIC_PORT is appended when it is not 443. /healthz
+// is answered directly so orchestrators keep working.
+func newHTTPSRedirect(cfg *config.Config) http.HandlerFunc {
+	httpPort := strconv.Itoa(cfg.HTTPPort)
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/healthz" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		host := r.Host
+		if h, p, err := net.SplitHostPort(host); err == nil && (p == httpPort || p == "80") {
+			host = h
+		}
+		if cfg.HTTPSPublicPort != 443 {
+			host = net.JoinHostPort(host, strconv.Itoa(cfg.HTTPSPublicPort))
+		}
+		http.Redirect(w, r, "https://"+host+r.URL.RequestURI(), http.StatusMovedPermanently)
 	}
-	http.Redirect(w, r, "https://"+r.Host+r.URL.RequestURI(), http.StatusMovedPermanently)
 }
 
 func errStr(err error) string {

@@ -370,8 +370,6 @@ const en = {
   gTranscodingDesc: "Pipeline tuning — applies to newly processed entries",
   gAnalytics: "Analytics",
   gAnalyticsDesc: "Beacon collection and retention",
-  gTls: "TLS",
-  gTlsDesc: "Auto-HTTPS via Let's Encrypt — restart required",
   settingsSave: "Save {group}",
 
   // player

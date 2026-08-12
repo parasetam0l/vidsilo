@@ -43,7 +43,7 @@ Horizontal scale: `DATABASE_URL` + shared storage (local: NFS — install warns;
 | Entries | Search (pg_trgm ILIKE), status/category filters, pagination, bulk delete |
 | Entry detail | Metadata, sprite poster picker, subtitle upload, flavor ticks, playback ACL + embed snippet, analytics (SVG charts) |
 | Upload | Drag & drop, tus resumable, title/description/category — opens in a dialog from anywhere (sidebar, dashboard); uploads survive page changes and refreshes (resumable via IndexedDB + tus URLs) |
-| Users / Categories / Flavors / Settings | Admin CRUD (email + name/surname) + grouped settings (transcoding, storage, analytics, embed policy, TLS) |
+| Users / Categories / Flavors / Settings | Admin CRUD (email + name/surname) + grouped settings (transcoding, storage, analytics, embed policy) |
 
 ## Player
 
@@ -73,7 +73,7 @@ Everything is admin-editable in the panel; only `DATABASE_URL` is required as en
 - **Storage migration**: `vod-app migrate --source-driver=local --source-data-dir=/old/data [--prune]` moves media between drivers/paths idempotently (see DESIGN.md §8a). For **zero-downtime lazy promotion**, point `STORAGE_DRIVER` at the new store and set `FALLBACK_STORAGE_DRIVER` (+ `FALLBACK_*`) to the old one: misses are served from the legacy store and copied into the new one on demand; drop the fallback env once `migrate --prune` has drained it.
 - **Multi-node storage**: the local driver's transcode fast path writes directly into the store tree — in a multi-node deployment this requires `DATA_DIR` on a shared network mount (e.g. NFS). Without shared storage, use the s3 driver (or a single worker).
 - **Upgrades**: Docker: `docker compose pull && up -d`. Bare metal: replace the binary, `systemctl restart vod-app vod-worker`.
-- **TLS**: `tls.mode=auto` in the panel with `tls.acme_domains` (Let's Encrypt via autocert); requires public DNS + ports 80/443.
+- **TLS**: env-configured, one of four modes: `TLS_MODE=off` (plain HTTP), `letsencrypt` (autocert ACME on `HTTPS_PORT`, HTTP answers challenges + redirects; needs public DNS in `TLS_DOMAINS` and ports 80/443 open), `selfsigned` (locally generated ECDSA cert, cached in `TLS_CERT_DIR`), or `files` (your own `TLS_CERT_FILE`/`TLS_KEY_FILE`, falling back to self-signed if unreadable). Listeners on `HTTP_PORT` (default 80) and `HTTPS_PORT` (default 443); Docker publishes 80→8080 and 443→8443 by default — all overridable via env. `install.sh` asks interactively (or via `--domain` / `--selfsigned` / `--ssl-cert`+`--ssl-key`).
 - **Theme**: dark by default; light mode toggle in the sidebar (and on the login screen), remembered in localStorage, falls back to OS preference.
 
 ## Development

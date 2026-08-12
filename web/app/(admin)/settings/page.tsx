@@ -5,7 +5,6 @@ import {
   BarChart3Icon,
   GlobeIcon,
   HardDriveIcon,
-  LockIcon,
   Save,
   SlidersHorizontalIcon,
 } from "lucide-react";
@@ -42,9 +41,6 @@ const labels: Record<string, string> = {
   "analytics.enabled": "Enable Playback Analytics",
   "analytics.retention_days": "Data Retention (Days)",
   "analytics.flush_interval_s": "Flush Buffer Interval (Seconds)",
-  "tls.mode": "TLS Mode",
-  "tls.acme_domains": "ACME Certificate Domains",
-  "tls.cert_dir": "Certificate Storage Path",
 };
 
 export default function SettingsPage() {
@@ -80,13 +76,6 @@ export default function SettingsPage() {
       description: t("gAnalyticsDesc"),
       icon: BarChart3Icon,
       keys: ["analytics.enabled", "analytics.retention_days", "analytics.flush_interval_s"],
-    },
-    {
-      id: "tls",
-      title: t("gTls"),
-      description: t("gTlsDesc"),
-      icon: LockIcon,
-      keys: ["tls.mode", "tls.acme_domains", "tls.cert_dir"],
     },
   ];
 
@@ -206,7 +195,6 @@ export default function SettingsPage() {
               <div className="grid gap-5 md:grid-cols-2">
                 {activeGroup.keys.map((k) => {
                   const isBool = typeof s[k] === "boolean";
-                  const isEnum = k === "tls.mode";
                   const isPreset = k === "transcode.preset";
 
                   if (isBool) {
@@ -227,17 +215,7 @@ export default function SettingsPage() {
                   return (
                     <div key={k} className="flex flex-col gap-2">
                       <label className="text-xs font-medium text-foreground">{labels[k] ?? k}</label>
-                      {isEnum ? (
-                        <Select
-                          options={["off", "auto"].map((o) => ({ value: o, label: o.toUpperCase() }))}
-                          className="w-full rounded-lg"
-                          value={str(k)}
-                          onChange={(v) => {
-                            s[k] = v;
-                            setData({ ...data });
-                          }}
-                        />
-                      ) : isPreset ? (
+                      {isPreset ? (
                         <Select
                           options={["ultrafast", "superfast", "veryfast", "faster", "fast", "medium"].map((p) => ({
                             value: p,

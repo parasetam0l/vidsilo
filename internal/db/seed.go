@@ -28,9 +28,6 @@ var defaultSettings = map[string]any{
 	"analytics.enabled":         true,
 	"analytics.retention_days":  30,
 	"analytics.flush_interval_s": 10,
-	"tls.mode":                  "off",
-	"tls.acme_domains":          []string{},
-	"tls.cert_dir":              "/data/certs",
 }
 
 // seedSettings inserts missing defaults; existing values are preserved.

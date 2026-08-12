@@ -181,9 +181,6 @@ var Specs = map[string]KeySpec{
 	"analytics.enabled":          {Type: "bool"},
 	"analytics.retention_days":   {Type: "int"},
 	"analytics.flush_interval_s": {Type: "int"},
-	"tls.mode":                   {Type: "enum", Enums: []string{"off", "auto"}, RestartRequired: true},
-	"tls.acme_domains":           {Type: "strings", RestartRequired: true},
-	"tls.cert_dir":               {Type: "string", RestartRequired: true},
 }
 
 // Validate checks a value against its spec and returns a canonical JSON form.

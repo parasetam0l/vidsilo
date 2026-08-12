@@ -45,5 +45,9 @@ Environment:
   DATA_DIR          media storage root, default /data
   STORAGE_DRIVER    local (default) or s3
   S3_*              endpoint, bucket, credentials, region (s3 driver)
-  PORT              http listen port, default 8080`)
+  PORT              http listen port (alias for HTTP_PORT), default 80
+  HTTP_PORT         plain-HTTP listener, default 80 (docker: 8080)
+  HTTPS_PORT        TLS listener, default 443 (docker: 8443)
+  HTTPS_PUBLIC_PORT port used in HTTP->HTTPS redirect targets, default 443
+  TLS_MODE          off | letsencrypt | selfsigned | files`)
 }

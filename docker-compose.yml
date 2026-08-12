@@ -22,14 +22,33 @@ services:
       DATABASE_URL: postgres://vod:vod@db:5432/vod
       DATA_DIR: /data
       STORAGE_DRIVER: local
-      PORT: 8080
+      # HTTP/HTTPS listeners (host ports published below; override via .env):
+      #   PUBLIC_HTTP_PORT  -> HTTP_PORT   (default 80 -> 8080)
+      #   PUBLIC_HTTPS_PORT -> HTTPS_PORT  (default 443 -> 8443)
+      HTTP_PORT: ${HTTP_PORT:-8080}
+      HTTPS_PORT: ${HTTPS_PORT:-8443}
+      # TLS (all optional; TLS_MODE=off by default):
+      #   letsencrypt: HTTPS via autocert — set TLS_DOMAINS + open 80/443
+      #   selfsigned:  HTTPS with a locally generated cert (no DNS needed)
+      #   files:       HTTPS with TLS_CERT_FILE/TLS_KEY_FILE (self-signed fallback)
+      # TLS_CERT_FILE/TLS_KEY_FILE paths must be mounted (see certs volume below).
+      TLS_MODE: ${TLS_MODE:-off}
+      TLS_DOMAINS: ${TLS_DOMAINS:-}
+      TLS_CERT_FILE: ${TLS_CERT_FILE:-}
+      TLS_KEY_FILE: ${TLS_KEY_FILE:-}
     volumes:
       - media:/data
+      # Optional: mount your own certs when TLS_MODE=files:
+      # - ./certs/server.pem:/certs/server.pem:ro
+      # - ./certs/server-key.pem:/certs/server-key.pem:ro
     depends_on:
       db:
         condition: service_healthy
     ports:
-      - "8080:8080"
+      - "${PUBLIC_HTTP_PORT:-80}:${HTTP_PORT:-8080}"
+      - "${PUBLIC_HTTPS_PORT:-443}:${HTTPS_PORT:-8443}"
+      # The HTTP listener serves ACME challenges + the HTTP->HTTPS redirect
+      # in TLS modes. Harmless when TLS_MODE=off.
     networks: [vod]
 
   worker:

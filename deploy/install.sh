@@ -21,9 +21,18 @@ for arg in "$@"; do
         --role=*) ROLE="${arg#*=}" ;;
         --env-file=*) ENV_FILE="${arg#*=}" ;;
         --db-password=*) DB_PASSWORD="${arg#*=}" ;;
+        --domain=*) TLS_MODE=letsencrypt; TLS_DOMAINS="${arg#*=}" ;;
+        --selfsigned) TLS_MODE=selfsigned ;;
+        --ssl-cert=*) TLS_MODE=files; TLS_CERT_FILE="${arg#*=}" ;;
+        --ssl-key=*) TLS_MODE=files; TLS_KEY_FILE="${arg#*=}" ;;
         --no-start) NO_START=1 ;;
         --help|-h)
             echo "usage: $0 [--role=app|worker|db] [--env-file=FILE] [--db-password=PW] [--no-start]"
+            echo "TLS options (app role):"
+            echo "  --domain=d1,d2   HTTPS via Let's Encrypt for these domains (autocert, ports 80/443)"
+            echo "  --selfsigned     HTTPS with a locally generated self-signed certificate"
+            echo "  --ssl-cert=F --ssl-key=F   HTTPS with your own certificate files"
+            echo "  (interactive: answering 'y' to the HTTPS question asks how to obtain SSL)"
             echo "  --db-password sets a scram password on the vod role (remote app/worker nodes need it)"
             exit 0 ;;
         *) echo "unknown option: $arg"; exit 2 ;;
@@ -98,6 +107,48 @@ if [ "$ROLE" = "db" ]; then
         su -s /bin/sh postgres -c "createdb -O vod vod"
 fi
 
+# --- TLS (app role only) -------------------------------------------------------
+# Interactive: ask about HTTPS, then where the SSL certificate comes from.
+# Non-interactive: use --domain / --selfsigned / --ssl-cert+--ssl-key.
+if [ "$ROLE" = "app" ] && [ -z "${TLS_MODE:-}" ] && [ -t 0 ]; then
+    printf "Serve over HTTPS? [y/N] "
+    read -r HTTPS_ANSWER
+    case "$HTTPS_ANSWER" in
+        y|Y|yes|Yes)
+            echo "Where should the SSL certificate come from?"
+            echo "  1) Auto SSL (Let's Encrypt, automatic renewal)"
+            echo "  2) Self-signed (generated locally, no DNS needed)"
+            echo "  3) Bring your own certificate files"
+            printf "Choice [1]: "
+            read -r SSL_CHOICE
+            case "${SSL_CHOICE:-1}" in
+                1)
+                    printf "Domain(s), comma-separated (must resolve to this host, ports 80/443 open): "
+                    read -r TLS_DOMAINS
+                    TLS_MODE=letsencrypt ;;
+                2)
+                    TLS_MODE=selfsigned ;;
+                3)
+                    printf "Certificate file path: "
+                    read -r TLS_CERT_FILE
+                    printf "Private key file path: "
+                    read -r TLS_KEY_FILE
+                    TLS_MODE=files ;;
+                *) echo "invalid choice: $SSL_CHOICE"; exit 2 ;;
+            esac ;;
+    esac
+fi
+
+case "${TLS_MODE:-}" in
+    ""|selfsigned) ;;
+    letsencrypt)
+        [ -n "${TLS_DOMAINS:-}" ] || { echo "Let's Encrypt needs a domain (--domain=d1,d2)"; exit 2; } ;;
+    files)
+        [ -n "${TLS_CERT_FILE:-}" ] && [ -n "${TLS_KEY_FILE:-}" ] || { echo "bring-your-own SSL needs --ssl-cert and --ssl-key"; exit 2; }
+        [ -f "$TLS_CERT_FILE" ] && [ -f "$TLS_KEY_FILE" ] || { echo "certificate/key files not found"; exit 2; } ;;
+    *) echo "invalid TLS mode: $TLS_MODE"; exit 2 ;;
+esac
+
 # --- env file -----------------------------------------------------------------
 if [ "$ROLE" = "app" ] || [ "$ROLE" = "worker" ]; then
     if [ -n "$ENV_FILE" ]; then
@@ -121,6 +172,23 @@ EOF
     fi
     chown "$VOD_USER":"$VOD_USER" "$DB_ENV"
     chmod 600 "$DB_ENV"
+fi
+
+# --- TLS env ------------------------------------------------------------------
+if [ "$ROLE" = "app" ] && [ -n "${TLS_MODE:-}" ]; then
+    if grep -q '^TLS_MODE=' "$DB_ENV" 2>/dev/null; then
+        echo "TLS already configured in $DB_ENV — leaving untouched (edit manually to change)"
+    else
+        {
+            echo "TLS_MODE=$TLS_MODE"
+            [ -z "${TLS_DOMAINS:-}" ] || echo "TLS_DOMAINS=$TLS_DOMAINS"
+            [ -z "${TLS_CERT_FILE:-}" ] || echo "TLS_CERT_FILE=$TLS_CERT_FILE"
+            [ -z "${TLS_KEY_FILE:-}" ] || echo "TLS_KEY_FILE=$TLS_KEY_FILE"
+            [ "$TLS_MODE" = "files" ] || echo "TLS_CERT_DIR=$CERT_DIR"
+        } >> "$DB_ENV"
+        chown "$VOD_USER":"$VOD_USER" "$DB_ENV"
+        echo "wrote TLS config to $DB_ENV"
+    fi
 fi
 
 # --- binary -------------------------------------------------------------------

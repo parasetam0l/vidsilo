@@ -5,8 +5,15 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 )
+
+// TLS modes: off = plain HTTP; letsencrypt = autocert ACME on :443;
+// selfsigned = locally generated cert; files = TLS_CERT_FILE/TLS_KEY_FILE
+// with a self-signed fallback when they are missing or unreadable.
+var tlsModes = map[string]bool{"off": true, "letsencrypt": true, "selfsigned": true, "files": true}
 
 type Config struct {
 	DatabaseURL string
@@ -30,7 +37,26 @@ type Config struct {
 	FallbackS3Secret   string
 	FallbackS3Region   string
 
-	Port int
+	Port int // DEPRECATED: alias for HTTP_PORT
+
+	// HTTPPort is the plain-HTTP listener: serves the app when TLS is off,
+	// ACME challenges + the HTTP->HTTPS redirect in TLS modes.
+	// Default 80 (bare metal). Docker maps host:80 -> container HTTP_PORT.
+	HTTPPort int
+	// HTTPSPort is the TLS listener (letsencrypt/selfsigned/files modes).
+	// Default 443 (bare metal). Docker maps host:443 -> container HTTPS_PORT
+	// (8443 by default).
+	HTTPSPort int
+	// HTTPSPublicPort is the port users type in the browser, used in
+	// HTTP->HTTPS redirect targets. Default 443; set to HTTPS_PORT when
+	// HTTPS is served on a non-standard public port.
+	HTTPSPublicPort int
+
+	TLSMode     string
+	TLSDomains  []string
+	TLSCertFile string
+	TLSKeyFile  string
+	TLSCertDir  string
 }
 
 func Load() (*Config, error) {
@@ -50,7 +76,24 @@ func Load() (*Config, error) {
 		FallbackS3Access:   os.Getenv("FALLBACK_S3_ACCESS_KEY"),
 		FallbackS3Secret:   os.Getenv("FALLBACK_S3_SECRET_KEY"),
 		FallbackS3Region:   getenv("FALLBACK_S3_REGION", "us-east-1"),
-		Port:               getenvInt("PORT", 8080),
+		Port:               getenvInt("PORT", 80),
+		HTTPPort:           getenvIntFirst("HTTP_PORT", "PORT", 80),
+		HTTPSPort:          getenvInt("HTTPS_PORT", 443),
+		HTTPSPublicPort:    getenvInt("HTTPS_PUBLIC_PORT", 443),
+		TLSMode:            getenv("TLS_MODE", "off"),
+		TLSDomains:         splitEnv("TLS_DOMAINS"),
+		TLSCertFile:        os.Getenv("TLS_CERT_FILE"),
+		TLSKeyFile:         os.Getenv("TLS_KEY_FILE"),
+		TLSCertDir:         getenv("TLS_CERT_DIR", filepath.Join(getenv("DATA_DIR", "/data"), "certs")),
+	}
+	if !tlsModes[c.TLSMode] {
+		return nil, fmt.Errorf("TLS_MODE must be one of off, letsencrypt, selfsigned, files; got %q", c.TLSMode)
+	}
+	if c.TLSMode == "letsencrypt" && len(c.TLSDomains) == 0 {
+		return nil, fmt.Errorf("TLS_MODE=letsencrypt requires TLS_DOMAINS (public DNS + ports 80/443)")
+	}
+	if c.TLSMode == "files" && (c.TLSCertFile == "" || c.TLSKeyFile == "") {
+		return nil, fmt.Errorf("TLS_MODE=files requires TLS_CERT_FILE and TLS_KEY_FILE")
 	}
 	if c.StorageDriver != "local" && c.StorageDriver != "s3" {
 		return nil, fmt.Errorf("STORAGE_DRIVER must be 'local' or 's3', got %q", c.StorageDriver)
@@ -98,4 +141,27 @@ func getenvInt(key string, def int) int {
 		return def
 	}
 	return n
+}
+
+// getenvIntFirst reads the first set variable, falling back to def.
+func getenvIntFirst(primary, secondary string, def int) int {
+	if v := os.Getenv(primary); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			return n
+		}
+	}
+	return getenvInt(secondary, def)
+}
+
+// splitEnv parses a comma/space-separated env list.
+func splitEnv(key string) []string {
+	var out []string
+	for _, part := range strings.FieldsFunc(os.Getenv(key), func(r rune) bool {
+		return r == ',' || r == ' ' || r == '\t'
+	}) {
+		if part != "" {
+			out = append(out, part)
+		}
+	}
+	return out
 }
