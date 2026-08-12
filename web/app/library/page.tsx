@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 
-import { api, type CatalogCategory, type CatalogResponse } from "@/lib/api";
+import { api, type CatalogCategory, type CatalogResponse, type Viewer } from "@/lib/api";
 import { getSiteConfig } from "@/lib/site-config";
 import { useT } from "@/lib/i18n";
 import { formatDuration } from "@/lib/format";
@@ -32,12 +32,34 @@ export default function LibraryPage() {
   }, [debouncedQ, category, sort]);
 
   // Gate: when the library is disabled, the site root already redirects —
-  // this catches direct visits to /library.
+  // this catches direct visits to /library. In login_only mode anonymous
+  // visitors go to the viewer login.
+  const [viewer, setViewer] = React.useState<Viewer | null | undefined>(undefined);
   React.useEffect(() => {
-    getSiteConfig().then((cfg) => {
-      if (cfg.libraryMode === "disabled") window.location.replace("/admin/dashboard");
-    });
+    getSiteConfig()
+      .then((cfg) => {
+        if (cfg.libraryMode === "disabled") {
+          window.location.replace("/admin/dashboard");
+          return;
+        }
+        if (cfg.libraryMode !== "login_only") return;
+        // login_only: a viewer or staff session is required.
+        api<Viewer>("/api/viewer/me")
+          .then(setViewer)
+          .catch(() =>
+            api("/api/auth/me")
+              .then(() => setViewer(null))
+              .catch(() => window.location.replace("/library/login")),
+          );
+      })
+      .catch(() => {});
   }, []);
+
+  const signOut = () => {
+    api("/api/viewer/logout", { method: "POST" })
+      .catch(() => {})
+      .finally(() => window.location.reload());
+  };
 
   React.useEffect(() => {
     const id = window.setTimeout(() => setDebouncedQ(q), 300);
@@ -114,6 +136,14 @@ export default function LibraryPage() {
         </Link>
         <h1 className="ml-2 text-2xl font-semibold">{t("libraryTitle")}</h1>
         <div className="ml-auto flex items-center gap-2">
+          {viewer ? (
+            <button
+              onClick={signOut}
+              className="rounded-md border px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              {t("librarySignOut")}
+            </button>
+          ) : null}
           <div className="relative">
             <SearchIcon className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <input

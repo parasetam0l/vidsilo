@@ -75,3 +75,53 @@ func verifyAccessToken(secret []byte, token string) (*accessClaims, error) {
 	}
 	return &c, nil
 }
+
+// --- viewer tokens -----------------------------------------------------------
+// Viewers get their own token kind so admin role checks can never accept a
+// viewer session and vice versa.
+
+type viewerClaims struct {
+	ViewerID int64 `json:"vid"`
+	Exp      int64 `json:"exp"`
+}
+
+func signViewerAccessToken(secret []byte, v db.Viewer) (string, error) {
+	header := b64url([]byte(`{"alg":"HS256","typ":"JWT"}`))
+	claims, err := json.Marshal(viewerClaims{
+		ViewerID: v.ID,
+		Exp:      time.Now().Add(accessTokenTTL).Unix(),
+	})
+	if err != nil {
+		return "", err
+	}
+	payload := b64url(claims)
+	mac := hmac.New(sha256.New, secret)
+	mac.Write([]byte(header + "." + payload))
+	return header + "." + payload + "." + b64url(mac.Sum(nil)), nil
+}
+
+func verifyViewerAccessToken(secret []byte, token string) (*viewerClaims, error) {
+	parts := strings.Split(token, ".")
+	if len(parts) != 3 {
+		return nil, errBadToken
+	}
+	mac := hmac.New(sha256.New, secret)
+	mac.Write([]byte(parts[0] + "." + parts[1]))
+	want := mac.Sum(nil)
+	got, err := un64url(parts[2])
+	if err != nil || subtle.ConstantTimeCompare(got, want) != 1 {
+		return nil, errBadToken
+	}
+	payload, err := un64url(parts[1])
+	if err != nil {
+		return nil, errBadToken
+	}
+	var c viewerClaims
+	if err := json.Unmarshal(payload, &c); err != nil {
+		return nil, errBadToken
+	}
+	if c.Exp < time.Now().Unix() {
+		return nil, errors.New("jwt: token expired")
+	}
+	return &c, nil
+}

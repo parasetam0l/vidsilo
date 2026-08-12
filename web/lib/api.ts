@@ -81,6 +81,19 @@ export function displayName(u: Pick<User, "nameSurname" | "email">): string {
   return u.nameSurname || u.email;
 }
 
+export interface Viewer {
+  id: number;
+  email: string;
+  nameSurname: string;
+  disabled: boolean;
+  createdAt: string;
+}
+
+export interface ViewerList {
+  items: Viewer[];
+  total: number;
+}
+
 export type EntryStatus =
   | "uploading"
   | "probing"

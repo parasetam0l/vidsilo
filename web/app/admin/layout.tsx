@@ -11,6 +11,7 @@ import { useCreateCategoryAction } from "@/app/admin/categories/page";
 import { useCreateFlavorAction } from "@/app/admin/flavors/page";
 import { useCreateAclAction } from "@/app/admin/domain-acls/page";
 import { useCreatePlayerAction } from "@/app/admin/players/page";
+import { useCreateViewerAction } from "@/app/admin/viewers/page";
 import { useAuth } from "@/components/auth-provider";
 import { getSiteConfig } from "@/lib/site-config";
 import { PlusIcon, UploadCloudIcon } from "lucide-react";
@@ -37,6 +38,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const createFlavor = useCreateFlavorAction();
   const createAcl = useCreateAclAction();
   const createPlayer = useCreatePlayerAction();
+  const createViewer = useCreateViewerAction();
 
   // Per-page app-bar action (page title lives in this header already).
   const action =
@@ -52,7 +54,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               ? { label: t("aclNew"), icon: <PlusIcon className="size-4" />, onClick: createAcl }
               : pathname === "/admin/players"
                 ? { label: t("playersNew"), icon: <PlusIcon className="size-4" />, onClick: createPlayer }
-                : null;
+                : pathname === "/admin/viewers"
+                  ? { label: t("viewerNew"), icon: <PlusIcon className="size-4" />, onClick: createViewer }
+                  : null;
   const pageTitles: Record<string, string> = {
     "/admin/dashboard": t("navDashboard"),
     "/admin/entries": t("navEntries"),
@@ -64,6 +68,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     "/admin/flavors": t("navFlavors"),
     "/admin/domain-acls": t("navDomainAcls"),
     "/admin/players": t("navPlayers"),
+    "/admin/viewers": t("navViewers"),
     "/admin/storage": t("navStorage"),
     "/admin/settings": t("navSettings"),
   };

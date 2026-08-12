@@ -18,9 +18,7 @@ export default function Home() {
             window.location.replace("/library");
             break;
           case "login_only":
-            // Viewer login lands in the viewers round; for now the admin
-            // login grants library access.
-            window.location.replace("/login?next=/library");
+            window.location.replace("/library/login");
             break;
           default:
             window.location.replace("/admin/dashboard");

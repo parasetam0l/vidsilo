@@ -109,6 +109,7 @@ func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 
 	s.registerAuthRoutes(mux)
+	s.registerViewerRoutes(mux)
 	s.registerSettingsRoutes(mux)
 	s.registerAclRoutes(mux)
 	s.registerEntryRoutes(mux, s.tusHandler)
@@ -180,7 +181,7 @@ func (s *Server) rateLimitAPI(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/api/") {
 			l := s.apiLimiter
-			if strings.HasPrefix(r.URL.Path, "/api/auth/") {
+			if strings.HasPrefix(r.URL.Path, "/api/auth/") || strings.HasPrefix(r.URL.Path, "/api/viewer/") {
 				l = s.loginLimiter
 			}
 			if !l.allow(s.clientIP(r)) {

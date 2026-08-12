@@ -85,6 +85,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       label: t("navAdministration"),
       items: [
         { title: t("navUsers"), url: "/admin/users", icon: UsersIcon },
+        { title: t("navViewers"), url: "/admin/viewers", icon: MonitorPlayIcon },
         { title: t("navJobs"), url: "/admin/jobs", icon: ListChecksIcon },
         { title: t("navAnalytics"), url: "/admin/analytics", icon: BarChartIcon },
         { title: t("navFlavors"), url: "/admin/flavors", icon: SlidersHorizontalIcon },

@@ -36,8 +36,9 @@ func (s *Server) registerMediaRoutes(mux *http.ServeMux) {
 	// Public catalog: the library/browse page for end users. The category
 	// tree is cached briefly; the entry list filters per visitor (private
 	// entries for signed-in users) and stays uncached. optionalAuth so the
-	// signed-in branch of handleCatalog actually runs.
-	mux.Handle("GET /api/catalog", s.optionalAuth(http.HandlerFunc(s.handleCatalog)))
+	// signed-in branch of handleCatalog actually runs; optionalViewer so
+	// login_only mode can distinguish viewers from anonymous visitors.
+	mux.Handle("GET /api/catalog", s.optionalViewer(s.optionalAuth(http.HandlerFunc(s.handleCatalog))))
 	mux.Handle("GET /api/catalog/categories", s.cacheGET(30*time.Second, s.handleCatalogCategories))
 }
 
@@ -169,15 +170,32 @@ func (s *Server) handleCatalog(w http.ResponseWriter, r *http.Request) {
 		offset = 0 // absurd page value: never a negative OFFSET
 	}
 
-	// Auth context: signed-in users see private entries they can watch;
-	// anonymous visitors only public ones.
+	// Library policy: disabled = closed to everyone except staff (admins
+	// keep preview access); login_only = viewers and staff only; enabled =
+	// open to anonymous visitors.
 	u := userFromContext(r.Context())
+	v := viewerFromContext(r.Context())
+	switch s.libraryMode() {
+	case "disabled":
+		if u.ID == 0 {
+			writeError(w, http.StatusForbidden, "forbidden", "library disabled")
+			return
+		}
+	case "login_only":
+		if u.ID == 0 && v.ID == 0 {
+			writeError(w, http.StatusUnauthorized, "unauthorized", "library requires sign-in")
+			return
+		}
+	}
+
 	conds := []string{`e.status = 'ready'`, `NOT e.access_denied`}
 	args := []any{}
 	add := func(cond string, arg any) {
 		args = append(args, arg)
 		conds = append(conds, fmt.Sprintf(cond, len(args)))
 	}
+	// Private entries stay staff-only; viewers and anonymous visitors get
+	// the public subset.
 	if u.ID == 0 {
 		conds = append(conds, `e.is_public`)
 	}
