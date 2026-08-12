@@ -9,6 +9,7 @@ import {
   FilmIcon,
   HardDriveIcon,
   ImageIcon,
+  ServerIcon,
 } from "lucide-react";
 
 import { api, type StorageEntry, type StorageEntryFile } from "@/lib/api";
@@ -34,6 +35,7 @@ const subRowIcons: Record<StorageEntryFile["label"], React.ReactNode> = {
   flavors: <ClapperboardIcon className="size-3.5" />,
   subtitles: <CaptionsIcon className="size-3.5" />,
   other: <ArchiveIcon className="size-3.5" />,
+  system: <ServerIcon className="size-3.5" />,
 };
 
 const subRowLabels: Record<StorageEntryFile["label"], MessageKey> = {
@@ -41,6 +43,14 @@ const subRowLabels: Record<StorageEntryFile["label"], MessageKey> = {
   poster: "storageSubPoster",
   flavors: "storageSubFlavors",
   subtitles: "storageSubSubtitles",
+  other: "storageSubOther",
+  system: "storageSystem",
+};
+
+const systemSubLabels: Record<string, MessageKey> = {
+  uploads: "storageSystemUploads",
+  logs: "storageSystemLogs",
+  cache: "storageSystemCache",
   other: "storageSubOther",
 };
 
@@ -93,23 +103,25 @@ export default function StoragePage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {entries.map((e) => (
-                <React.Fragment key={e.publicId}>
+              {entries.map((e) => {
+                const isSystem = e.publicId === "";
+                return (
+                <React.Fragment key={e.publicId || "system"}>
                   <TableRow
-                    className="cursor-pointer transition-colors hover:bg-muted/40"
-                    onClick={() => openEntryDetail(e.publicId)}
+                    className={isSystem ? "transition-colors hover:bg-muted/40" : "cursor-pointer transition-colors hover:bg-muted/40"}
+                    onClick={isSystem ? undefined : () => openEntryDetail(e.publicId)}
                   >
                     <TableCell className="py-1.5 font-medium">
                       <div className="flex items-center gap-2.5">
                         <Avatar className="size-6 rounded-md">
-                          <AvatarFallback className="rounded-md bg-primary/10 text-primary">
-                            <FilmIcon className="size-3" />
+                          <AvatarFallback className="rounded-md bg-zinc-500/10 text-zinc-500">
+                            <ServerIcon className="size-3" />
                           </AvatarFallback>
                         </Avatar>
                         <span className="max-w-[220px] truncate text-sm font-semibold text-foreground">
-                          {e.title || t("untitled")}
+                          {isSystem ? t("storageSystem") : e.title || t("untitled")}
                         </span>
-                        <StatusBadge status={e.status} />
+                        {!isSystem ? <StatusBadge status={e.status} /> : null}
                       </div>
                     </TableCell>
                     <TableCell className="py-1.5 text-xs text-muted-foreground tabular-nums">
@@ -129,7 +141,9 @@ export default function StoragePage() {
                           <span className="text-muted-foreground/70">{subRowIcons[f.label]}</span>
                           {f.label === "flavors"
                             ? `${t("storageSubFlavors")} · ${f.name}`
-                            : t(subRowLabels[f.label])}
+                            : f.label === "system" && f.name
+                              ? t(systemSubLabels[f.name] ?? "storageSubOther")
+                              : t(subRowLabels[f.label])}
                         </span>
                       </TableCell>
                       <TableCell className="py-1 text-xs text-muted-foreground tabular-nums">
@@ -141,7 +155,8 @@ export default function StoragePage() {
                     </TableRow>
                   ))}
                 </React.Fragment>
-              ))}
+                );
+              })}
               {entries.length === 0 ? (
                 <TableRow className="hover:bg-transparent">
                   <TableCell colSpan={3}>

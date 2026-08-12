@@ -67,6 +67,7 @@ func (q *Queue) Claim(ctx context.Context, workerID string, n int, exclude ...st
 		SELECT id, type, entry_id, payload, status, attempts, max_attempts, coalesce(error, ''), created_at
 		FROM jobs j
 		WHERE status = 'queued' AND run_at <= now()
+		  AND pause_requested_at IS NULL
 		  AND (cardinality($2::text[]) = 0 OR NOT (type = ANY($2::text[])))
 		  AND (NOT (type = ANY($3::text[]))
 		       OR (
@@ -123,6 +124,69 @@ func (q *Queue) Heartbeat(ctx context.Context, workerID string) error {
 		UPDATE jobs SET heartbeat_at = now()
 		WHERE worker_id = $1 AND status = 'running'`, workerID)
 	return err
+}
+
+// Pause parks a queued job so it is not claimed until resumed.
+func (q *Queue) Pause(ctx context.Context, jobID int64) error {
+	_, err := q.pool.Exec(ctx, `
+		UPDATE jobs SET pause_requested_at = now(), updated_at = now()
+		WHERE id = $1 AND status = 'queued'`, jobID)
+	return err
+}
+
+// Resume clears the pause flag so the job becomes claimable again.
+func (q *Queue) Resume(ctx context.Context, jobID int64) error {
+	_, err := q.pool.Exec(ctx, `
+		UPDATE jobs SET pause_requested_at = NULL, updated_at = now()
+		WHERE id = $1`, jobID)
+	return err
+}
+
+// RequestCancel aborts a job: queued jobs are cancelled immediately, running
+// jobs get a cancel flag that the worker polls and reacts to.
+func (q *Queue) RequestCancel(ctx context.Context, jobID int64) error {
+	tx, err := q.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	var status string
+	if err := tx.QueryRow(ctx,
+		`SELECT status FROM jobs WHERE id = $1 FOR UPDATE`, jobID).Scan(&status); err != nil {
+		return err
+	}
+	if status == "queued" {
+		_, err = tx.Exec(ctx, `
+			UPDATE jobs SET status = 'cancelled', worker_id = NULL, heartbeat_at = NULL,
+				error = 'cancelled by user', finished_at = now(), updated_at = now()
+			WHERE id = $1`, jobID)
+	} else {
+		_, err = tx.Exec(ctx, `
+			UPDATE jobs SET cancel_requested_at = now(), updated_at = now()
+			WHERE id = $1`, jobID)
+	}
+	if err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+// Cancel marks a job as cancelled (worker-side, after the abort flag fired).
+func (q *Queue) Cancel(ctx context.Context, jobID int64, reason string) error {
+	_, err := q.pool.Exec(ctx, `
+		UPDATE jobs SET status = 'cancelled', error = $1, worker_id = NULL,
+			heartbeat_at = NULL, cancel_requested_at = NULL, finished_at = now(), updated_at = now()
+		WHERE id = $2`, reason, jobID)
+	return err
+}
+
+// CancelRequested reports whether an abort has been requested for the job.
+func (q *Queue) CancelRequested(ctx context.Context, jobID int64) (bool, error) {
+	var requested bool
+	err := q.pool.QueryRow(ctx, `
+		SELECT cancel_requested_at IS NOT NULL FROM jobs WHERE id = $1`, jobID).Scan(&requested)
+	return requested, err
 }
 
 // Get loads a single job row (for the runner).

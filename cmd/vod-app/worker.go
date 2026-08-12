@@ -203,8 +203,36 @@ func (w *worker) runJob(parent context.Context, jobID int64, jobType string) {
 		log.Error("load job", "err", err)
 		return
 	}
+	// Abort watcher: if the jobs page requests a cancel, cancel this job's
+	// context — ffmpeg (CommandContext) and URL downloads (request ctx) die
+	// immediately, and the partial flavor dir is cleaned by the handler.
+	go func() {
+		t := time.NewTicker(2 * time.Second)
+		defer t.Stop()
+		for {
+			select {
+			case <-jobCtx.Done():
+				return
+			case <-t.C:
+				req, err := w.queue.CancelRequested(jobCtx, jobID)
+				if err == nil && req {
+					log.Info("abort requested, cancelling job")
+					cancel()
+					return
+				}
+			}
+		}
+	}()
+
 	log.Info("job started")
 	if err := w.runner.Handle(jobCtx, job); err != nil {
+		// Distinguish a user abort from a real failure: check the flag after
+		// the handler returned (the watcher may have just fired).
+		if req, reqErr := w.queue.CancelRequested(parent, jobID); reqErr == nil && req {
+			log.Info("job cancelled")
+			_ = w.queue.Cancel(parent, jobID, "cancelled by user")
+			return
+		}
 		log.Error("job failed", "err", err)
 		_ = w.queue.Fail(jobCtx, jobID, err.Error())
 		return

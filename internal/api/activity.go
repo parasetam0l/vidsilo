@@ -35,13 +35,14 @@ type jobActivity struct {
 	Error      string    `json:"error,omitempty"`
 	Progress   string    `json:"progress,omitempty"`
 	Label      string    `json:"label,omitempty"`
+	Paused     bool      `json:"paused"`
 	CreatedAt  time.Time `json:"createdAt"`
 }
 
 const jobSelect = `
 	SELECT j.id, j.type, j.entry_id, coalesce(e.title, ''), j.status,
 	       j.attempts, coalesce(j.error, ''), coalesce(j.progress, ''),
-	       coalesce(f.label, ''), j.created_at
+	       coalesce(f.label, ''), j.pause_requested_at IS NOT NULL, j.created_at
 	FROM jobs j
 	LEFT JOIN entries e ON e.id = j.entry_id
 	LEFT JOIN entry_flavors ef
@@ -53,7 +54,7 @@ func scanJobActivity(rows pgx.Rows) ([]jobActivity, error) {
 	for rows.Next() {
 		var j jobActivity
 		if err := rows.Scan(&j.ID, &j.Type, &j.EntryID, &j.EntryTitle, &j.Status,
-			&j.Attempts, &j.Error, &j.Progress, &j.Label, &j.CreatedAt); err != nil {
+			&j.Attempts, &j.Error, &j.Progress, &j.Label, &j.Paused, &j.CreatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, j)
@@ -66,6 +67,9 @@ func (s *Server) registerActivityRoutes(mux *http.ServeMux) {
 	mux.Handle("GET /api/uploads", editor(http.HandlerFunc(s.handleActiveUploads)))
 	mux.Handle("GET /api/jobs", editor(http.HandlerFunc(s.handleJobs)))
 	mux.Handle("POST /api/jobs/{id}/retry", editor(http.HandlerFunc(s.handleJobRetry)))
+	mux.Handle("POST /api/jobs/{id}/pause", editor(http.HandlerFunc(s.handleJobPause)))
+	mux.Handle("POST /api/jobs/{id}/resume", editor(http.HandlerFunc(s.handleJobResume)))
+	mux.Handle("POST /api/jobs/{id}/cancel", editor(http.HandlerFunc(s.handleJobCancel)))
 }
 
 func (s *Server) handleJobs(w http.ResponseWriter, r *http.Request) {
@@ -86,7 +90,8 @@ func (s *Server) handleJobs(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-// handleJobRetry re-queues a failed job (attempts reset, immediate run).
+// handleJobRetry re-queues a failed or cancelled job (attempts reset,
+// immediate run).
 func (s *Server) handleJobRetry(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
@@ -96,13 +101,52 @@ func (s *Server) handleJobRetry(w http.ResponseWriter, r *http.Request) {
 	tag, err := s.pool.Exec(r.Context(), `
 		UPDATE jobs SET status = 'queued', attempts = 0, error = NULL,
 		       run_at = now(), started_at = NULL, finished_at = NULL, updated_at = now()
-		WHERE id = $1 AND status = 'failed'`, id)
+		WHERE id = $1 AND status IN ('failed', 'cancelled')`, id)
 	if err != nil {
 		s.internalError(w, r, "retry job", err)
 		return
 	}
 	if tag.RowsAffected() == 0 {
 		writeError(w, http.StatusConflict, "conflict", "job is not in a retryable state")
+		return
+	}
+	w.WriteHeader(http.StatusAccepted)
+}
+
+func (s *Server) handleJobPause(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "bad_request", "invalid job id")
+		return
+	}
+	if err := s.queue.Pause(r.Context(), id); err != nil {
+		s.internalError(w, r, "pause job", err)
+		return
+	}
+	w.WriteHeader(http.StatusAccepted)
+}
+
+func (s *Server) handleJobResume(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "bad_request", "invalid job id")
+		return
+	}
+	if err := s.queue.Resume(r.Context(), id); err != nil {
+		s.internalError(w, r, "resume job", err)
+		return
+	}
+	w.WriteHeader(http.StatusAccepted)
+}
+
+func (s *Server) handleJobCancel(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "bad_request", "invalid job id")
+		return
+	}
+	if err := s.queue.RequestCancel(r.Context(), id); err != nil {
+		s.internalError(w, r, "cancel job", err)
 		return
 	}
 	w.WriteHeader(http.StatusAccepted)

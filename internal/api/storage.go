@@ -1,7 +1,10 @@
 package api
 
 import (
+	"context"
 	"net/http"
+	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -156,5 +159,70 @@ func (s *Server) handleStorageFiles(w http.ResponseWriter, r *http.Request) {
 		out = append(out, entry)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].TotalBytes > out[j].TotalBytes })
+
+	// System row: non-media files in the data dir (uploads spools, logs,
+	// cache, secret key/certs) — everything outside the entries/ tree.
+	if root, ok := store.LocalRootOf(s.store); ok {
+		if sys := systemUsage(r.Context(), root); sys.TotalBytes > 0 {
+			out = append(out, sys)
+		}
+	}
 	writeJSON(w, http.StatusOK, out)
+}
+
+// systemUsage walks the data dir excluding the entries/ media tree and
+// groups the remainder (uploads, logs, cache, other) as a storage entry.
+func systemUsage(ctx context.Context, root string) storageEntry {
+	type group struct {
+		bytes int64
+		count int
+	}
+	groups := map[string]*group{}
+	total := int64(0)
+	_ = filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return nil
+		}
+		rel, err := filepath.Rel(root, p)
+		if err != nil {
+			return nil
+		}
+		if rel == "entries" || strings.HasPrefix(rel, "entries/") {
+			return nil
+		}
+		fi, err := d.Info()
+		if err != nil {
+			return nil
+		}
+		top := strings.SplitN(rel, string(filepath.Separator), 2)[0]
+		g := groups[top]
+		if g == nil {
+			g = &group{}
+			groups[top] = g
+		}
+		g.bytes += fi.Size()
+		g.count++
+		total += fi.Size()
+		return nil
+	})
+
+	sys := storageEntry{Title: "System"}
+	for _, top := range []string{"uploads", "logs", "cache"} {
+		if g, ok := groups[top]; ok {
+			sys.TotalBytes += g.bytes
+			sys.Files = append(sys.Files, storageEntryFile{Label: "system", Name: top, Bytes: g.bytes, Count: g.count})
+		}
+	}
+	rest := &group{}
+	for top, g := range groups {
+		if top != "uploads" && top != "logs" && top != "cache" {
+			rest.bytes += g.bytes
+			rest.count += g.count
+		}
+	}
+	if rest.bytes > 0 {
+		sys.TotalBytes += rest.bytes
+		sys.Files = append(sys.Files, storageEntryFile{Label: "system", Name: "other", Bytes: rest.bytes, Count: rest.count})
+	}
+	return sys
 }

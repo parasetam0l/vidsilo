@@ -231,13 +231,15 @@ export interface JobActivity {
   type: string;
   entryId: number | null;
   entryTitle: string;
-  status: "queued" | "running" | "done" | "failed";
+  status: "queued" | "running" | "done" | "failed" | "cancelled";
   attempts: number;
   error?: string;
   /** Free-text progress line, e.g. "Transcoding 1080p-h264 (2/4)". */
   progress?: string;
   /** Flavor label for transcode jobs (from the job payload). */
   label?: string;
+  /** True while the job is paused (queued but not claimable). */
+  paused: boolean;
   createdAt: string;
 }
 
@@ -256,8 +258,8 @@ export interface StorageUsage {
 }
 
 export interface StorageEntryFile {
-  label: "source" | "poster" | "flavors" | "subtitles" | "other";
-  /** Flavor name for flavors rows (one row per flavor). */
+  label: "source" | "poster" | "flavors" | "subtitles" | "other" | "system";
+  /** Flavor name for flavors rows; category for system rows. */
   name?: string;
   bytes: number;
   count: number;

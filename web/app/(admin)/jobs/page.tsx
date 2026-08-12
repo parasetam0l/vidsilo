@@ -5,7 +5,11 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CircleCheckIcon,
   CircleAlertIcon,
+  CircleSlashIcon,
+  CircleStopIcon,
   ClockIcon,
+  PauseIcon,
+  PlayIcon,
   RotateCcwIcon,
   FilmIcon,
   ImageIcon,
@@ -17,6 +21,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { api, type JobActivity } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import { useToast } from "@/hooks/use-toast";
+import { useDialog } from "@/hooks/use-dialog";
 import { formatDate } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,6 +40,7 @@ import {
 export default function JobsPage() {
   const t = useT();
   const toast = useToast();
+  const { confirm } = useDialog();
   const queryClient = useQueryClient();
 
   // Jobs change while processing — poll every 5s while the page is visible.
@@ -45,14 +51,31 @@ export default function JobsPage() {
       document.visibilityState === "visible" ? 5_000 : false,
   });
 
-  async function retry(job: JobActivity) {
+  const act = async (jobId: number, action: string) => {
     try {
-      await api<void>(`/api/jobs/${job.id}/retry`, { method: "POST" });
-      toast.success(t("jobRetried"));
+      await api<void>(`/api/jobs/${jobId}/${action}`, { method: "POST" });
       queryClient.invalidateQueries({ queryKey: ["jobs"] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t("error"));
     }
+  };
+
+  async function retry(job: JobActivity) {
+    await act(job.id, "retry");
+    toast.success(t("jobRetried"));
+  }
+
+  function askCancel(job: JobActivity) {
+    confirm({
+      title: t("jobAbortTitle"),
+      description: t("jobAbortDesc"),
+      variant: "destructive",
+      confirmLabel: t("jobAbort"),
+      cancelLabel: t("cancel"),
+      onConfirm: () => act(job.id, "cancel"),
+      onError: (err: unknown) =>
+        toast.error(err instanceof Error ? err.message : t("error")),
+    });
   }
 
   const list = jobs ?? [];
@@ -189,11 +212,29 @@ export default function JobsPage() {
                     {formatDate(j.createdAt)}
                   </TableCell>
                   <TableCell className="text-right">
-                    {j.status === "failed" ? (
-                      <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs shadow-2xs" onClick={() => retry(j)}>
-                        <RotateCcwIcon className="size-3.5" /> {t("jobRetry")}
-                      </Button>
-                    ) : null}
+                    <div className="flex items-center justify-end gap-1.5">
+                      {j.status === "queued" ? (
+                        j.paused ? (
+                          <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs shadow-2xs" onClick={() => act(j.id, "resume")}>
+                            <PlayIcon className="size-3.5" /> {t("jobResume")}
+                          </Button>
+                        ) : (
+                          <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs shadow-2xs" onClick={() => act(j.id, "pause")}>
+                            <PauseIcon className="size-3.5" /> {t("jobPause")}
+                          </Button>
+                        )
+                      ) : null}
+                      {j.status === "queued" || j.status === "running" ? (
+                        <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive shadow-2xs" onClick={() => askCancel(j)}>
+                          <CircleStopIcon className="size-3.5" /> {t("jobAbort")}
+                        </Button>
+                      ) : null}
+                      {j.status === "failed" || j.status === "cancelled" ? (
+                        <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs shadow-2xs" onClick={() => retry(j)}>
+                          <RotateCcwIcon className="size-3.5" /> {t("jobRetry")}
+                        </Button>
+                      ) : null}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -214,6 +255,13 @@ export default function JobsPage() {
 
 function JobStatusBadge({ status }: { status: JobActivity["status"] }) {
   const t = useT();
+  if (status === "cancelled") {
+    return (
+      <Badge variant="outline" className="gap-1.5 bg-zinc-500/15 text-zinc-500 border-zinc-500/30">
+        <CircleSlashIcon className="size-3" /> {t("jobCancelled")}
+      </Badge>
+    );
+  }
   if (status === "failed") {
     return (
       <Badge variant="outline" className="gap-1.5 bg-red-500/15 text-red-500 border-red-500/30">

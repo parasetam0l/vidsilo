@@ -53,8 +53,32 @@ func driverName(s Store) string {
 	return "unknown"
 }
 
-// Usage reports used bytes (walking the store tree) plus the disk
-// capacity/free space of the backing volume.
+// LocalOf unwraps wrapper stores (Fallback, Cache) and returns the
+// underlying local driver, or nil when the backend is not local.
+func LocalOf(s Store) *Local {
+	switch t := s.(type) {
+	case *Local:
+		return t
+	case *Fallback:
+		return LocalOf(t.primary)
+	case *Cache:
+		return LocalOf(t.backend)
+	}
+	return nil
+}
+
+// LocalRootOf unwraps wrapper stores (Fallback, Cache) and returns the
+// local driver's root directory, when the backend is local.
+func LocalRootOf(s Store) (string, bool) {
+	if l := LocalOf(s); l != nil {
+		return l.Root(), true
+	}
+	return "", false
+}
+
+// Usage reports used bytes (walking the whole data dir: media, spools,
+// logs, cache, keys) plus the disk capacity/free space of the backing
+// volume. Matches the storage page's per-entry total + system row.
 func (l *Local) Usage(ctx context.Context) (Usage, error) {
 	var u Usage
 	err := filepath.WalkDir(l.root, func(path string, d os.DirEntry, err error) error {

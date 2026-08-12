@@ -364,8 +364,8 @@ func (s *Server) handleEntryDelete(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		// The local driver leaves empty directories behind — remove the
-		// whole subtree so nothing remains.
-		if l, ok := s.store.(*store.Local); ok {
+		// whole subtree so nothing remains (unwraps Fallback/Cache).
+		if l := store.LocalOf(s.store); l != nil {
 			if err := l.RemoveTree("entries/" + prefix); err != nil {
 				s.Log.Warn("entry media tree remove", "err", err)
 			}
