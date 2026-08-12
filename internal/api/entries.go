@@ -71,12 +71,16 @@ func (s *Server) handleEntriesList(w http.ResponseWriter, r *http.Request) {
 	uploader, _ := strconv.ParseInt(q.Get("uploader"), 10, 64)
 
 	list, err := db.ListEntries(r.Context(), s.pool, db.EntryFilter{
-		Q:        q.Get("q"),
-		Status:   q.Get("status"),
-		Category: category,
-		Uploader: uploader,
-		Page:     page,
-		Limit:    limit,
+		Q:               q.Get("q"),
+		Status:          q.Get("status"),
+		Category:        category,
+		Uploader:        uploader,
+		Page:            page,
+		Limit:           limit,
+		Sort:            q.Get("sort"),
+		CreatedFrom:     q.Get("createdFrom"),
+		CreatedTo:       q.Get("createdTo"),
+		CategorySubtree: q.Get("subtree") == "1" || q.Get("subtree") == "true",
 	})
 	if err != nil {
 		s.internalError(w, r, "list entries", err)

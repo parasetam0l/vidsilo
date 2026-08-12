@@ -65,6 +65,15 @@ type EntryFilter struct {
 	Page      int
 	Limit     int
 	ExcludeID int64 // used when fetching related entries
+	// Sort orders the list. Allowed: "created" (default), "created_asc",
+	// "title", "title_asc", "duration", "size".
+	Sort string
+	// CreatedFrom/CreatedTo bound created_at (inclusive, timestamps).
+	CreatedFrom string
+	CreatedTo   string
+	// CategorySubtree, when true, matches the category AND all of its
+	// descendants (recursive CTE) instead of the exact id only.
+	CategorySubtree bool
 }
 
 func (f *EntryFilter) Validate() {
@@ -105,13 +114,29 @@ func ListEntries(ctx context.Context, pool *pgxpool.Pool, f EntryFilter) (EntryL
 		add(`e.status = $%d`, f.Status)
 	}
 	if f.Category > 0 {
-		add(`e.category_id = $%d`, f.Category)
+		if f.CategorySubtree {
+			add(`e.category_id IN (
+				WITH RECURSIVE subtree AS (
+					SELECT id FROM categories WHERE id = $%d
+					UNION ALL
+					SELECT c.id FROM categories c JOIN subtree s ON c.parent_id = s.id
+				)
+				SELECT id FROM subtree)`, f.Category)
+		} else {
+			add(`e.category_id = $%d`, f.Category)
+		}
 	}
 	if f.Uploader > 0 {
 		add(`e.uploaded_by = $%d`, f.Uploader)
 	}
 	if f.ExcludeID > 0 {
 		add(`e.id <> $%d`, f.ExcludeID)
+	}
+	if f.CreatedFrom != "" {
+		add(`e.created_at >= $%d::timestamptz`, f.CreatedFrom)
+	}
+	if f.CreatedTo != "" {
+		add(`e.created_at <= $%d::timestamptz`, f.CreatedTo)
 	}
 	where := ""
 	if len(conds) > 0 {
@@ -130,6 +155,22 @@ func ListEntries(ctx context.Context, pool *pgxpool.Pool, f EntryFilter) (EntryL
 	}
 
 	orderBy := "e.created_at DESC"
+	switch f.Sort {
+	case "created_asc":
+		orderBy = "e.created_at ASC"
+	case "title":
+		orderBy = "e.title DESC, e.created_at DESC"
+	case "title_asc":
+		orderBy = "e.title ASC, e.created_at DESC"
+	case "duration":
+		orderBy = "e.duration_ms DESC NULLS LAST, e.created_at DESC"
+	case "size":
+		orderBy = "e.source_size DESC NULLS LAST, e.created_at DESC"
+	case "", "created":
+		orderBy = "e.created_at DESC"
+	default:
+		orderBy = "e.created_at DESC"
+	}
 	if qIdx > 0 {
 		orderBy = fmt.Sprintf(
 			"greatest(coalesce(similarity(e.title, $%d), 0), coalesce(similarity(e.description, $%d), 0)) DESC, e.created_at DESC",

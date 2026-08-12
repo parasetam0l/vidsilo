@@ -3,9 +3,11 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -30,6 +32,246 @@ func (s *Server) registerMediaRoutes(mux *http.ServeMux) {
 	mux.Handle("GET /play/{uuid}", http.HandlerFunc(s.handlePlayPage))
 	mux.Handle("GET /play/{uuid}/playinfo.json", authed(http.HandlerFunc(s.handlePlayInfo)))
 	mux.Handle("GET /embed/{uuid}", authed(s.embedACL(http.HandlerFunc(s.handleEmbedPage))))
+
+	// Public catalog: the library/browse page for end users.
+	mux.Handle("GET /api/catalog", http.HandlerFunc(s.handleCatalog))
+	mux.Handle("GET /api/catalog/categories", http.HandlerFunc(s.handleCatalogCategories))
+}
+
+// handleCatalogCategories serves the category tree with entry counts for the
+// public library navigation (only categories containing visible entries).
+func (s *Server) handleCatalogCategories(w http.ResponseWriter, r *http.Request) {
+	rows, err := s.pool.Query(r.Context(), `
+		SELECT c.id, c.parent_id, c.name, c.slug, c.position,
+		       (SELECT count(*) FROM entries e
+		        WHERE e.category_id = c.id
+		          AND e.status = 'ready'
+		          AND NOT e.access_denied
+		          AND e.is_public) AS count
+		FROM categories c
+		ORDER BY c.position, c.id`)
+	if err != nil {
+		s.internalError(w, r, "catalog categories", err)
+		return
+	}
+	defer rows.Close()
+	flat := []db.Category{}
+	counts := map[int64]int64{}
+	for rows.Next() {
+		var c db.Category
+		var count int64
+		if err := rows.Scan(&c.ID, &c.ParentID, &c.Name, &c.Slug, &c.Position, &count); err != nil {
+			s.internalError(w, r, "catalog categories scan", err)
+			return
+		}
+		counts[c.ID] = count
+		flat = append(flat, c)
+	}
+	// Roll descendant counts up so parents with visible children appear in
+	// the navigation too.
+	byID := map[int64]*db.Category{}
+	for i := range flat {
+		byID[flat[i].ID] = &flat[i]
+	}
+	visible := map[int64]bool{}
+	for _, c := range flat {
+		if counts[c.ID] > 0 {
+			visible[c.ID] = true
+		}
+	}
+	// Repeated passes are unnecessary for shallow trees; walk ancestors.
+	for _, c := range flat {
+		if counts[c.ID] == 0 {
+			continue
+		}
+		cur := c.ParentID
+		for cur != nil {
+			counts[*cur] += counts[c.ID]
+			visible[*cur] = true
+			p, ok := byID[*cur]
+			if !ok {
+				break
+			}
+			cur = p.ParentID
+		}
+	}
+
+	type catNode struct {
+		ID       int64     `json:"id"`
+		Name     string    `json:"name"`
+		Slug     string    `json:"slug"`
+		Count    int64     `json:"count"`
+		Children []catNode `json:"children,omitempty"`
+	}
+	var build func(parent *int64) []catNode
+	build = func(parent *int64) []catNode {
+		var out []catNode
+		for i := range flat {
+			c := flat[i]
+			if (parent == nil && c.ParentID != nil) || (parent != nil && (c.ParentID == nil || *c.ParentID != *parent)) {
+				continue
+			}
+			if !visible[c.ID] {
+				continue
+			}
+			node := catNode{ID: c.ID, Name: c.Name, Slug: c.Slug, Count: counts[c.ID]}
+			id := c.ID
+			node.Children = build(&id)
+			out = append(out, node)
+		}
+		return out
+	}
+	out := build(nil)
+	if out == nil {
+		out = []catNode{}
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+// catalogEntry is the public view of an entry: title, slug, poster and link,
+// no internal ids or keys.
+type catalogEntry struct {
+	ID         string `json:"id"`
+	Title      string `json:"title"`
+	Slug       string `json:"slug"`
+	CategoryID *int64 `json:"categoryId"`
+	Category   string `json:"category,omitempty"`
+	Poster     string `json:"poster,omitempty"`
+	DurationMs *int64 `json:"durationMs"`
+	CreatedAt  string `json:"createdAt"`
+}
+
+// handleCatalog lists public, ready entries for the library page (search,
+// category filter via id or slug, pagination, sort).
+func (s *Server) handleCatalog(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	page, _ := strconv.Atoi(q.Get("page"))
+	limit, _ := strconv.Atoi(q.Get("limit"))
+	if limit <= 0 || limit > 100 {
+		limit = 24
+	}
+	if page <= 0 {
+		page = 1
+	}
+	categoryID := int64(0)
+	if raw := q.Get("category"); raw != "" {
+		if id, err := strconv.ParseInt(raw, 10, 64); err == nil {
+			categoryID = id
+		} else if c, err := db.CategoryBySlug(r.Context(), s.pool, raw); err == nil {
+			categoryID = c.ID
+		}
+	}
+	offset := (page - 1) * limit
+
+	// Auth context: signed-in users see private entries they can watch;
+	// anonymous visitors only public ones.
+	u := userFromContext(r.Context())
+	conds := []string{`e.status = 'ready'`, `NOT e.access_denied`}
+	args := []any{}
+	add := func(cond string, arg any) {
+		args = append(args, arg)
+		conds = append(conds, fmt.Sprintf(cond, len(args)))
+	}
+	if u.ID == 0 {
+		conds = append(conds, `e.is_public`)
+	}
+	if q.Get("q") != "" {
+		add(`(e.title ILIKE '%%' || $%[1]d || '%%' OR e.description ILIKE '%%' || $%[1]d || '%%')`, q.Get("q"))
+	}
+	if categoryID > 0 {
+		// Include the category's descendants for natural library browsing.
+		add(`e.category_id IN (
+			WITH RECURSIVE subtree AS (
+				SELECT id FROM categories WHERE id = $%d
+				UNION ALL
+				SELECT c.id FROM categories c JOIN subtree s ON c.parent_id = s.id
+			)
+			SELECT id FROM subtree)`, categoryID)
+	}
+	where := "WHERE " + strings.Join(conds, " AND ")
+
+	sortCol := "e.created_at DESC"
+	switch q.Get("sort") {
+	case "title":
+		sortCol = "e.title ASC"
+	case "oldest":
+		sortCol = "e.created_at ASC"
+	case "duration":
+		sortCol = "e.duration_ms DESC NULLS LAST"
+	}
+
+	var total int64
+	countArgs := append([]any{}, args...)
+	if err := s.pool.QueryRow(r.Context(),
+		`SELECT count(*) FROM entries e `+where, countArgs...).Scan(&total); err != nil {
+		s.internalError(w, r, "catalog count", err)
+		return
+	}
+	args = append(args, limit, offset)
+	rows, err := s.pool.Query(r.Context(), `
+		SELECT e.public_id::text, e.title, e.category_id, coalesce(c.name, ''),
+		       coalesce(e.poster_key, ''), e.duration_ms, e.created_at
+		FROM entries e
+		LEFT JOIN categories c ON c.id = e.category_id
+		`+where+`
+		ORDER BY `+sortCol+`
+		LIMIT $`+strconv.Itoa(len(args)-1)+` OFFSET $`+strconv.Itoa(len(args)), args...)
+	if err != nil {
+		s.internalError(w, r, "catalog list", err)
+		return
+	}
+	defer rows.Close()
+	items := []catalogEntry{}
+	for rows.Next() {
+		var ce catalogEntry
+		var poster string
+		var catName string
+		if err := rows.Scan(&ce.ID, &ce.Title, &ce.CategoryID, &catName, &poster,
+			&ce.DurationMs, &ce.CreatedAt); err != nil {
+			s.internalError(w, r, "catalog scan", err)
+			return
+		}
+		ce.Slug = slugifyTitle(ce.Title)
+		ce.Category = catName
+		if poster != "" {
+			ce.Poster = "/media/" + strings.TrimPrefix(poster, "/")
+		}
+		items = append(items, ce)
+	}
+	if items == nil {
+		items = []catalogEntry{}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"items": items,
+		"total": total,
+		"page":  page,
+		"limit": limit,
+	})
+}
+
+// slugifyTitle derives a URL-friendly slug from a title (best-effort; the
+// catalog still addresses entries by their uuid).
+func slugifyTitle(s string) string {
+	s = strings.ToLower(strings.TrimSpace(s))
+	var b strings.Builder
+	lastDash := false
+	for _, r := range s {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
+			b.WriteRune(r)
+			lastDash = false
+		default:
+			if !lastDash && b.Len() > 0 {
+				b.WriteByte('-')
+				lastDash = true
+			}
+		}
+	}
+	out := strings.Trim(b.String(), "-")
+	if out == "" {
+		return "video"
+	}
+	return out
 }
 
 const (

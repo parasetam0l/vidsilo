@@ -95,6 +95,15 @@ func UpdateCategory(ctx context.Context, pool *pgxpool.Pool, id int64, parentID 
 	return c, err
 }
 
+func CategoryBySlug(ctx context.Context, pool *pgxpool.Pool, slug string) (Category, error) {
+	c, err := scanCategory(pool.QueryRow(ctx,
+		`SELECT id, parent_id, name, slug, position FROM categories WHERE slug = $1`, slug))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Category{}, ErrNotFound
+	}
+	return c, err
+}
+
 func DeleteCategory(ctx context.Context, pool *pgxpool.Pool, id int64) error {
 	tag, err := pool.Exec(ctx, `DELETE FROM categories WHERE id = $1`, id)
 	if err != nil {
