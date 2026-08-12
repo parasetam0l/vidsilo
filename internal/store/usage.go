@@ -2,8 +2,10 @@ package store
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -101,4 +103,95 @@ func (s *S3) Usage(ctx context.Context) (Usage, error) {
 		}
 	}
 	return u, nil
+}
+
+// FileEntry is a storage key with its size.
+type FileEntry struct {
+	Key  string
+	Size int64
+}
+
+// SizeListingStore is implemented by drivers that can list keys with sizes.
+type SizeListingStore interface {
+	ListSizes(ctx context.Context, prefix string) ([]FileEntry, error)
+}
+
+// ListSizesOf unwraps wrapper stores and lists keys with sizes. Drivers
+// without native size listing fall back to List + Stat per key.
+func ListSizesOf(ctx context.Context, s Store, prefix string) ([]FileEntry, error) {
+	if l, ok := s.(SizeListingStore); ok {
+		return l.ListSizes(ctx, prefix)
+	}
+	switch t := s.(type) {
+	case *Fallback:
+		return ListSizesOf(ctx, t.primary, prefix)
+	case *Cache:
+		return ListSizesOf(ctx, t.backend, prefix)
+	default:
+		keys, err := s.List(ctx, prefix)
+		if err != nil {
+			return nil, err
+		}
+		out := make([]FileEntry, 0, len(keys))
+		for _, k := range keys {
+			if fi, err := s.Stat(ctx, k); err == nil {
+				out = append(out, FileEntry{Key: k, Size: fi.Size})
+			}
+		}
+		return out, nil
+	}
+}
+
+// ListSizes walks the store tree and returns every file key with its size.
+func (l *Local) ListSizes(ctx context.Context, prefix string) ([]FileEntry, error) {
+	base := filepath.Join(l.root, filepath.FromSlash(strings.Trim(prefix, "/")))
+	var out []FileEntry
+	err := filepath.WalkDir(base, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		fi, err := d.Info()
+		if err != nil {
+			return nil
+		}
+		rel, err := filepath.Rel(l.root, path)
+		if err != nil {
+			return nil
+		}
+		out = append(out, FileEntry{Key: filepath.ToSlash(rel), Size: fi.Size()})
+		return nil
+	})
+	if errors.Is(err, os.ErrNotExist) {
+		return out, nil
+	}
+	return out, err
+}
+
+// ListSizes pages objects and returns key + size for each.
+func (s *S3) ListSizes(ctx context.Context, prefix string) ([]FileEntry, error) {
+	var out []FileEntry
+	p := s3.NewListObjectsV2Paginator(s.client, &s3.ListObjectsV2Input{
+		Bucket: aws.String(s.bucket),
+		Prefix: aws.String(strings.Trim(prefix, "/")),
+	})
+	for p.HasMorePages() {
+		page, err := p.NextPage(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, obj := range page.Contents {
+			if obj.Key == nil {
+				continue
+			}
+			var size int64
+			if obj.Size != nil {
+				size = *obj.Size
+			}
+			out = append(out, FileEntry{Key: *obj.Key, Size: size})
+		}
+	}
+	return out, nil
 }

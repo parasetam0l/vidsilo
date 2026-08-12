@@ -156,6 +156,24 @@ func ListEntries(ctx context.Context, pool *pgxpool.Pool, f EntryFilter) (EntryL
 	return EntryList{Items: items, Total: total, CatalogTotal: catalogTotal, Page: f.Page, Limit: f.Limit}, nil
 }
 
+// ListAllEntries returns every entry ordered by id (storage page, exports).
+func ListAllEntries(ctx context.Context, pool *pgxpool.Pool) ([]Entry, error) {
+	rows, err := pool.Query(ctx, `SELECT `+entryColumns+` FROM entries e ORDER BY e.id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []Entry{}
+	for rows.Next() {
+		e, err := scanEntry(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, e)
+	}
+	return out, rows.Err()
+}
+
 func UpdateEntry(ctx context.Context, pool *pgxpool.Pool, id int64, patch EntryPatch) (Entry, error) {
 	if _, err := pool.Exec(ctx, `
 		UPDATE entries SET title = $1, description = $2, category_id = $3, is_public = $4,

@@ -58,6 +58,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     "/categories": t("navCategories"),
     "/flavors": t("navFlavors"),
     "/domain-acls": t("navDomainAcls"),
+    "/storage": t("navStorage"),
     "/settings": t("navSettings"),
   };
   const pageTitle = pageTitles[pathname] ?? t("appTitle");

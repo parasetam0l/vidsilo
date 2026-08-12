@@ -254,3 +254,17 @@ export interface StorageUsage {
   objectCount: number;
   driver: string;
 }
+
+export interface StorageEntryFile {
+  label: "source" | "poster" | "flavors" | "subtitles" | "other";
+  bytes: number;
+  count: number;
+}
+
+export interface StorageEntry {
+  publicId: string;
+  title: string;
+  status: EntryStatus;
+  totalBytes: number;
+  files: StorageEntryFile[];
+}
