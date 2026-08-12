@@ -21,6 +21,10 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
+# Replace, not merge: the repo copy of internal/ui/web/out may hold stale
+# exports (it is gitignored), and COPY --from merges without deleting —
+# stale pages would linger in the embedded FS.
+RUN rm -rf internal/ui/web/out
 COPY --from=web /app/web/out internal/ui/web/out
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/vod-app ./cmd/vod-app
 

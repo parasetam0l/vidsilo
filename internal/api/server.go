@@ -229,9 +229,17 @@ func (s *Server) internalError(w http.ResponseWriter, r *http.Request, op string
 // stick in a heuristic cache); content-hashed _next assets are immutable.
 func (s *Server) serveUI(w http.ResponseWriter, r *http.Request) {
 	// Server-side root redirect: no blank flash / history entry from the
-	// client-side window.location.replace.
+	// client-side window.location.replace. Library mode decides where
+	// visitors land.
 	if r.URL.Path == "/" {
-		http.Redirect(w, r, "/dashboard", http.StatusFound)
+		switch s.libraryMode() {
+		case "enabled":
+			http.Redirect(w, r, "/library", http.StatusFound)
+		case "login_only":
+			http.Redirect(w, r, "/library/login", http.StatusFound)
+		default:
+			http.Redirect(w, r, "/admin/dashboard", http.StatusFound)
+		}
 		return
 	}
 	p := strings.TrimPrefix(r.URL.Path, "/")
