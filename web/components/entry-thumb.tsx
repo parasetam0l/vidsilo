@@ -10,17 +10,19 @@ export function EntryThumb({
   posterKey,
   updatedAt,
   className,
+  alt = "",
 }: {
   posterKey?: string;
   updatedAt?: string;
   className?: string;
+  alt?: string;
 }) {
   if (posterKey) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
         src={`/media/${posterKey}${updatedAt ? `?v=${encodeURIComponent(updatedAt)}` : ""}`}
-        alt=""
+        alt={alt}
         className={cn(
           "h-9 w-14 shrink-0 rounded-md border object-cover",
           className,

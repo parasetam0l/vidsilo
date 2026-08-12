@@ -15,8 +15,8 @@ import {
 import Link from "next/link";
 
 import { api, type Dashboard, type Entry } from "@/lib/api";
-import { useT } from "@/lib/i18n";
-import { formatBytes, formatDuration, formatGb } from "@/lib/format";
+import { useT, type MessageKey } from "@/lib/i18n";
+import { formatBytes, formatDate, formatDuration, formatGb } from "@/lib/format";
 import { StatusBadge } from "@/components/status-badge";
 import { useUploadDialog } from "@/components/upload-dialog";
 import { useEntryDetailDialog } from "@/components/entry-detail-dialog";
@@ -100,16 +100,28 @@ const statusColors: Record<string, string> = {
   failed: "bg-red-500",
 };
 
+const statusKeys: Record<string, MessageKey> = {
+  uploading: "statusUploading",
+  probing: "statusProbing",
+  transcoding: "statusTranscoding",
+  ready: "statusReady",
+  failed: "statusFailed",
+};
+
 export default function DashboardPage() {
   const t = useT();
   const toast = useToast();
   const openUpload = useUploadDialog();
   const openEntryDetail = useEntryDetailDialog();
   const [data, setData] = React.useState<Dashboard | null>(null);
+  const [lastRefetch, setLastRefetch] = React.useState<Date | null>(null);
 
   const load = React.useCallback(() => {
     api<Dashboard>("/api/dashboard")
-      .then(setData)
+      .then((d) => {
+        setData(d);
+        setLastRefetch(new Date());
+      })
       .catch((e) => toast.error(e.message));
   }, [toast]);
 
@@ -185,6 +197,13 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-1 flex-col gap-4 px-4 pb-4 pt-0">
+      <div className="flex items-center justify-end">
+        {lastRefetch ? (
+          <span className="text-xs text-muted-foreground">
+            {t("lastUpdated", { time: formatDate(lastRefetch.toISOString()) })}
+          </span>
+        ) : null}
+      </div>
       {data.totalEntries === 0 ? (
         <Card className="relative overflow-hidden border-dashed ">
           <div className="pointer-events-none absolute -top-16 -left-16 size-48 rounded-full bg-primary/10 blur-3xl" />
@@ -284,7 +303,7 @@ export default function DashboardPage() {
                     className="group flex items-center justify-between gap-3 rounded-xl border border-border/50 bg-card p-2.5 shadow-2xs transition-all hover:bg-muted/40 hover:border-border cursor-pointer"
                   >
                     <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <EntryThumb posterKey={e.posterKey} updatedAt={e.updatedAt} />
+                      <EntryThumb posterKey={e.posterKey} updatedAt={e.updatedAt} alt={e.title} />
                       <div className="flex flex-col gap-0.5 min-w-0 flex-1">
                         <span className="font-medium text-sm text-foreground group-hover:text-primary transition-colors truncate">
                           {e.title || t("untitled")}
@@ -334,11 +353,11 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <CardTitle className="text-base font-semibold tracking-tight">{t("dashByStatus")}</CardTitle>
               <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground tabular-nums">
-                {totalStatusCount} total
+                {t("dashEntriesHint")} · {totalStatusCount}
               </span>
             </div>
             <CardDescription className="text-xs text-muted-foreground">
-              Current status of videos in your processing pipeline.
+              {t("dashStatusEmpty")}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
@@ -374,10 +393,10 @@ export default function DashboardPage() {
                           />
                           <div className="flex flex-col">
                             <span className="text-sm font-semibold capitalize text-foreground leading-snug">
-                              {status}
+                              {t(statusKeys[status] ?? "dashEmpty")}
                             </span>
                             <span className="text-xs text-muted-foreground">
-                              {count} {count === 1 ? "entry" : "entries"}
+                              {count} {t("dashEntries")}
                             </span>
                           </div>
                         </div>

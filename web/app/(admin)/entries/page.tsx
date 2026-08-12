@@ -281,7 +281,7 @@ export default function EntriesPage() {
                   </TableCell>
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-3">
-                      <EntryThumb posterKey={e.posterKey} updatedAt={e.updatedAt} />
+                      <EntryThumb posterKey={e.posterKey} updatedAt={e.updatedAt} alt={e.title} />
                       <span className="line-clamp-2 max-w-[250px] min-w-0 whitespace-normal break-words hover:underline">
                         {e.title || t("untitled")}
                       </span>
