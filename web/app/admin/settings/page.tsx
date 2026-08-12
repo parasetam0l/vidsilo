@@ -36,6 +36,10 @@ interface SettingSpec {
   pretty?: (v: number | string) => string;
   /** Unit suffix rendered inside the input group. */
   unit?: string;
+  /** Select options for enum settings. */
+  enum?: string[];
+  /** Human-readable labels for enum options. */
+  enumLabels?: string[];
 }
 
 const specs: Record<string, SettingSpec> = {
@@ -56,6 +60,12 @@ const specs: Record<string, SettingSpec> = {
   "upload.allowed_extensions": {
     label: "Allowed File Extensions",
     hint: "Comma-separated list; other extensions are rejected.",
+  },
+  "library.mode": {
+    label: "Public Library",
+    hint: "Where visitors land on the site root and whether the library requires sign-in.",
+    enum: ["disabled", "login_only", "enabled"],
+    enumLabels: ["Disabled", "Login Only", "Enabled"],
   },
   "cache.enabled": {
     label: "Enable Disk Caching",
@@ -108,7 +118,7 @@ export default function SettingsPage() {
       title: t("gGeneral"),
       description: t("gGeneralDesc"),
       icon: GlobeIcon,
-      keys: ["site_name", "default_lang", "upload.max_size_bytes", "upload.allowed_extensions"],
+      keys: ["site_name", "library.mode", "default_lang", "upload.max_size_bytes", "upload.allowed_extensions"],
     },
     {
       id: "storage",
@@ -274,6 +284,19 @@ export default function SettingsPage() {
                         </div>
                         {isBool ? (
                           <Switch checked={bool(k)} onCheckedChange={(v) => setBool(k, v)} />
+                        ) : spec.enum ? (
+                          <Select
+                            options={(spec.enum ?? []).map((v, i) => ({
+                              value: v,
+                              label: spec.enumLabels?.[i] ?? v,
+                            }))}
+                            className="w-full sm:w-56 shrink-0 rounded-lg"
+                            value={str(k)}
+                            onChange={(v) => {
+                              s[k] = v;
+                              setData({ ...data });
+                            }}
+                          />
                         ) : isPreset ? (
                           <Select
                             options={["ultrafast", "superfast", "veryfast", "faster", "fast", "medium"].map((p) => ({

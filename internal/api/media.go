@@ -29,7 +29,7 @@ func (s *Server) registerMediaRoutes(mux *http.ServeMux) {
 	// strict img-src 'self' CSP keeps working. More specific than
 	// /media/{key...}, so it wins.
 	mux.Handle("GET /media/branding/logo", s.rateLimit(s.apiLimiter, http.HandlerFunc(s.handleBrandingLogo)))
-	mux.Handle("GET /play/{uuid}", http.HandlerFunc(s.handlePlayPage))
+	mux.Handle("GET /library/play/{uuid}", http.HandlerFunc(s.handlePlayPage))
 	mux.Handle("GET /play/{uuid}/playinfo.json", authed(http.HandlerFunc(s.handlePlayInfo)))
 	mux.Handle("GET /embed/{uuid}", authed(s.embedACL(http.HandlerFunc(s.handleEmbedPage))))
 

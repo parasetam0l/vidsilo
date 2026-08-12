@@ -28,6 +28,7 @@ var defaultSettings = map[string]any{
 	"analytics.enabled":         true,
 	"analytics.retention_days":  30,
 	"analytics.flush_interval_s": 10,
+	"library.mode":              "disabled",
 }
 
 // seedSettings inserts missing defaults; existing values are preserved.

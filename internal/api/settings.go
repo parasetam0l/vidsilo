@@ -27,6 +27,7 @@ func (s *Server) handleSiteConfig(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{
 		"siteName":    s.settings.String("site_name", "VOD"),
 		"defaultLang": s.settings.String("default_lang", "en"),
+		"libraryMode": s.settings.String("library.mode", "disabled"),
 	})
 }
 

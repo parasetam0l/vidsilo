@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 
 import { api, type CatalogCategory, type CatalogResponse } from "@/lib/api";
+import { getSiteConfig } from "@/lib/site-config";
 import { useT } from "@/lib/i18n";
 import { formatDuration } from "@/lib/format";
 import { LoadingCircle } from "@/components/loading";
@@ -29,6 +30,14 @@ export default function LibraryPage() {
   React.useEffect(() => {
     filtersRef.current = { debouncedQ, category, sort };
   }, [debouncedQ, category, sort]);
+
+  // Gate: when the library is disabled, the site root already redirects —
+  // this catches direct visits to /library.
+  React.useEffect(() => {
+    getSiteConfig().then((cfg) => {
+      if (cfg.libraryMode === "disabled") window.location.replace("/admin/dashboard");
+    });
+  }, []);
 
   React.useEffect(() => {
     const id = window.setTimeout(() => setDebouncedQ(q), 300);
@@ -206,7 +215,7 @@ export default function LibraryPage() {
             {items.map((item) => (
               <Link
                 key={item.id}
-                href={`/play/${item.id}`}
+                href={`/library/play/${item.id}`}
                 className="group block overflow-hidden rounded-lg border bg-card transition-shadow hover:shadow-md"
               >
                 <div className="relative aspect-video w-full overflow-hidden bg-muted">

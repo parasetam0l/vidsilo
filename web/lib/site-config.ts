@@ -5,6 +5,8 @@
 export interface SiteConfig {
   siteName: string;
   defaultLang: string;
+  /** disabled | login_only | enabled */
+  libraryMode: string;
 }
 
 const CACHE_KEY = "vod-site-config";
@@ -19,7 +21,7 @@ let inFlight: Promise<SiteConfig> | null = null;
 
 export function getSiteConfig(): Promise<SiteConfig> {
   if (typeof window === "undefined") {
-    return Promise.resolve({ siteName: "VOD", defaultLang: "en" });
+    return Promise.resolve({ siteName: "VOD", defaultLang: "en", libraryMode: "disabled" });
   }
   try {
     const raw = localStorage.getItem(CACHE_KEY);

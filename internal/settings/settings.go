@@ -184,6 +184,7 @@ var Specs = map[string]KeySpec{
 	"analytics.enabled":          {Type: "bool"},
 	"analytics.retention_days":   {Type: "int", IntMin: 1, IntMax: 3650},
 	"analytics.flush_interval_s": {Type: "int", IntMin: 1, IntMax: 3600},
+	"library.mode":               {Type: "enum", Enums: []string{"disabled", "login_only", "enabled"}},
 }
 
 // Validate checks a value against its spec and returns a canonical JSON form.
