@@ -1,0 +1,233 @@
+"use client";
+
+import * as React from "react";
+import Link from "next/link";
+
+import { api, type CatalogCategory, type CatalogResponse } from "@/lib/api";
+import { useT } from "@/lib/i18n";
+import { formatDuration } from "@/lib/format";
+import { LoadingCircle } from "@/components/loading";
+import { ClapperboardIcon, FilmIcon, SearchIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+const PAGE_SIZE = 24;
+
+export default function LibraryPage() {
+  const t = useT();
+  const [q, setQ] = React.useState("");
+  const [debouncedQ, setDebouncedQ] = React.useState("");
+  const [category, setCategory] = React.useState<string>("");
+  const [sort, setSort] = React.useState("newest");
+  const [page, setPage] = React.useState(1);
+  const [data, setData] = React.useState<CatalogResponse | null>(null);
+  const [categories, setCategories] = React.useState<CatalogCategory[]>([]);
+  const loading = data === null;
+
+  React.useEffect(() => {
+    const id = window.setTimeout(() => setDebouncedQ(q), 300);
+    return () => window.clearTimeout(id);
+  }, [q]);
+
+  React.useEffect(() => {
+    api<CatalogCategory[]>("/api/catalog/categories")
+      .then(setCategories)
+      .catch(() => {});
+  }, []);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    const params = new URLSearchParams({ page: "1", limit: String(PAGE_SIZE) });
+    if (debouncedQ) params.set("q", debouncedQ);
+    if (category) params.set("category", category);
+    if (sort === "title") params.set("sort", "title");
+    if (sort === "oldest") params.set("sort", "oldest");
+    if (sort === "duration") params.set("sort", "duration");
+    api<CatalogResponse>(`/api/catalog?${params}`)
+      .then((res) => {
+        if (!cancelled) {
+          setData(res);
+          setPage(1);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setData({ items: [], total: 0, page: 1, limit: PAGE_SIZE });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [debouncedQ, category, sort]);
+
+  const loadMore = () => {
+    const next = page + 1;
+    const params = new URLSearchParams({ page: String(next), limit: String(PAGE_SIZE) });
+    if (debouncedQ) params.set("q", debouncedQ);
+    if (category) params.set("category", category);
+    if (sort === "title") params.set("sort", "title");
+    if (sort === "oldest") params.set("sort", "oldest");
+    if (sort === "duration") params.set("sort", "duration");
+    api<CatalogResponse>(`/api/catalog?${params}`)
+      .then((res) => {
+        setData((prev) =>
+          prev ? { ...res, items: [...prev.items, ...res.items] } : res,
+        );
+        setPage(next);
+      })
+      .catch(() => {});
+  };
+
+  const items = data?.items ?? [];
+  const total = data?.total ?? 0;
+  const hasMore = items.length < total;
+
+  return (
+    <main className="mx-auto min-h-screen w-full max-w-6xl px-4 py-6">
+      <header className="flex flex-wrap items-center gap-3">
+        <Link href="/" className="flex items-center gap-2 text-muted-foreground">
+          <ClapperboardIcon className="size-5" />
+          <span className="text-sm font-medium">{t("appName")}</span>
+        </Link>
+        <h1 className="ml-2 text-2xl font-semibold">{t("libraryTitle")}</h1>
+        <div className="ml-auto flex items-center gap-2">
+          <div className="relative">
+            <SearchIcon className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="search"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder={t("librarySearchPlaceholder")}
+              aria-label={t("librarySearchPlaceholder")}
+              className="h-9 w-48 rounded-md border bg-background pl-8 pr-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-64"
+            />
+          </div>
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value)}
+            aria-label={t("colActions")}
+            className="h-9 rounded-md border bg-background px-2 text-sm"
+          >
+            <option value="newest">{t("librarySortNewest")}</option>
+            <option value="oldest">{t("librarySortOldest")}</option>
+            <option value="title">{t("librarySortTitle")}</option>
+            <option value="duration">{t("librarySortDuration")}</option>
+          </select>
+        </div>
+      </header>
+
+      {categories.length > 0 ? (
+        <nav className="mt-4 flex flex-wrap gap-2" aria-label={t("navCategories")}>
+          <button
+            onClick={() => setCategory("")}
+            className={cn(
+              "rounded-full border px-3 py-1 text-sm transition-colors",
+              category === ""
+                ? "border-foreground bg-foreground text-background"
+                : "hover:bg-muted",
+            )}
+          >
+            {t("libraryAllCategories")}
+          </button>
+          {categories.map((c) => (
+            <React.Fragment key={c.id}>
+              <button
+                onClick={() => setCategory(String(c.id))}
+                className={cn(
+                  "rounded-full border px-3 py-1 text-sm transition-colors",
+                  category === String(c.id)
+                    ? "border-foreground bg-foreground text-background"
+                    : "hover:bg-muted",
+                )}
+              >
+                {c.name}
+                {c.count > 0 ? (
+                  <span className="ml-1 text-xs opacity-60">{c.count}</span>
+                ) : null}
+              </button>
+              {c.children?.map((child) => (
+                <button
+                  key={child.id}
+                  onClick={() => setCategory(String(child.id))}
+                  className={cn(
+                    "rounded-full border px-3 py-1 text-sm transition-colors",
+                    category === String(child.id)
+                      ? "border-foreground bg-foreground text-background"
+                      : "text-muted-foreground hover:bg-muted",
+                  )}
+                >
+                  {child.name}
+                  {child.count > 0 ? (
+                    <span className="ml-1 text-xs opacity-60">{child.count}</span>
+                  ) : null}
+                </button>
+              ))}
+            </React.Fragment>
+          ))}
+        </nav>
+      ) : null}
+
+      <p className="mt-4 text-sm text-muted-foreground">
+        {t("libraryResults", { total })}
+      </p>
+
+      {loading && items.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 py-16">
+          <LoadingCircle />
+          <span className="text-sm text-muted-foreground">{t("loading")}</span>
+        </div>
+      ) : items.length === 0 ? (
+        <div className="flex flex-col items-center gap-2 py-16 text-center">
+          <FilmIcon className="size-8 text-muted-foreground/50" />
+          <p className="text-sm text-muted-foreground">{t("libraryEmpty")}</p>
+        </div>
+      ) : (
+        <>
+          <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+            {items.map((item) => (
+              <Link
+                key={item.id}
+                href={`/play/${item.id}`}
+                className="group block overflow-hidden rounded-lg border bg-card transition-shadow hover:shadow-md"
+              >
+                <div className="relative aspect-video w-full overflow-hidden bg-muted">
+                  {item.poster ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={item.poster}
+                      alt={item.title}
+                      loading="lazy"
+                      className="h-full w-full object-cover transition-transform group-hover:scale-[1.03]"
+                    />
+                  ) : (
+                    <div className="grid h-full w-full place-items-center text-muted-foreground">
+                      <FilmIcon className="size-8" />
+                    </div>
+                  )}
+                  {item.durationMs != null && item.durationMs > 0 ? (
+                    <span className="absolute bottom-1.5 right-1.5 rounded bg-black/70 px-1.5 py-0.5 text-xs tabular-nums text-white">
+                      {formatDuration(item.durationMs)}
+                    </span>
+                  ) : null}
+                </div>
+                <div className="p-2.5">
+                  <p className="truncate text-sm font-medium">{item.title}</p>
+                  {item.category ? (
+                    <p className="truncate text-xs text-muted-foreground">{item.category}</p>
+                  ) : null}
+                </div>
+              </Link>
+            ))}
+          </div>
+          {hasMore ? (
+            <div className="mt-6 flex justify-center">
+              <button
+                onClick={loadMore}
+                className="rounded-md border px-4 py-2 text-sm hover:bg-muted"
+              >
+                {t("libraryLoadMore")}
+              </button>
+            </div>
+          ) : null}
+        </>
+      )}
+    </main>
+  );
+}

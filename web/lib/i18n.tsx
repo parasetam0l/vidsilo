@@ -420,6 +420,33 @@ const en = {
   playerMissingId: "Missing entry id in URL",
   videoUnavailable: "Video is unavailable.",
   previewUnavailable: "Preview Not Available",
+
+  // library (public catalog)
+  libraryTitle: "Library",
+  librarySearchPlaceholder: "Search videos…",
+  libraryAllCategories: "All categories",
+  libraryEmpty: "No public videos yet — check back soon.",
+  libraryResults: "{total} video{s}",
+  librarySortNewest: "Newest",
+  librarySortOldest: "Oldest",
+  librarySortTitle: "Title",
+  librarySortDuration: "Longest",
+  libraryLoadMore: "Load more",
+  libraryBack: "Back to library",
+
+  // summary strips (shared stat pills)
+  sumTotalCategories: "Total categories",
+  sumRootCategories: "Root categories",
+  sumSubcategories: "Subcategories",
+  sumTotalUsers: "Total users",
+  sumActiveUsers: "Active users",
+  sumDisabledUsers: "Disabled users",
+  sumTotalFlavors: "Total flavors",
+  sumEnabledFlavors: "Enabled flavors",
+  sumTotalAcls: "Total ACLs",
+  sumTotalPlayers: "Total players",
+  sumDefaultPlayer: "Default player",
+  lastUpdated: "Updated {time}",
 } as const;
 
 export type MessageKey = keyof typeof en;

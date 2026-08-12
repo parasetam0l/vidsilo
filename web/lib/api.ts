@@ -273,6 +273,32 @@ export interface SettingsResponse {
   settings: Record<string, unknown>;
 }
 
+export interface CatalogEntry {
+  id: string;
+  title: string;
+  slug: string;
+  categoryId: number | null;
+  category?: string;
+  poster?: string;
+  durationMs: number | null;
+  createdAt: string;
+}
+
+export interface CatalogCategory {
+  id: number;
+  name: string;
+  slug: string;
+  count: number;
+  children?: CatalogCategory[];
+}
+
+export interface CatalogResponse {
+  items: CatalogEntry[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 export interface StorageUsage {
   usedBytes: number;
   /** 0 when the backend has no known capacity (S3). */
