@@ -110,6 +110,9 @@ func cmdServer(args []string) {
 	go acc.Run(ctx)
 
 	srv := api.NewServer(log, uiFS, pool, secret, mediaStore, svc, q, mediaMgr, ds, acc)
+	// X-Forwarded-For is trusted only from explicitly configured reverse
+	// proxies; directly-exposed deployments ignore it (rate-limit spoofing).
+	srv.SetTrustedProxies(cfg.TrustedProxies)
 	srv.SetHealth(func() []api.HealthCheck {
 		checks := []api.HealthCheck{
 			{Name: "db", OK: db.Health(ctx, pool) == nil, Err: errStr(db.Health(ctx, pool))},

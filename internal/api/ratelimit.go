@@ -3,6 +3,7 @@ package api
 import (
 	"net"
 	"net/http"
+	"net/netip"
 	"strings"
 	"sync"
 	"time"
@@ -49,12 +50,12 @@ func (l *rateLimiter) allow(key string) bool {
 	return true
 }
 
-// clientIP extracts the client address. When a reverse proxy forwards the
-// request, X-Forwarded-For carries the real peer — take its left-most entry
-// (the original client; later hops are untrusted). Direct deployments use
-// RemoteAddr as before.
-func clientIP(r *http.Request) string {
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+// clientIP extracts the client address for rate limiting. X-Forwarded-For is
+// trusted only when the direct peer is one of the configured trusted proxies
+// (see Server.SetTrustedProxies); otherwise it is ignored entirely, so a
+// directly-exposed deployment cannot be spoofed by setting the header.
+func (s *Server) clientIP(r *http.Request) string {
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" && s.xffTrusted(r) {
 		if i := strings.IndexByte(xff, ','); i > 0 {
 			xff = xff[:i]
 		}
@@ -69,10 +70,31 @@ func clientIP(r *http.Request) string {
 	return host
 }
 
+// xffTrusted reports whether the direct peer is an allowed reverse proxy.
+func (s *Server) xffTrusted(r *http.Request) bool {
+	if len(s.trustedProxies) == 0 {
+		return false
+	}
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		host = r.RemoteAddr
+	}
+	ip, err := netip.ParseAddr(host)
+	if err != nil {
+		return false
+	}
+	for _, p := range s.trustedProxies {
+		if p.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+
 // rateLimit wraps a handler; surplus requests get 429.
 func (s *Server) rateLimit(l *rateLimiter, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !l.allow(clientIP(r)) {
+		if !l.allow(s.clientIP(r)) {
 			w.Header().Set("Retry-After", "1")
 			writeError(w, http.StatusTooManyRequests, "rate_limited", "too many requests")
 			return

@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"net/netip"
 	"path"
 	"strconv"
 	"strings"
@@ -45,6 +46,16 @@ type Server struct {
 	denylist     *Denylist
 	respCache    *responseCache
 	spoolDir     string
+
+	// trustedProxies gates X-Forwarded-For trust (see SetTrustedProxies).
+	trustedProxies []netip.Prefix
+}
+
+// SetTrustedProxies restricts X-Forwarded-For trust to requests arriving
+// from the given reverse-proxy CIDRs. Empty = the app is directly exposed;
+// client-supplied XFF is ignored so rate limiting cannot be spoofed.
+func (s *Server) SetTrustedProxies(prefixes []netip.Prefix) {
+	s.trustedProxies = prefixes
 }
 
 type HealthCheck struct {
@@ -168,7 +179,7 @@ func (s *Server) rateLimitAPI(next http.Handler) http.Handler {
 			if strings.HasPrefix(r.URL.Path, "/api/auth/") {
 				l = s.loginLimiter
 			}
-			if !l.allow(clientIP(r)) {
+			if !l.allow(s.clientIP(r)) {
 				w.Header().Set("Retry-After", "1")
 				writeError(w, http.StatusTooManyRequests, "rate_limited", "too many requests")
 				return

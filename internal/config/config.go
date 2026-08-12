@@ -4,6 +4,7 @@ package config
 
 import (
 	"fmt"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -57,6 +58,12 @@ type Config struct {
 	TLSCertFile string
 	TLSKeyFile  string
 	TLSCertDir  string
+
+	// TrustedProxies is the set of reverse-proxy CIDRs whose
+	// X-Forwarded-For header is trusted for client-IP resolution
+	// (rate limiting). Empty = the app is directly exposed and XFF is
+	// ignored entirely, so clients cannot spoof their identity.
+	TrustedProxies []netip.Prefix
 }
 
 func Load() (*Config, error) {
@@ -85,6 +92,7 @@ func Load() (*Config, error) {
 		TLSCertFile:        os.Getenv("TLS_CERT_FILE"),
 		TLSKeyFile:         os.Getenv("TLS_KEY_FILE"),
 		TLSCertDir:         getenv("TLS_CERT_DIR", filepath.Join(getenv("DATA_DIR", "/data"), "certs")),
+		TrustedProxies:     parsePrefixes(os.Getenv("TRUSTED_PROXIES")),
 	}
 	if !tlsModes[c.TLSMode] {
 		return nil, fmt.Errorf("TLS_MODE must be one of off, letsencrypt, selfsigned, files; got %q", c.TLSMode)
@@ -161,6 +169,22 @@ func splitEnv(key string) []string {
 	}) {
 		if part != "" {
 			out = append(out, part)
+		}
+	}
+	return out
+}
+
+// parsePrefixes parses a comma/space-separated list of CIDRs (plain IPs are
+// treated as single addresses).
+func parsePrefixes(raw string) []netip.Prefix {
+	var out []netip.Prefix
+	for _, part := range strings.FieldsFunc(raw, func(r rune) bool {
+		return r == ',' || r == ' ' || r == '\t'
+	}) {
+		if p, err := netip.ParsePrefix(part); err == nil {
+			out = append(out, p)
+		} else if ip, err := netip.ParseAddr(part); err == nil {
+			out = append(out, netip.PrefixFrom(ip, ip.BitLen()))
 		}
 	}
 	return out

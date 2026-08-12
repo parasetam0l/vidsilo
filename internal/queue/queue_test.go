@@ -171,8 +171,23 @@ func TestQueueClaimTranscodeParallelAcrossEntries(t *testing.T) {
 		seen[*j.EntryID] = true
 	}
 
-	// While one flavor runs, the other flavor of the SAME entry must not be
-	// claimable, but the other entry's second flavor is.
+	// Finish entry 2's running flavor so its second flavor becomes
+	// claimable; entry 1's flavor is still running, which must keep
+	// blocking entry 1's second flavor.
+	var e2First, e1First int64
+	for _, j := range jobs {
+		if j.EntryID != nil && *j.EntryID == e2 {
+			e2First = j.ID
+		} else if j.EntryID != nil {
+			e1First = j.ID
+		}
+	}
+	if _, err := q.pool.Exec(ctx, `UPDATE jobs SET status = 'done' WHERE id = $1`, e2First); err != nil {
+		t.Fatal(err)
+	}
+
+	// Second round: entry 2's second flavor only — entry 1's is still
+	// blocked by its running first flavor.
 	jobs, err = q.Claim(ctx, "test-worker", 10)
 	if err != nil {
 		t.Fatal(err)
@@ -183,9 +198,13 @@ func TestQueueClaimTranscodeParallelAcrossEntries(t *testing.T) {
 	if jobs[0].EntryID == nil {
 		t.Fatal("transcode job without entry")
 	}
-	if seen[*jobs[0].EntryID] {
-		t.Fatalf("same entry's second flavor claimed while first is running")
+	if *jobs[0].EntryID != e2 {
+		t.Fatalf("claimed entry %d's second flavor while its first is still running", *jobs[0].EntryID)
 	}
+	if jobs[0].ID == e2First {
+		t.Fatalf("claimed an already-done flavor")
+	}
+	_ = e1First
 }
 
 func TestQueueClaimTranscodeRunsParallelEntries(t *testing.T) {
