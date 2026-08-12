@@ -66,6 +66,7 @@ export function VODPlayer({
   const [subtitle, setSubtitle] = React.useState<string>("");
   const [fullscreen, setFullscreen] = React.useState(false);
   const [scrub, setScrub] = React.useState<number | null>(null);
+  const [dragging, setDragging] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   // Touch devices don't have hover: show the control bar whenever the video
   // is tapped; auto-hide stays in effect for pointer (mouse) users.
@@ -256,8 +257,12 @@ export function VODPlayer({
 
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement)?.tagName;
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName;
       if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
+      // The seek bar handles its own arrow keys; skip it here so a focused
+      // slider does not double-seek.
+      if (target?.closest?.("[data-seekbar]")) return;
       const video = videoRef.current;
       if (!video) return;
       switch (e.key) {
@@ -335,24 +340,48 @@ export function VODPlayer({
     "bottom-right": "right-3 bottom-12",
   }[b.logoPosition ?? "top-right"];
 
+  // armHideTimer (re)starts the auto-hide countdown after any interaction.
+  const armHideTimer = () => {
+    if (hideTimer.current) window.clearTimeout(hideTimer.current);
+    if (autoHideControls) {
+      hideTimer.current = window.setTimeout(() => setTapped(false), 3000);
+    }
+  };
+  // Clear the pending hide timer on unmount.
+  React.useEffect(() => {
+    return () => {
+      if (hideTimer.current) window.clearTimeout(hideTimer.current);
+    };
+  }, []);
+
+  // seekFromEvent maps a pointer position on the seek bar to a time.
+  const seekFromEvent = (e: React.PointerEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    seekTo(((e.clientX - rect.left) / rect.width) * duration);
+  };
+
   return (
     <div
       ref={containerRef}
       className="group relative aspect-video w-full overflow-hidden rounded-xl bg-black select-none"
       style={{ "--player-accent": accent } as React.CSSProperties}
-      onPointerUp={() => {
-        setTapped((prev) => !prev);
-        if (hideTimer.current) window.clearTimeout(hideTimer.current);
-        if (autoHideControls) {
-          hideTimer.current = window.setTimeout(() => setTapped(false), 3000);
-        }
+      onPointerUp={(e) => {
+        // Taps on the controls (or the logo) must not toggle visibility.
+        if ((e.target as HTMLElement | null)?.closest?.("[data-controls]")) return;
+        const video = videoRef.current;
+        setTapped((prev) => {
+          if (prev && video && !video.paused) {
+            // Controls visible and playing: tap toggles pause.
+            video.pause();
+            return true;
+          }
+          return !prev;
+        });
+        armHideTimer();
       }}
       onPointerMove={() => {
         setTapped(true);
-        if (hideTimer.current) window.clearTimeout(hideTimer.current);
-        if (autoHideControls) {
-          hideTimer.current = window.setTimeout(() => setTapped(false), 3000);
-        }
+        armHideTimer();
       }}
     >
       <video
@@ -414,9 +443,10 @@ export function VODPlayer({
 
       {/* controls */}
       <div
+        data-controls
         className={`absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-3 transition-opacity ${
           autoHideControls
-            ? tapped || playing
+            ? tapped || !playing
               ? "opacity-100"
               : "opacity-0 group-hover:opacity-100"
             : "opacity-100"
@@ -430,7 +460,8 @@ export function VODPlayer({
         <div
           role="slider"
           tabIndex={0}
-          aria-label="Seek"
+          data-seekbar
+          aria-label={t("playerSeek")}
           aria-valuemin={0}
           aria-valuemax={Math.max(1, Math.round(duration))}
           aria-valuenow={Math.round(scrubTime ?? current)}
@@ -439,7 +470,28 @@ export function VODPlayer({
             const rect = e.currentTarget.getBoundingClientRect();
             setScrub(((e.clientX - rect.left) / rect.width) * 100);
           }}
-          onMouseLeave={() => setScrub(null)}
+          onMouseLeave={() => {
+            if (!dragging) setScrub(null);
+          }}
+          onPointerDown={(e) => {
+            e.currentTarget.setPointerCapture(e.pointerId);
+            setDragging(true);
+            seekFromEvent(e);
+          }}
+          onPointerMove={(e) => {
+            if (!dragging) return;
+            const rect = e.currentTarget.getBoundingClientRect();
+            setScrub(((e.clientX - rect.left) / rect.width) * 100);
+          }}
+          onPointerUp={(e) => {
+            setDragging(false);
+            seekFromEvent(e);
+            setScrub(null);
+          }}
+          onPointerCancel={() => {
+            setDragging(false);
+            setScrub(null);
+          }}
           onKeyDown={(e) => {
             const video = videoRef.current;
             if (!video) return;
@@ -494,7 +546,7 @@ export function VODPlayer({
               }}
               className="h-1.5 w-20 cursor-pointer appearance-none rounded-full bg-white/30 accent-current"
               style={{ accentColor: accent }}
-              aria-label={t("playerMute")}
+              aria-label={t("playerVolume")}
             />
           </label>
           <span className="tabular-nums opacity-80">
@@ -506,7 +558,7 @@ export function VODPlayer({
                 value={level}
                 onChange={(e) => setQuality(Number(e.target.value))}
                 className="rounded border border-white/20 bg-black/60 px-1.5 py-1 text-xs text-white outline-none focus-visible:ring-2 focus-visible:ring-white/60"
-                aria-label={t("colCodec")}
+                aria-label={t("playerQuality")}
               >
                 <option value={-1} className="bg-background text-foreground">{t("playerAuto")}</option>
                 {levels.map((l) => (
