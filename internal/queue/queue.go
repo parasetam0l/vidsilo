@@ -6,6 +6,7 @@ package queue
 import (
 	"context"
 	"encoding/json"
+	"sort"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -64,6 +65,41 @@ func (q *Queue) Claim(ctx context.Context, workerID string, n int, exclude ...st
 		return nil, err
 	}
 	defer tx.Rollback(ctx)
+
+	// Multi-worker serialization for per-entry transcode ordering: the
+	// NOT EXISTS check below runs on each worker's READ COMMITTED
+	// snapshot, so without extra synchronization worker B could still see
+	// worker A's just-locked flavor as 'queued' and claim a second flavor
+	// of the same entry. Advisory transaction locks on the candidate
+	// entry ids make B wait until A's claim commits — then B's check sees
+	// the running flavor and correctly skips it. Sorted acquisition keeps
+	// the lock order consistent (no deadlocks).
+	entryRows, err := tx.Query(ctx, `
+		SELECT DISTINCT entry_id FROM jobs
+		WHERE type = 'transcode' AND status = 'queued' AND run_at <= now()
+		  AND entry_id IS NOT NULL`)
+	if err != nil {
+		return nil, err
+	}
+	var entryIDs []int64
+	for entryRows.Next() {
+		var id int64
+		if err := entryRows.Scan(&id); err != nil {
+			entryRows.Close()
+			return nil, err
+		}
+		entryIDs = append(entryIDs, id)
+	}
+	entryRows.Close()
+	if err := entryRows.Err(); err != nil {
+		return nil, err
+	}
+	sort.Slice(entryIDs, func(i, j int) bool { return entryIDs[i] < entryIDs[j] })
+	for _, id := range entryIDs {
+		if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock($1)`, id); err != nil {
+			return nil, err
+		}
+	}
 
 	rows, err := tx.Query(ctx, `
 		SELECT id, type, entry_id, payload, status, attempts, max_attempts, coalesce(error, ''), created_at

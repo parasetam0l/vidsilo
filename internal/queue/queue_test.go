@@ -241,3 +241,60 @@ func jobStatus(t *testing.T, q *Queue, id int64) string {
 	}
 	return s
 }
+
+// TestClaimTranscodeSerializedAcrossWorkers proves the per-entry advisory
+// lock: many workers claiming concurrently must never put two flavors of the
+// same entry into 'running' at once.
+func TestClaimTranscodeSerializedAcrossWorkers(t *testing.T) {
+	ctx := context.Background()
+	q := New(testdb.Pool(t))
+	eid := testEntryID(t, q.pool)
+
+	ids := make([]int64, 0, 4)
+	for _, fid := range []int64{1, 2, 3, 4} {
+		id, err := q.Enqueue(ctx, "transcode", eid, map[string]any{"flavorId": fid}, 3)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ids = append(ids, id)
+	}
+	t.Cleanup(func() {
+		_, _ = q.pool.Exec(context.Background(), `DELETE FROM jobs WHERE id = ANY($1)`, ids)
+	})
+
+	// 8 workers hammer the claim concurrently.
+	claimed := make(chan int, 8)
+	for i := 0; i < 8; i++ {
+		go func(w int) {
+			jobs, err := q.Claim(ctx, "worker", 10)
+			if err != nil {
+				claimed <- -1
+				return
+			}
+			claimed <- len(jobs)
+		}(i)
+	}
+	total := 0
+	for i := 0; i < 8; i++ {
+		total += <-claimed
+	}
+	if total < 1 {
+		t.Fatalf("no jobs claimed in total (%d)", total)
+	}
+
+	// After the dust settles, exactly one flavor may be running — the other
+	// three must still be queued (serial per entry even across workers).
+	var running, queued int
+	if err := q.pool.QueryRow(ctx, `
+		SELECT count(*) FILTER (WHERE status = 'running'),
+		       count(*) FILTER (WHERE status = 'queued')
+		FROM jobs WHERE entry_id = $1`, eid).Scan(&running, &queued); err != nil {
+		t.Fatal(err)
+	}
+	if running != 1 {
+		t.Fatalf("running flavors = %d, want 1 (two workers claimed the same entry)", running)
+	}
+	if queued != 3 {
+		t.Fatalf("queued flavors = %d, want 3", queued)
+	}
+}

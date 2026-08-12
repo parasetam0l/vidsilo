@@ -46,7 +46,7 @@ type Runner struct {
 	// pipeline (probe + every flavor). Defaults to os.TempDir().
 	SpoolDir string
 	spoolMu    sync.Mutex
-	spoolCache map[int64]string
+	spoolCache map[int64]spoolEntry
 	// Busy flags mirror the semaphores so the claim loop can leave queued
 	// jobs of a busy kind alone (they then honestly show as "queued").
 	downloadBusy atomic.Bool
@@ -281,6 +281,13 @@ func (c *countingWriter) Write(p []byte) (int, error) {
 	return n, err
 }
 
+// spoolEntry is a cached source copy plus the source key it was downloaded
+// from, so a re-uploaded source never reuses a stale file.
+type spoolEntry struct {
+	path      string
+	sourceKey string
+}
+
 // spoolSource returns a local copy of the entry's source file, cached per
 // entry for the lifetime of the pipeline: probe + every transcode flavor
 // share one download from remote stores. Callers must NOT delete the file;
@@ -291,11 +298,11 @@ func (r *Runner) spoolSource(ctx context.Context, e db.Entry) (string, error) {
 	}
 	r.spoolMu.Lock()
 	if r.spoolCache == nil {
-		r.spoolCache = map[int64]string{}
+		r.spoolCache = map[int64]spoolEntry{}
 	}
-	if cached, ok := r.spoolCache[e.ID]; ok {
+	if cached, ok := r.spoolCache[e.ID]; ok && cached.sourceKey == e.SourceKey {
 		r.spoolMu.Unlock()
-		return cached, nil
+		return cached.path, nil
 	}
 	r.spoolMu.Unlock()
 
@@ -325,12 +332,16 @@ func (r *Runner) spoolSource(ctx context.Context, e db.Entry) (string, error) {
 	r.spoolMu.Lock()
 	// A concurrent job may have finished the same download while we were
 	// copying; prefer the registered copy and drop ours.
-	if cached, ok := r.spoolCache[e.ID]; ok {
+	if cached, ok := r.spoolCache[e.ID]; ok && cached.sourceKey == e.SourceKey {
 		r.spoolMu.Unlock()
 		os.Remove(tmp.Name())
-		return cached, nil
+		return cached.path, nil
 	}
-	r.spoolCache[e.ID] = tmp.Name()
+	// Source changed under us (re-upload): replace the stale copy.
+	if old, ok := r.spoolCache[e.ID]; ok {
+		os.Remove(old.path)
+	}
+	r.spoolCache[e.ID] = spoolEntry{path: tmp.Name(), sourceKey: e.SourceKey}
 	r.spoolMu.Unlock()
 	return tmp.Name(), nil
 }
@@ -340,8 +351,8 @@ func (r *Runner) spoolSource(ctx context.Context, e db.Entry) (string, error) {
 func (r *Runner) clearSpool(entryID int64) {
 	r.spoolMu.Lock()
 	defer r.spoolMu.Unlock()
-	if p, ok := r.spoolCache[entryID]; ok {
-		os.Remove(p) // best effort; temp dir cleans leftovers
+	if e, ok := r.spoolCache[entryID]; ok {
+		os.Remove(e.path) // best effort; temp dir cleans leftovers
 		delete(r.spoolCache, entryID)
 	}
 }
@@ -377,6 +388,7 @@ func (r *Runner) Probe(ctx context.Context, job db.Job) error {
 	}
 	// Entry deleted while probing? Stop before writing poster/sprite.
 	if _, err := db.EntryByID(ctx, r.Pool, e.ID); err != nil {
+		r.clearSpool(e.ID)
 		return errors.New("entry deleted during probing")
 	}
 
@@ -460,6 +472,7 @@ func (r *Runner) Probe(ctx context.Context, job db.Job) error {
 		_ = r.publishSourcePlaylist(ctx, e)
 		_, _ = r.Pool.Exec(ctx, `UPDATE entries SET status = 'ready', duration_ms = $1, error = NULL, updated_at = now() WHERE id = $2`,
 			res.DurationMs, e.ID)
+		r.clearSpool(e.ID)
 		return nil
 	}
 
@@ -556,6 +569,7 @@ func (r *Runner) Transcode(ctx context.Context, job db.Job) error {
 	// Entry deleted while waiting for the transcode slot? Stop before
 	// starting ffmpeg.
 	if _, err := db.EntryByID(ctx, r.Pool, e.ID); err != nil {
+		r.clearSpool(e.ID)
 		return errors.New("entry deleted during transcoding")
 	}
 
@@ -574,6 +588,7 @@ func (r *Runner) Transcode(ctx context.Context, job db.Job) error {
 	// written into the store tree (local driver) so nothing is left behind.
 	if _, err := db.EntryByID(ctx, r.Pool, e.ID); err != nil {
 		cleanup()
+		r.clearSpool(e.ID)
 		return errors.New("entry deleted during transcoding")
 	}
 	playlistKey, err := r.publishFlavor(ctx, e, f, outDir, cleanup)
