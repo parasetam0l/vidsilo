@@ -172,9 +172,9 @@ export default function SettingsPage() {
                     key={g.id}
                     type="button"
                     onClick={() => setActiveTab(g.id)}
-                    className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-xs font-medium transition-all ${
+                    className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                       isActive
-                        ? "bg-primary text-primary-foreground shadow-xs"
+                        ? "bg-accent text-accent-foreground shadow-xs"
                         : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
                     }`}
                   >
@@ -197,8 +197,8 @@ export default function SettingsPage() {
                   <activeGroup.icon className="size-5" />
                 </div>
                 <div>
-                  <CardTitle className="text-lg font-semibold tracking-tight">{activeGroup.title}</CardTitle>
-                  <CardDescription className="text-xs mt-0.5">{activeGroup.description}</CardDescription>
+                  <CardTitle className="text-base font-semibold tracking-tight">{activeGroup.title}</CardTitle>
+                  <CardDescription className="mt-0.5 text-sm">{activeGroup.description}</CardDescription>
                 </div>
               </div>
             </CardHeader>
