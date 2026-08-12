@@ -33,9 +33,11 @@ func (s *Server) registerMediaRoutes(mux *http.ServeMux) {
 	mux.Handle("GET /play/{uuid}/playinfo.json", authed(http.HandlerFunc(s.handlePlayInfo)))
 	mux.Handle("GET /embed/{uuid}", authed(s.embedACL(http.HandlerFunc(s.handleEmbedPage))))
 
-	// Public catalog: the library/browse page for end users.
+	// Public catalog: the library/browse page for end users. The category
+	// tree is cached briefly; the entry list filters per visitor (private
+	// entries for signed-in users) and stays uncached.
 	mux.Handle("GET /api/catalog", http.HandlerFunc(s.handleCatalog))
-	mux.Handle("GET /api/catalog/categories", http.HandlerFunc(s.handleCatalogCategories))
+	mux.Handle("GET /api/catalog/categories", s.cacheGET(30*time.Second, s.handleCatalogCategories))
 }
 
 // handleCatalogCategories serves the category tree with entry counts for the
