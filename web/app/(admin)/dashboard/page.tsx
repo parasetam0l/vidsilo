@@ -328,7 +328,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
         {/* Entries by Status Card */}
-        <Card className="relative overflow-hidden">
+        <Card className="relative self-start overflow-hidden">
           <div className="pointer-events-none absolute -top-10 -right-10 size-32 rounded-full bg-blue-500/10 blur-3xl" />
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
