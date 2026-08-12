@@ -78,10 +78,6 @@ func (s *Server) handlePlayerUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	player, err := db.UpdatePlayer(r.Context(), s.pool, id, strings.TrimSpace(body.Name), config)
-	if errors.Is(err, db.ErrImmutable) {
-		writeError(w, http.StatusConflict, "conflict", "the Default player cannot be edited")
-		return
-	}
 	if errors.Is(err, db.ErrNotFound) {
 		writeError(w, http.StatusNotFound, "not_found", "player not found")
 		return

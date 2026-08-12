@@ -152,21 +152,18 @@ func CreatePlayer(ctx context.Context, pool *pgxpool.Pool, name string, config j
 	return p, err
 }
 
-// UpdatePlayer edits a non-default player design. Editing the seeded
-// Default is refused (it defines the out-of-the-box look).
+// UpdatePlayer edits a player design. The seeded Default player may be
+// re-styled (it is still the site-wide fallback), but its row can never be
+// deleted.
 func UpdatePlayer(ctx context.Context, pool *pgxpool.Pool, id int64, name string, config json.RawMessage) (Player, error) {
 	tag, err := pool.Exec(ctx, `
 		UPDATE players SET name = $1, config = $2, updated_at = now()
-		WHERE id = $3 AND NOT is_default`, name, config, id)
+		WHERE id = $3`, name, config, id)
 	if err != nil {
 		return Player{}, err
 	}
 	if tag.RowsAffected() == 0 {
-		// Distinguish "not found" from "default is immutable".
-		if _, err := PlayerByID(ctx, pool, id); err != nil {
-			return Player{}, err
-		}
-		return Player{}, ErrImmutable
+		return Player{}, ErrNotFound
 	}
 	return PlayerByID(ctx, pool, id)
 }

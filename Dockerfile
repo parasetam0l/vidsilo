@@ -1,11 +1,19 @@
 # ---- web: static export -----------------------------------------------------
+# On memory-constrained builders (e.g. Docker Desktop VMs with ~2GB RAM the
+# Next.js production build can OOM), the export can be built on the host and
+# reused: run `NEXT_OUTPUT=export npm run build` in web/ (produces web/out),
+# then `docker compose build --build-arg USE_LOCAL_WEB=1 app`. With the flag
+# set, this stage skips npm and just copies the context's web/out.
+ARG USE_LOCAL_WEB=0
+
 FROM node:24 AS web
 ENV NEXT_OUTPUT=export
 WORKDIR /app/web
+ARG USE_LOCAL_WEB
 COPY web/package.json web/package-lock.json ./
-RUN npm ci
+RUN if [ "$USE_LOCAL_WEB" = "1" ]; then exit 0; fi; npm ci
 COPY web/ ./
-RUN npm run build
+RUN if [ "$USE_LOCAL_WEB" = "1" ]; then exit 0; fi; npm run build
 
 # ---- build: go binary embedding the UI --------------------------------------
 FROM golang:1.26 AS build

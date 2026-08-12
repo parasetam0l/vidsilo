@@ -80,7 +80,7 @@ services:
     # the job fails and is retryable.
     mem_limit: ${WORKER_MEM_LIMIT:-4g}
     memswap_limit: ${WORKER_MEM_LIMIT:-4g}
-    cpus: ${WORKER_CPUS:-4}
+    cpus: ${WORKER_CPUS:-2}
     restart: unless-stopped
     networks: [vod]
 

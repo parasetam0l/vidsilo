@@ -1,12 +1,16 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
+	"time"
 
 	"github.com/parasetam0l/vod-app/internal/db"
+	"github.com/parasetam0l/vod-app/internal/safeurl"
 	"github.com/parasetam0l/vod-app/internal/store"
 )
 
@@ -14,11 +18,97 @@ import (
 // the playinfo endpoint, and the public/embed player pages.
 func (s *Server) registerMediaRoutes(mux *http.ServeMux) {
 	authed := s.optionalAuth
+	// GET patterns also serve HEAD (ServeContent suppresses the body);
+	// registering an explicit HEAD wildcard would conflict with the more
+	// specific GET /media/branding/logo pattern below.
 	mux.Handle("GET /media/{key...}", authed(s.mediaACL(http.HandlerFunc(s.handleMedia))))
-	mux.Handle("HEAD /media/{key...}", authed(s.mediaACL(http.HandlerFunc(s.handleMedia))))
+	// Logo proxy for player branding: external logo URLs are fetched
+	// server-side (SSRF-guarded) and served from our own origin, so the
+	// strict img-src 'self' CSP keeps working. More specific than
+	// /media/{key...}, so it wins.
+	mux.Handle("GET /media/branding/logo", s.rateLimit(s.apiLimiter, http.HandlerFunc(s.handleBrandingLogo)))
 	mux.Handle("GET /play/{uuid}", http.HandlerFunc(s.handlePlayPage))
 	mux.Handle("GET /play/{uuid}/playinfo.json", authed(http.HandlerFunc(s.handlePlayInfo)))
 	mux.Handle("GET /embed/{uuid}", authed(s.embedACL(http.HandlerFunc(s.handleEmbedPage))))
+}
+
+const (
+	brandingLogoMaxBytes = 2 << 20 // logos are small; cap the proxy response
+	brandingLogoTimeout  = 15 * time.Second
+	brandingUserAgent    = "vod-app-branding/0.1"
+)
+
+// handleBrandingLogo proxies an external logo image through the app origin.
+// The URL must be https (http is refused) and must resolve to public
+// addresses only (safeurl rejects loopback/private/link-local — SSRF guard);
+// every redirect hop is re-validated by safeurl.Client. Responses are
+// capped in size and cached briefly.
+func (s *Server) handleBrandingLogo(w http.ResponseWriter, r *http.Request) {
+	raw := r.URL.Query().Get("url")
+	if raw == "" {
+		writeError(w, http.StatusBadRequest, "bad_request", "url is required")
+		return
+	}
+	u, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || u.Scheme != "https" {
+		writeError(w, http.StatusBadRequest, "bad_request", "logo url must be https")
+		return
+	}
+	if _, err := safeurl.Validate(r.Context(), u.String()); err != nil {
+		writeError(w, http.StatusBadRequest, "bad_request", "unsafe logo url")
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), brandingLogoTimeout)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+	if err != nil {
+		s.internalError(w, r, "branding logo request", err)
+		return
+	}
+	req.Header.Set("User-Agent", brandingUserAgent)
+	resp, err := safeurl.Client().Do(req)
+	if err != nil {
+		writeError(w, http.StatusBadGateway, "bad_gateway", "cannot fetch logo")
+		return
+	}
+	defer resp.Body.Close()
+	ct := strings.ToLower(strings.TrimSpace(strings.Split(resp.Header.Get("Content-Type"), ";")[0]))
+	if !strings.HasPrefix(ct, "image/") {
+		writeError(w, http.StatusBadRequest, "bad_request", "logo url is not an image")
+		return
+	}
+	w.Header().Set("Content-Type", ct)
+	w.Header().Set("Cache-Control", "public, max-age=300")
+	w.WriteHeader(resp.StatusCode)
+	_, _ = io.Copy(w, io.LimitReader(resp.Body, brandingLogoMaxBytes))
+}
+
+// proxyLogoURL rewrites an absolute logo URL into our same-origin proxy path.
+func proxyLogoURL(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil || u.Scheme != "https" {
+		return raw
+	}
+	return "/media/branding/logo?url=" + url.QueryEscape(raw)
+}
+
+// proxiedPlayerConfig rewrites the logoUrl in a player config so the browser
+// loads it from our origin (CSP img-src 'self').
+func proxiedPlayerConfig(raw json.RawMessage) json.RawMessage {
+	var cfg map[string]any
+	if err := json.Unmarshal(raw, &cfg); err != nil {
+		return raw
+	}
+	logo, _ := cfg["logoUrl"].(string)
+	if logo == "" {
+		return raw
+	}
+	cfg["logoUrl"] = proxyLogoURL(logo)
+	out, err := json.Marshal(cfg)
+	if err != nil {
+		return raw
+	}
+	return out
 }
 
 // handleMedia streams a storage key with Range support and driver-appropriate
@@ -165,7 +255,7 @@ func (s *Server) handlePlayInfo(w http.ResponseWriter, r *http.Request) {
 		EmbedURL:     "/embed/" + e.PublicID,
 	}
 	if cfg := s.resolvedPlayerConfig(r, e.PlayerID); len(cfg) > 2 {
-		out.Player = cfg
+		out.Player = proxiedPlayerConfig(cfg)
 	}
 	if e.PosterKey != "" {
 		out.Poster = "/media/" + strings.TrimPrefix(e.PosterKey, "/")

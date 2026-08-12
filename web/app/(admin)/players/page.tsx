@@ -9,6 +9,7 @@ import { useT } from "@/lib/i18n";
 import { useDialog } from "@/hooks/use-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { FormError } from "@/components/form-error";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -35,7 +36,7 @@ export function useCreatePlayerAction() {
   return React.useCallback(() => {
     open({
       content: (close) => <PlayerFormContent onClose={close} />,
-      size: "md",
+      size: "2xl",
       className: "p-0",
       dismissible: false,
       showCloseButton: false,
@@ -66,7 +67,7 @@ export default function PlayersPage() {
   function openEdit(p: Player) {
     open({
       content: (close) => <PlayerFormContent onClose={close} initial={p} />,
-      size: "md",
+      size: "2xl",
       className: "p-0",
       dismissible: false,
       showCloseButton: false,
@@ -105,11 +106,19 @@ export default function PlayersPage() {
             </TableHeader>
             <TableBody>
               {players.map((p) => (
-                <TableRow key={p.id} className="hover:bg-muted/40">
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-2.5">
-                      <MonitorPlayIcon className="size-4 text-primary" />
-                      <span className="text-sm font-semibold text-foreground">{p.name}</span>
+                <TableRow
+                  key={p.id}
+                  className="cursor-pointer transition-colors hover:bg-muted/40"
+                  onClick={() => openEdit(p)}
+                >
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <Avatar className="size-8 rounded-lg">
+                        <AvatarFallback className="rounded-lg bg-primary/10 text-primary">
+                          <MonitorPlayIcon className="size-4" />
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="font-medium text-foreground">{p.name}</span>
                       {p.isDefault ? (
                         <Badge variant="secondary" className="text-[10px]">
                           {t("playersDefault")}
@@ -117,26 +126,24 @@ export default function PlayersPage() {
                       ) : null}
                     </div>
                   </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">{summarize(p.config)}</TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="font-medium text-muted-foreground text-xs">
+                    {summarize(p.config)}
+                  </TableCell>
+                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1.5">
+                      <Button variant="ghost" size="icon" onClick={() => openEdit(p)} aria-label={t("edit")}>
+                        <PencilIcon className="size-4" />
+                      </Button>
                       {!p.isDefault ? (
-                        <>
-                          <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs" onClick={() => openEdit(p)}>
-                            <PencilIcon className="size-3.5" /> {t("edit")}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 gap-1.5 text-xs text-red-600 hover:text-red-700 dark:text-red-400"
-                            onClick={() => askRemove(p)}
-                          >
-                            <Trash2 className="size-3.5" /> {t("delete")}
-                          </Button>
-                        </>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">{t("playersLocked")}</span>
-                      )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => askRemove(p)}
+                          aria-label={t("delete")}
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      ) : null}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -196,109 +203,133 @@ function PlayerFormContent({ onClose, initial }: { onClose: () => void; initial?
   });
 
   return (
-    <div className="flex flex-col gap-4 p-5">
-      <DialogHeader>
+    <form
+      className="flex min-h-0 flex-1 flex-col"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!save.isPending && name.trim()) save.mutate();
+      }}
+      noValidate
+    >
+      <DialogHeader className="shrink-0 px-4 pt-4">
         <DialogTitle>{initial ? t("playersEditTitle", { name: initial.name }) : t("playersNew")}</DialogTitle>
       </DialogHeader>
 
-      <PlayerPreview config={buildConfig()} />
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+        <div className="flex flex-col gap-4">
+        <PlayerPreview config={buildConfig()} />
 
-      <div className="flex flex-col gap-2">
-        <Label className="text-xs font-medium">{t("playersName")}</Label>
-        <Input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="rounded-lg"
-          placeholder={t("playersNamePlaceholder")}
-        />
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <Label className="text-xs font-medium">{t("playersAccent")}</Label>
-        <div className="flex items-center gap-3">
-          <Input
-            type="color"
-            value={accentColor || "#ffffff"}
-            onChange={(e) => setAccentColor(e.target.value)}
-            className="h-9 w-14 cursor-pointer rounded-lg p-1"
-          />
-          <Input
-            value={accentColor}
-            onChange={(e) => setAccentColor(e.target.value)}
-            className="rounded-lg font-mono text-xs"
-            placeholder="#ffffff"
-          />
-        </div>
-        <p className="text-xs text-muted-foreground">{t("playersAccentHint")}</p>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="flex flex-col gap-2">
-          <Label className="text-xs font-medium">{t("playersLogoUrl")}</Label>
-          <Input value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} className="rounded-lg text-xs" placeholder="https://…" />
-        </div>
-        <div className="flex flex-col gap-2">
-          <Label className="text-xs font-medium">{t("playersLogoHref")}</Label>
-          <Input value={logoHref} onChange={(e) => setLogoHref(e.target.value)} className="rounded-lg text-xs" placeholder="https://…" />
-        </div>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-3">
-        <div className="flex flex-col gap-2">
-          <Label className="text-xs font-medium">{t("playersLogoPosition")}</Label>
-          <Select
-            options={positions.map((p) => ({ value: p, label: p }))}
-            className="w-full rounded-lg"
-            value={logoPosition}
-            onChange={setLogoPosition}
-          />
-        </div>
-        <div className="flex flex-col gap-2">
-          <Label className="text-xs font-medium">{t("playersLogoSize")}</Label>
-          <Input type="number" min={16} max={512} value={logoSize} onChange={(e) => setLogoSize(e.target.value)} className="rounded-lg" />
-        </div>
-        <div className="flex flex-col gap-2">
-          <Label className="text-xs font-medium">{t("playersLogoOpacity")}</Label>
-          <Input
-            type="number"
-            min={0}
-            max={1}
-            step={0.05}
-            value={logoOpacity}
-            onChange={(e) => setLogoOpacity(e.target.value)}
-            className="rounded-lg"
-          />
-        </div>
-      </div>
-
-      <div className="space-y-3">
-        <div className="flex items-center justify-between rounded-xl border bg-muted/30 p-3.5">
-          <div>
-            <Label className="text-sm font-medium">{t("playersLoader")}</Label>
-            <p className="text-xs text-muted-foreground">{t("playersLoaderHint")}</p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="flex flex-col gap-2">
+            <Label className="text-xs font-medium">{t("playersName")}</Label>
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="rounded-lg"
+              placeholder={t("playersNamePlaceholder")}
+            />
           </div>
-          <Switch checked={showLoader} onCheckedChange={setShowLoader} />
-        </div>
-        <div className="flex items-center justify-between rounded-xl border bg-muted/30 p-3.5">
-          <div>
-            <Label className="text-sm font-medium">{t("playersAutoHide")}</Label>
-            <p className="text-xs text-muted-foreground">{t("playersAutoHideHint")}</p>
+
+          <div className="flex flex-col gap-2">
+            <Label className="text-xs font-medium">{t("playersAccent")}</Label>
+            <div className="flex items-center gap-3">
+              <Input
+                type="color"
+                value={accentColor || "#ffffff"}
+                onChange={(e) => setAccentColor(e.target.value)}
+                className="h-9 w-14 cursor-pointer rounded-lg p-1"
+              />
+              <Input
+                value={accentColor}
+                onChange={(e) => setAccentColor(e.target.value)}
+                className="rounded-lg font-mono text-xs"
+                placeholder="#ffffff"
+              />
+            </div>
           </div>
-          <Switch checked={autoHideControls} onCheckedChange={setAutoHideControls} />
+        </div>
+
+        {/* Logo: all logo fields grouped in a gray container */}
+        <div className="flex flex-col gap-4 rounded-xl border bg-muted/30 p-4">
+          <Label className="text-sm font-medium">{t("playersLogo")}</Label>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-2">
+              <Label className="text-xs font-medium">{t("playersLogoUrl")}</Label>
+              <Input value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} className="rounded-lg text-xs bg-background" placeholder="https://…" />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label className="text-xs font-medium">{t("playersLogoHref")}</Label>
+              <Input value={logoHref} onChange={(e) => setLogoHref(e.target.value)} className="rounded-lg text-xs bg-background" placeholder="https://…" />
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="flex flex-col gap-2">
+              <Label className="text-xs font-medium">{t("playersLogoPosition")}</Label>
+              <Select
+                options={positions.map((p) => ({ value: p, label: p }))}
+                className="w-full rounded-lg bg-background"
+                value={logoPosition}
+                onChange={setLogoPosition}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label className="text-xs font-medium">{t("playersLogoSize")}</Label>
+              <Input type="number" min={16} max={512} value={logoSize} onChange={(e) => setLogoSize(e.target.value)} className="rounded-lg bg-background" />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label className="text-xs font-medium">{t("playersLogoOpacity")}</Label>
+              <Input
+                type="number"
+                min={0}
+                max={1}
+                step={0.05}
+                value={logoOpacity}
+                onChange={(e) => setLogoOpacity(e.target.value)}
+                className="rounded-lg bg-background"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <button
+            type="button"
+            className="flex cursor-pointer items-center justify-between gap-4 rounded-xl border bg-muted/30 p-3.5 text-left transition-colors hover:bg-muted/50"
+            onClick={() => setShowLoader(!showLoader)}
+          >
+            <div className="space-y-0.5 pointer-events-none">
+              <Label className="text-sm font-medium">{t("playersLoader")}</Label>
+              <p className="text-xs text-muted-foreground">{t("playersLoaderHint")}</p>
+            </div>
+            <Switch checked={showLoader} onCheckedChange={setShowLoader} onClick={(e) => e.stopPropagation()} />
+          </button>
+          <button
+            type="button"
+            className="flex cursor-pointer items-center justify-between gap-4 rounded-xl border bg-muted/30 p-3.5 text-left transition-colors hover:bg-muted/50"
+            onClick={() => setAutoHideControls(!autoHideControls)}
+          >
+            <div className="space-y-0.5 pointer-events-none">
+              <Label className="text-sm font-medium">{t("playersAutoHide")}</Label>
+              <p className="text-xs text-muted-foreground">{t("playersAutoHideHint")}</p>
+            </div>
+            <Switch checked={autoHideControls} onCheckedChange={setAutoHideControls} onClick={(e) => e.stopPropagation()} />
+          </button>
+        </div>
+
+        {error ? <FormError message={error} /> : null}
         </div>
       </div>
 
-      {error ? <FormError message={error} /> : null}
-
-      <DialogFooter>
-        <Button variant="ghost" onClick={onClose} disabled={save.isPending}>
+      <DialogFooter className="mx-0 mb-0 shrink-0">
+        <Button type="button" variant="ghost" onClick={onClose} disabled={save.isPending}>
           {t("cancel")}
         </Button>
-        <Button onClick={() => save.mutate()} disabled={save.isPending || !name.trim()}>
+        <Button type="submit" disabled={save.isPending || !name.trim()}>
           {save.isPending ? t("loading") : t("save")}
         </Button>
       </DialogFooter>
-    </div>
+    </form>
   );
 }
 
@@ -317,6 +348,11 @@ function PlayerPreview({ config }: { config: PlayerConfig }) {
   }[config.logoPosition ?? "top-right"];
   const size = config.logoSize ?? 64;
   const opacity = config.logoOpacity ?? 0.8;
+  // The logo is fetched through the app's own proxy so the strict
+  // img-src 'self' CSP accepts it.
+  const logoSrc = config.logoUrl
+    ? `/media/branding/logo?url=${encodeURIComponent(config.logoUrl)}`
+    : undefined;
 
   return (
     <div className="relative aspect-video w-full select-none overflow-hidden rounded-xl border bg-black">
@@ -333,7 +369,7 @@ function PlayerPreview({ config }: { config: PlayerConfig }) {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               key={config.logoUrl}
-              src={config.logoUrl}
+              src={logoSrc}
               alt=""
               className="h-full w-full object-contain"
               draggable={false}
