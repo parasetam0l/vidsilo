@@ -19,6 +19,7 @@ export function useChangePasswordDialog() {
     dialog.open({
       content: () => <ChangePasswordContent />,
       size: "sm",
+      className: "p-0",
       dismissible: false,
       showCloseButton: true,
     });
@@ -64,7 +65,7 @@ function ChangePasswordContent() {
   }
 
   return (
-    <form className="flex flex-col gap-4" onSubmit={submit} noValidate>
+    <form className="flex flex-col gap-4 px-4 pt-4" onSubmit={submit} noValidate>
       <DialogHeader>
         <DialogTitle>{t("changePasswordTitle")}</DialogTitle>
         <DialogDescription>{t("changePasswordDesc")}</DialogDescription>
@@ -108,7 +109,7 @@ function ChangePasswordContent() {
         />
         <FormError message={errors.confirm} />
       </div>
-      <DialogFooter>
+      <DialogFooter className="mx-0 mb-0">
         <Button type="submit" disabled={busy}>
           {busy ? t("loading") : t("save")}
         </Button>

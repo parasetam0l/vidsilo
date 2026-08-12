@@ -46,6 +46,7 @@ export function useCreateUserAction() {
     open({
       content: (close) => <UserFormContent onClose={close} />,
       size: "sm",
+      className: "p-0",
       dismissible: false,
       showCloseButton: false,
     });
@@ -76,6 +77,7 @@ export default function UsersPage() {
     open({
       content: (close) => <UserFormContent onClose={close} initial={u} />,
       size: "sm",
+      className: "p-0",
       dismissible: false,
       showCloseButton: false,
     });
@@ -256,7 +258,7 @@ function UserFormContent({
   }
 
   return (
-    <form className="flex flex-col gap-4" onSubmit={submit} noValidate>
+    <form className="flex flex-col gap-4 px-4 pt-4" onSubmit={submit} noValidate>
       <DialogHeader>
         <DialogTitle>{editing ? t("editUserTitle") : t("newUserTitle")}</DialogTitle>
       </DialogHeader>
@@ -308,7 +310,7 @@ function UserFormContent({
           <Switch checked={disabled} onCheckedChange={setDisabled} />
         </div>
       ) : null}
-      <DialogFooter>
+      <DialogFooter className="mx-0 mb-0">
         <Button type="button" variant="outline" onClick={onClose} disabled={saveUser.isPending}>
           {t("cancel")}
         </Button>

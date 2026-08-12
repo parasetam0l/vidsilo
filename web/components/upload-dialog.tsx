@@ -80,7 +80,7 @@ export function useUploadDialog() {
         />
       ),
       size: "2xl",
-      className: "max-h-[85vh] flex flex-col min-w-0 overflow-hidden",
+      className: "max-h-[85vh] flex flex-col min-w-0 overflow-hidden p-0",
       dismissible: false,
       showCloseButton: false, // custom X with the discard-confirm logic
     });
@@ -242,7 +242,7 @@ export function UploadDialogContent({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="flex flex-col max-h-[85vh] w-full min-w-0 overflow-hidden">
-      <DialogHeader className="p-5 pb-4 border-b border-border/40 shrink-0 relative pr-12">
+      <DialogHeader className="px-4 pt-4 pb-4 border-b border-border/40 shrink-0 relative pr-12">
         <DialogTitle className="flex items-center gap-2">
           {anyActive ? (
             <>
@@ -410,7 +410,7 @@ export function UploadDialogContent({ onClose }: { onClose: () => void }) {
       )}
 
       {anyActive ? (
-        <DialogFooter>
+        <DialogFooter className="mx-0 mb-0">
           <Button variant="destructive" className="mr-auto" onClick={askCancelAll}>
             {t("uploadCancelAll")}
           </Button>
@@ -423,13 +423,13 @@ export function UploadDialogContent({ onClose }: { onClose: () => void }) {
         </DialogFooter>
       ) : tab === "computer" ? (
         jobs.length === 0 || allDone ? (
-          <DialogFooter>
+          <DialogFooter className="mx-0 mb-0">
             <Button variant="outline" onClick={handleCloseAttempt}>
               {t("close")}
             </Button>
           </DialogFooter>
         ) : (
-          <DialogFooter>
+          <DialogFooter className="mx-0 mb-0">
             <Button variant="outline" onClick={handleCloseAttempt}>
               {t("cancel")}
             </Button>
@@ -440,7 +440,7 @@ export function UploadDialogContent({ onClose }: { onClose: () => void }) {
           </DialogFooter>
         )
       ) : urlJobs.length === 0 ? (
-        <DialogFooter>
+        <DialogFooter className="mx-0 mb-0">
           <Button variant="outline" onClick={handleCloseAttempt}>
             {t("close")}
           </Button>
@@ -450,13 +450,13 @@ export function UploadDialogContent({ onClose }: { onClose: () => void }) {
           </Button>
         </DialogFooter>
       ) : allUrlDone ? (
-        <DialogFooter>
+        <DialogFooter className="mx-0 mb-0">
           <Button variant="outline" onClick={handleCloseAttempt}>
             {t("close")}
           </Button>
         </DialogFooter>
       ) : (
-        <DialogFooter>
+        <DialogFooter className="mx-0 mb-0">
           <Button variant="outline" onClick={handleCloseAttempt}>
             {t("cancel")}
           </Button>

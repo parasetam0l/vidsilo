@@ -35,6 +35,7 @@ export function useCreateCategoryAction() {
     open({
       content: (close) => <CategoryFormContent onClose={close} />,
       size: "sm",
+      className: "p-0",
       dismissible: false,
       showCloseButton: false,
     });
@@ -68,6 +69,7 @@ export default function CategoriesPage() {
         <CategoryFormContent onClose={close} initial={c} />
       ),
       size: "sm",
+      className: "p-0",
       dismissible: false,
       showCloseButton: false,
     });
@@ -267,7 +269,7 @@ function CategoryFormContent({
   }
 
   return (
-    <form className="flex flex-col gap-4" onSubmit={submit} noValidate>
+    <form className="flex flex-col gap-4 px-4 pt-4" onSubmit={submit} noValidate>
       <DialogHeader>
         <DialogTitle>{editing ? t("editCategoryTitle") : t("newCategory")}</DialogTitle>
       </DialogHeader>
@@ -298,7 +300,7 @@ function CategoryFormContent({
           placeholder={t("parentNone")}
         />
       </div>
-      <DialogFooter>
+      <DialogFooter className="mx-0 mb-0">
         <Button type="button" variant="outline" onClick={onClose} disabled={saveCategory.isPending}>
           {t("cancel")}
         </Button>

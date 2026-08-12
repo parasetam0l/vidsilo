@@ -33,6 +33,7 @@ export function useCreateAclAction() {
     open({
       content: (close) => <AclFormContent onClose={close} />,
       size: "md",
+      className: "p-0",
       dismissible: false,
       showCloseButton: false,
     });
@@ -54,6 +55,7 @@ export default function DomainAclsPage() {
     open({
       content: (close) => <AclFormContent onClose={close} initial={a} />,
       size: "md",
+      className: "p-0",
       dismissible: false,
       showCloseButton: false,
     });
@@ -244,7 +246,7 @@ function AclFormContent({
   }
 
   return (
-    <form className="flex flex-col gap-4" onSubmit={submit} noValidate>
+    <form className="flex flex-col gap-4 px-4 pt-4" onSubmit={submit} noValidate>
       <DialogHeader>
         <DialogTitle>{editing ? t("aclEditTitle") : t("aclNew")}</DialogTitle>
       </DialogHeader>
@@ -272,7 +274,7 @@ function AclFormContent({
           onChange={(e) => setBlocklist(e.target.value)}
         />
       </div>
-      <DialogFooter>
+      <DialogFooter className="mx-0 mb-0">
         <Button type="button" variant="outline" onClick={onClose} disabled={saveAcl.isPending}>
           {t("cancel")}
         </Button>

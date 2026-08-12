@@ -123,6 +123,7 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
         id,
         dismissible: false,
         size: options.size ?? "sm",
+        className: "p-0",
         content: <ConfirmDialogContent {...options} onClose={closeSelf} />,
       };
       setDialogs((prev) => [...prev, entry]);
@@ -187,14 +188,14 @@ function ConfirmDialogContent({
 
   return (
     <>
-      <DialogHeader>
+      <DialogHeader className="px-4 pt-4">
         <DialogTitle className={variant === "destructive" ? "text-destructive" : ""}>
           {title}
         </DialogTitle>
         {description && <DialogDescription>{description}</DialogDescription>}
       </DialogHeader>
-      {body}
-      <DialogFooter>
+      {body ? <div className="px-4">{body}</div> : null}
+      <DialogFooter className="mx-0 mb-0">
         <Button variant="outline" onClick={onClose} disabled={isPending}>
           {cancelLabel}
         </Button>

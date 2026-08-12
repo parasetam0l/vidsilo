@@ -50,6 +50,7 @@ export function useCreateFlavorAction() {
     open({
       content: (close) => <FlavorFormContent onClose={close} initial={blank()} />,
       size: "md",
+      className: "p-0",
       dismissible: false,
       showCloseButton: false,
     });
@@ -274,7 +275,7 @@ function FlavorFormContent({
   }
 
   return (
-    <form className="flex flex-col gap-4" onSubmit={submit} noValidate>
+    <form className="flex flex-col gap-4 px-4 pt-4" onSubmit={submit} noValidate>
       <DialogHeader>
         <DialogTitle>{editing ? t("editFlavorTitle") : t("newFlavorTitle")}</DialogTitle>
       </DialogHeader>
@@ -369,7 +370,7 @@ function FlavorFormContent({
           />
         </div>
       </div>
-      <DialogFooter>
+      <DialogFooter className="mx-0 mb-0">
         <Button type="button" variant="outline" onClick={onClose} disabled={saveFlavor.isPending}>
           {t("cancel")}
         </Button>
