@@ -26,15 +26,36 @@ func (s *Server) registerEntryRoutes(mux *http.ServeMux, tusHandler http.Handler
 	mux.Handle("GET /api/entries", s.requireAuth(http.HandlerFunc(s.handleEntriesList)))
 	mux.Handle("GET /api/entries/{publicId}", s.requireAuth(http.HandlerFunc(s.handleEntryGet)))
 
-	// Editing: editors+; uploaders may edit their own entries.
-	mux.Handle("PATCH /api/entries/{publicId}", s.requireRole(roleEditor, roleAdmin)(http.HandlerFunc(s.handleEntryPatch)))
-	mux.Handle("DELETE /api/entries/{publicId}", s.requireRole(roleEditor, roleAdmin)(http.HandlerFunc(s.handleEntryDelete)))
+	// Editing: editors/admins manage everything; uploaders may edit/delete
+	// their own entries (ownership enforced by requireOwnEntry).
+	mux.Handle("PATCH /api/entries/{publicId}", s.requireRole(roleUploader, roleEditor, roleAdmin)(s.requireOwnEntry(http.HandlerFunc(s.handleEntryPatch))))
+	mux.Handle("DELETE /api/entries/{publicId}", s.requireRole(roleUploader, roleEditor, roleAdmin)(s.requireOwnEntry(http.HandlerFunc(s.handleEntryDelete))))
 
 	mux.Handle("POST /api/entries/{publicId}/reprocess", s.requireRole(roleEditor, roleAdmin)(http.HandlerFunc(s.handleEntryReprocess)))
 	mux.Handle("POST /api/entries/reprocess", s.requireRole(roleEditor, roleAdmin)(http.HandlerFunc(s.handleEntriesReprocess)))
 	mux.Handle("POST /api/entries/{publicId}/flavors", s.requireRole(roleEditor, roleAdmin)(http.HandlerFunc(s.handleEntryFlavors)))
 	mux.Handle("POST /api/entries/{publicId}/subtitles", s.requireRole(roleEditor, roleAdmin)(http.HandlerFunc(s.handleEntrySubtitleAdd)))
 	mux.Handle("DELETE /api/entries/{publicId}/subtitles/{sid}", s.requireRole(roleEditor, roleAdmin)(http.HandlerFunc(s.handleEntrySubtitleDelete)))
+}
+
+// requireOwnEntry allows uploaders to modify their own entries; editors and
+// admins pass through (role check already done by requireRole).
+func (s *Server) requireOwnEntry(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		u := userFromContext(r.Context())
+		if u.Role == roleUploader {
+			e, err := db.EntryByPublicID(r.Context(), s.pool, r.PathValue("publicId"))
+			if err != nil {
+				writeError(w, http.StatusNotFound, "not_found", "entry not found")
+				return
+			}
+			if e.UploadedBy == nil || *e.UploadedBy != u.ID {
+				writeError(w, http.StatusForbidden, "forbidden", "you can only modify your own entries")
+				return
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 const (

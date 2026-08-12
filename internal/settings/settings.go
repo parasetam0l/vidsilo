@@ -161,25 +161,29 @@ func (s *Service) Run(ctx context.Context, interval time.Duration) {
 
 // KeySpec describes one editable key for validation in the API layer.
 type KeySpec struct {
-	Type   string // "string" | "int" | "bool" | "strings" | "enum"
-	Enums  []string
+	Type string   // "string" | "int" | "bool" | "strings" | "enum"
+	Enums []string
+	// IntMin/IntMax bound int-typed keys (inclusive; zero values mean
+	// unbounded).
+	IntMin int
+	IntMax int
 }
 
 // Specs is the registry of panel-editable keys (code defaults live in seed).
 var Specs = map[string]KeySpec{
 	"site_name":                  {Type: "string"},
 	"default_lang":               {Type: "string"},
-	"upload.max_size_bytes":      {Type: "int"},
+	"upload.max_size_bytes":      {Type: "int", IntMin: 1, IntMax: 1 << 40},
 	"upload.allowed_extensions":  {Type: "strings"},
-	"transcode.concurrency":      {Type: "int"},
-	"transcode.segment_seconds":  {Type: "int"},
-	"transcode.gop_seconds":      {Type: "int"},
+	"transcode.concurrency":      {Type: "int", IntMin: 0, IntMax: 64},
+	"transcode.segment_seconds":  {Type: "int", IntMin: 1, IntMax: 60},
+	"transcode.gop_seconds":      {Type: "int", IntMin: 1, IntMax: 10},
 	"transcode.preset":           {Type: "string"},
 	"cache.enabled":              {Type: "bool"},
-	"cache.max_bytes":            {Type: "int"},
+	"cache.max_bytes":            {Type: "int", IntMin: 1},
 	"analytics.enabled":          {Type: "bool"},
-	"analytics.retention_days":   {Type: "int"},
-	"analytics.flush_interval_s": {Type: "int"},
+	"analytics.retention_days":   {Type: "int", IntMin: 1, IntMax: 3650},
+	"analytics.flush_interval_s": {Type: "int", IntMin: 1, IntMax: 3600},
 }
 
 // Validate checks a value against its spec and returns a canonical JSON form.
@@ -200,7 +204,17 @@ func Validate(key string, value any) (json.RawMessage, error) {
 		if !ok {
 			return nil, fmt.Errorf("%s must be a number", key)
 		}
-		return json.Marshal(int64(f))
+		n := int64(f)
+		if float64(n) != f {
+			return nil, fmt.Errorf("%s must be a whole number", key)
+		}
+		if spec.IntMin != 0 && n < int64(spec.IntMin) {
+			return nil, fmt.Errorf("%s must be >= %d", key, spec.IntMin)
+		}
+		if spec.IntMax != 0 && n > int64(spec.IntMax) {
+			return nil, fmt.Errorf("%s must be <= %d", key, spec.IntMax)
+		}
+		return json.Marshal(n)
 	case "bool":
 		b, ok := value.(bool)
 		if !ok {

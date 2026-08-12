@@ -115,11 +115,11 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-// storageUsed sums media bytes: dir walk of the entries/ tree for the local
-// driver (logs, secret.key and upload spools are not media), source sizes as
-// a cheap fallback for object storage.
+// storageUsed returns the total media bytes (the entries/ tree only — logs,
+// keys and upload spools are not media). Accurate on both local and S3
+// backends: it lists actual object sizes, including generated renditions.
 func (s *Server) storageUsed(ctx context.Context) int64 {
-	if local, ok := s.store.(*store.Local); ok {
+	if local := store.LocalOf(s.store); local != nil {
 		root := filepath.Join(local.Root(), store.EntriesRoot)
 		var total int64
 		_ = filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
@@ -132,7 +132,14 @@ func (s *Server) storageUsed(ctx context.Context) int64 {
 		})
 		return total
 	}
-	var sum int64
-	_ = s.pool.QueryRow(ctx, `SELECT COALESCE(SUM(source_size), 0) FROM entries`).Scan(&sum)
-	return sum
+	files, err := store.ListSizesOf(ctx, s.store, store.EntriesRoot+"/")
+	if err != nil {
+		s.Log.Warn("storage usage", "err", err)
+		return 0
+	}
+	var total int64
+	for _, f := range files {
+		total += f.Size
+	}
+	return total
 }
