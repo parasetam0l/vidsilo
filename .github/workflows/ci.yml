@@ -23,18 +23,43 @@ jobs:
           --health-interval 5s
           --health-timeout 3s
           --health-retries 20
+      # MinIO S3-compatible storage: lets the S3 driver's tests (ranged
+      # reads, listing, usage) run against a real object store instead of
+      # being skipped.
+      minio:
+        image: minio/minio:latest
+        env:
+          MINIO_ROOT_USER: vod
+          MINIO_ROOT_PASSWORD: vod-vod-vod
+        ports:
+          - 9000:9000
+        options: >-
+          --health-cmd "curl -sf http://localhost:9000/minio/health/live"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version: "1.26"
           cache: true
+      # ffmpeg/ffprobe so the real transcode pipeline runs in CI instead of
+      # skipping.
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
       - name: Vet
         run: go vet ./...
-      - name: Test (integration tests run against the service Postgres)
+      - name: Test (integration tests run against the service Postgres + MinIO)
         run: go test ./...
         env:
           DATABASE_URL: postgres://vod:vod@localhost:5432/vod
+          S3_ENDPOINT: http://localhost:9000
+          S3_BUCKET: ci-test
+          S3_ACCESS_KEY: vod
+          S3_SECRET_KEY: vod-vod-vod
 
   web:
     name: Web lint + build

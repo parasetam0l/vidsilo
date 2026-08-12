@@ -22,15 +22,11 @@ type S3Params struct {
 	AccessKey string
 	SecretKey string
 	Region    string
-	// TempDir is where GetObject responses are spooled so reads are seekable
-	// (range requests via http.ServeContent). Defaults to os.TempDir().
-	TempDir string
 }
 
 type S3 struct {
 	client *s3.Client
 	bucket string
-	tmpDir string
 }
 
 func NewS3(p S3Params) (*S3, error) {
@@ -45,11 +41,7 @@ func NewS3(p S3Params) (*S3, error) {
 		o.BaseEndpoint = aws.String(p.Endpoint)
 		o.UsePathStyle = true
 	})
-	tmpDir := p.TempDir
-	if tmpDir == "" {
-		tmpDir = os.TempDir()
-	}
-	return &S3{client: client, bucket: p.Bucket, tmpDir: tmpDir}, nil
+	return &S3{client: client, bucket: p.Bucket}, nil
 }
 
 func (s *S3) Put(ctx context.Context, key string, r io.Reader, size int64) error {
@@ -62,42 +54,117 @@ func (s *S3) Put(ctx context.Context, key string, r io.Reader, size int64) error
 	return err
 }
 
-// Open downloads the object into a spool file and returns a seekable reader;
-// the file is removed on Close.
+// Open returns a lazy, range-aware reader over the object: no bytes are
+// fetched until Read, and each Read pulls only the range it needs from S3
+// (http.ServeContent drives it with Seek+Read). Small-object reads collapse
+// into a single GET; large media files are served without full-object
+// downloads.
 func (s *S3) Open(ctx context.Context, key string) (io.ReadSeekCloser, error) {
-	out, err := s.client.GetObject(ctx, &s3.GetObjectInput{
-		Bucket: aws.String(s.bucket),
-		Key:    aws.String(key),
+	fi, err := s.Stat(ctx, key)
+	if err != nil {
+		return nil, err
+	}
+	return &s3Reader{ctx: ctx, s: s, key: key, size: fi.Size}, nil
+}
+
+// s3Reader implements io.ReadSeekCloser over ranged GetObject calls.
+type s3Reader struct {
+	ctx    context.Context
+	s      *S3
+	key    string
+	size   int64
+	pos    int64
+	body   io.ReadCloser // open ranged response, nil when idle
+	closed bool
+}
+
+func (r *s3Reader) Read(p []byte) (int, error) {
+	if r.closed {
+		return 0, os.ErrClosed
+	}
+	if r.pos >= r.size {
+		return 0, io.EOF
+	}
+	if r.body == nil {
+		if err := r.openRange(r.pos, r.size-r.pos); err != nil {
+			return 0, err
+		}
+	}
+	n, err := r.body.Read(p)
+	r.pos += int64(n)
+	if err == io.EOF {
+		r.closeBody()
+		// A truncated ranged response ends early; the next Read opens a
+		// fresh range from the current position. Only signal end-of-stream
+		// once every byte has been delivered.
+		if r.pos >= r.size {
+			return n, io.EOF
+		}
+		return n, nil
+	}
+	return n, err
+}
+
+func (r *s3Reader) openRange(start, length int64) error {
+	out, err := r.s.client.GetObject(r.ctx, &s3.GetObjectInput{
+		Bucket: aws.String(r.s.bucket),
+		Key:    aws.String(r.key),
+		Range:  aws.String(fmt.Sprintf("bytes=%d-%d", start, start+length-1)),
 	})
 	if err != nil {
 		var nf *s3types.NoSuchKey
 		if errors.As(err, &nf) {
-			return nil, ErrNotFound
+			return ErrNotFound
 		}
 		var nf2 *s3types.NotFound
 		if errors.As(err, &nf2) {
-			return nil, ErrNotFound
+			return ErrNotFound
 		}
-		return nil, err
+		return err
 	}
-	f, err := os.CreateTemp(s.tmpDir, "vod-s3-*")
-	if err != nil {
-		out.Body.Close()
-		return nil, err
+	r.body = out.Body
+	return nil
+}
+
+func (r *s3Reader) closeBody() {
+	if r.body != nil {
+		r.body.Close()
+		r.body = nil
 	}
-	if _, err := io.Copy(f, out.Body); err != nil {
-		out.Body.Close()
-		f.Close()
-		os.Remove(f.Name())
-		return nil, err
+}
+
+func (r *s3Reader) Seek(offset int64, whence int) (int64, error) {
+	if r.closed {
+		return 0, os.ErrClosed
 	}
-	out.Body.Close()
-	if _, err := f.Seek(0, io.SeekStart); err != nil {
-		f.Close()
-		os.Remove(f.Name())
-		return nil, err
+	var next int64
+	switch whence {
+	case io.SeekStart:
+		next = offset
+	case io.SeekCurrent:
+		next = r.pos + offset
+	case io.SeekEnd:
+		next = r.size + offset
+	default:
+		return 0, fmt.Errorf("s3: invalid whence %d", whence)
 	}
-	return &spoolFile{File: f}, nil
+	if next < 0 {
+		return 0, fmt.Errorf("s3: negative seek position %d", next)
+	}
+	// Any repositioning abandons the open range; the next Read opens a fresh
+	// ranged GET at the target (http.ServeContent seeks before each read).
+	r.pos = next
+	r.closeBody()
+	return next, nil
+}
+
+func (r *s3Reader) Close() error {
+	if r.closed {
+		return nil
+	}
+	r.closed = true
+	r.closeBody()
+	return nil
 }
 
 func (s *S3) Stat(ctx context.Context, key string) (FileInfo, error) {
@@ -149,16 +216,4 @@ func (s *S3) List(ctx context.Context, prefix string) ([]string, error) {
 		}
 	}
 	return keys, nil
-}
-
-// spoolFile is a seekable reader backed by a temp file that deletes itself.
-type spoolFile struct {
-	*os.File
-}
-
-func (s *spoolFile) Close() error {
-	name := s.Name()
-	err := s.File.Close()
-	os.Remove(name) // best effort; temp dir handles leftovers
-	return err
 }
