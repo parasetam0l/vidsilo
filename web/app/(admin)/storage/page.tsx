@@ -99,39 +99,43 @@ export default function StoragePage() {
                     className="cursor-pointer transition-colors hover:bg-muted/40"
                     onClick={() => openEntryDetail(e.publicId)}
                   >
-                    <TableCell className="font-medium">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="size-8 rounded-lg">
-                          <AvatarFallback className="rounded-lg bg-primary/10 text-primary">
-                            <FilmIcon className="size-4" />
+                    <TableCell className="py-1.5 font-medium">
+                      <div className="flex items-center gap-2.5">
+                        <Avatar className="size-6 rounded-md">
+                          <AvatarFallback className="rounded-md bg-primary/10 text-primary">
+                            <FilmIcon className="size-3" />
                           </AvatarFallback>
                         </Avatar>
-                        <span className="max-w-[250px] truncate font-semibold text-foreground">
+                        <span className="max-w-[220px] truncate text-sm font-semibold text-foreground">
                           {e.title || t("untitled")}
                         </span>
                         <StatusBadge status={e.status} />
                       </div>
                     </TableCell>
-                    <TableCell className="text-muted-foreground tabular-nums">
+                    <TableCell className="py-1.5 text-xs text-muted-foreground tabular-nums">
                       {e.files.reduce((a, f) => a + f.count, 0)}
                     </TableCell>
-                    <TableCell className="text-right font-semibold tabular-nums">
+                    <TableCell className="py-1.5 text-right text-sm font-semibold tabular-nums">
                       {formatBytes(e.totalBytes)}
                     </TableCell>
                   </TableRow>
                   {e.files.map((f) => (
-                    <TableRow key={f.label} className="bg-muted/20 hover:bg-muted/30">
-                      <TableCell>
+                    <TableRow key={`${f.label}-${f.name ?? ""}`} className="hover:bg-muted/30">
+                      <TableCell className="py-1">
                         <span
-                          className="flex items-center gap-2 text-sm text-muted-foreground"
-                          style={{ paddingLeft: 44 }}
+                          className="flex items-center gap-2 text-xs text-muted-foreground"
+                          style={{ paddingLeft: 40 }}
                         >
                           <span className="text-muted-foreground/70">{subRowIcons[f.label]}</span>
-                          {t(subRowLabels[f.label])}
+                          {f.label === "flavors"
+                            ? `${t("storageSubFlavors")} · ${f.name}`
+                            : t(subRowLabels[f.label])}
                         </span>
                       </TableCell>
-                      <TableCell className="text-muted-foreground tabular-nums">{f.count}</TableCell>
-                      <TableCell className="text-right text-muted-foreground tabular-nums">
+                      <TableCell className="py-1 text-xs text-muted-foreground tabular-nums">
+                        {f.count}
+                      </TableCell>
+                      <TableCell className="py-1 text-right text-xs text-muted-foreground tabular-nums">
                         {formatBytes(f.bytes)}
                       </TableCell>
                     </TableRow>

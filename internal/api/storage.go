@@ -41,6 +41,7 @@ func (s *Server) handleStorageUsage(w http.ResponseWriter, r *http.Request) {
 
 type storageEntryFile struct {
 	Label string `json:"label"`
+	Name  string `json:"name,omitempty"`
 	Bytes int64  `json:"bytes"`
 	Count int    `json:"count"`
 }
@@ -54,20 +55,22 @@ type storageEntry struct {
 }
 
 // classifyFile groups a media key into source / poster / flavors /
-// subtitles / other.
-func classifyFile(key string) string {
+// subtitles / other. Flavor keys also carry the flavor name so the storage
+// table can show one row per flavor.
+func classifyFile(key string) (label, name string) {
 	base := key[strings.LastIndex(key, "/")+1:]
+	parts := strings.Split(key, "/")
 	switch {
 	case strings.HasPrefix(base, "original."):
-		return "source"
+		return "source", ""
 	case strings.HasPrefix(base, "poster."), strings.HasPrefix(base, "sprite."):
-		return "poster"
-	case strings.Contains(key, "/flavors/"):
-		return "flavors"
+		return "poster", ""
+	case len(parts) >= 4 && parts[2] == "flavors":
+		return "flavors", parts[3]
 	case strings.Contains(key, "/subs/"):
-		return "subtitles"
+		return "subtitles", ""
 	default:
-		return "other"
+		return "other", ""
 	}
 }
 
@@ -89,7 +92,11 @@ func (s *Server) handleStorageFiles(w http.ResponseWriter, r *http.Request) {
 		bytes int64
 		count int
 	}
-	byEntry := map[int64]map[string]*group{}
+	type gkey struct {
+		label string
+		name  string
+	}
+	byEntry := map[int64]map[gkey]*group{}
 	order := []int64{}
 	for _, f := range files {
 		parts := strings.Split(f.Key, "/")
@@ -101,14 +108,15 @@ func (s *Server) handleStorageFiles(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		if _, ok := byEntry[id]; !ok {
-			byEntry[id] = map[string]*group{}
+			byEntry[id] = map[gkey]*group{}
 			order = append(order, id)
 		}
-		label := classifyFile(f.Key)
-		g := byEntry[id][label]
+		label, name := classifyFile(f.Key)
+		k := gkey{label, name}
+		g := byEntry[id][k]
 		if g == nil {
 			g = &group{}
-			byEntry[id][label] = g
+			byEntry[id][k] = g
 		}
 		g.bytes += f.Size
 		g.count++
@@ -119,8 +127,7 @@ func (s *Server) handleStorageFiles(w http.ResponseWriter, r *http.Request) {
 		byID[e.ID] = e
 	}
 
-	const labelOrder = "source,poster,flavors,subtitles,other"
-	out := []storageEntry{}
+		out := []storageEntry{}
 	for _, id := range order {
 		e, ok := byID[id]
 		if !ok {
@@ -128,11 +135,20 @@ func (s *Server) handleStorageFiles(w http.ResponseWriter, r *http.Request) {
 		}
 		groups := byEntry[id]
 		entry := storageEntry{PublicID: e.PublicID, Title: e.Title, Status: string(e.Status)}
-		for _, label := range strings.Split(labelOrder, ",") {
-			if g, ok := groups[label]; ok {
-				entry.TotalBytes += g.bytes
-				entry.Files = append(entry.Files, storageEntryFile{Label: label, Bytes: g.bytes, Count: g.count})
+		// Flavors are emitted one row per flavor name; other labels in order.
+		flavorRows := []storageEntryFile{}
+		for k, g := range groups {
+			row := storageEntryFile{Label: k.label, Name: k.name, Bytes: g.bytes, Count: g.count}
+			if k.label == "flavors" {
+				flavorRows = append(flavorRows, row)
+				continue
 			}
+			entry.Files = append(entry.Files, row)
+		}
+		sort.Slice(flavorRows, func(i, j int) bool { return flavorRows[i].Name < flavorRows[j].Name })
+		entry.Files = append(entry.Files, flavorRows...)
+		for _, f := range entry.Files {
+			entry.TotalBytes += f.Bytes
 		}
 		if entry.TotalBytes == 0 && len(entry.Files) == 0 {
 			continue

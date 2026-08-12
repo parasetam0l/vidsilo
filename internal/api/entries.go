@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/parasetam0l/vod-app/internal/db"
+	"github.com/parasetam0l/vod-app/internal/media"
 	"github.com/parasetam0l/vod-app/internal/store"
 )
 
@@ -178,17 +179,155 @@ func (s *Server) handleEntryPatch(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, updated)
 }
 
-// applyFlavors replaces the ticked flavor set and re-queues processing.
+// applyFlavors applies a flavor-set change WITHOUT re-processing the whole
+// entry: flavors that were added get a transcode job, flavors that were
+// removed have their media deleted, and the master playlist is rebuilt from
+// the remaining done flavors. No probe, no re-encoding of untouched flavors.
 func (s *Server) applyFlavors(ctx context.Context, entryID int64, flavorIDs []int64) error {
-	if err := db.SetEntryFlavors(ctx, s.pool, entryID, flavorIDs); err != nil {
+	current, err := db.EntryFlavors(ctx, s.pool, entryID)
+	if err != nil {
 		return err
 	}
-	if _, err := s.queue.Enqueue(ctx, "probe", entryID, map[string]any{}, 3); err != nil {
+	want := map[int64]bool{}
+	for _, id := range flavorIDs {
+		want[id] = true
+	}
+	have := map[int64]bool{}
+	for _, ef := range current {
+		have[ef.FlavorID] = true
+	}
+
+	var added, removed []int64
+	for _, id := range flavorIDs {
+		if !have[id] {
+			added = append(added, id)
+		}
+	}
+	for _, ef := range current {
+		if !want[ef.FlavorID] {
+			removed = append(removed, ef.FlavorID)
+		}
+	}
+
+	for _, id := range added {
+		if err := s.prepareFlavor(ctx, entryID, id); err != nil {
+			return err
+		}
+	}
+	for _, id := range removed {
+		if err := s.removeFlavor(ctx, entryID, id); err != nil {
+			return err
+		}
+	}
+
+	e, err := db.EntryByID(ctx, s.pool, entryID)
+	if err != nil {
 		return err
 	}
-	_, err := s.pool.Exec(ctx, `
-		UPDATE entries SET status = 'probing', error = NULL, updated_at = now() WHERE id = $1`, entryID)
+	if len(added) > 0 {
+		// Transcode jobs for the new flavors will finalize (master + ready).
+		_, _ = s.pool.Exec(ctx, `
+			UPDATE entries SET status = 'probing', error = NULL, updated_at = now() WHERE id = $1`, entryID)
+	}
+	if err := s.rebuildMaster(ctx, e); err != nil {
+		return err
+	}
+	// Pure removal that leaves no finished rendition: don't keep a
+	// playable-looking entry with an empty master playlist.
+	if len(added) == 0 {
+		var doneCount int
+		if err := s.pool.QueryRow(ctx, `
+			SELECT count(*) FROM entry_flavors WHERE entry_id = $1 AND status = 'done'`, entryID).Scan(&doneCount); err != nil {
+			return err
+		}
+		if doneCount == 0 {
+			_, err = s.pool.Exec(ctx, `
+				UPDATE entries SET status = 'failed', error = 'no enabled flavors produce renditions', updated_at = now()
+				WHERE id = $1`, entryID)
+			return err
+		}
+	}
+	return nil
+}
+
+// prepareFlavor inserts a pending flavor row and enqueues its transcode job.
+func (s *Server) prepareFlavor(ctx context.Context, entryID, flavorID int64) error {
+	if _, err := s.pool.Exec(ctx, `
+		INSERT INTO entry_flavors (entry_id, flavor_id, status)
+		VALUES ($1, $2, 'pending')
+		ON CONFLICT (entry_id, flavor_id) DO UPDATE
+			SET status = 'pending', error = NULL, updated_at = now()`, entryID, flavorID); err != nil {
+		return err
+	}
+	if _, err := s.queue.Enqueue(ctx, "transcode", entryID, map[string]any{"flavorId": flavorID}, 3); err != nil {
+		return err
+	}
+	return nil
+}
+
+// removeFlavor deletes the flavor's media files and its row.
+func (s *Server) removeFlavor(ctx context.Context, entryID int64, flavorID int64) error {
+	f, err := db.FlavorByID(ctx, s.pool, flavorID)
+	if err != nil {
+		return err
+	}
+	prefix := store.FlavorDir(entryID, f.Name)
+	if keys, err := s.store.List(ctx, prefix); err == nil {
+		for _, k := range keys {
+			if err := s.store.Delete(ctx, k); err != nil {
+				s.Log.Warn("flavor file delete", "key", k, "err", err)
+			}
+		}
+	}
+	if l, ok := s.store.(*store.Local); ok {
+		_ = l.RemoveTree(prefix)
+	}
+	_, err = s.pool.Exec(ctx, `DELETE FROM entry_flavors WHERE entry_id = $1 AND flavor_id = $2`, entryID, flavorID)
 	return err
+}
+
+// rebuildMaster regenerates master.m3u8 from the finished flavors + subs.
+func (s *Server) rebuildMaster(ctx context.Context, e db.Entry) error {
+	flavors, err := db.EntryFlavors(ctx, s.pool, e.ID)
+	if err != nil {
+		return err
+	}
+	subs, err := db.ListSubtitles(ctx, s.pool, e.ID)
+	if err != nil {
+		return err
+	}
+	var renditions []media.Rendition
+	for _, ef := range flavors {
+		if ef.Status != db.FlavorDone {
+			continue
+		}
+		f, err := db.FlavorByID(ctx, s.pool, ef.FlavorID)
+		if err != nil {
+			continue
+		}
+		bitrate := 0
+		if f.VideoBitrate != nil {
+			bitrate = *f.VideoBitrate
+		}
+		renditions = append(renditions, media.Rendition{
+			Name:        f.Name,
+			Height:      f.Height,
+			Bitrate:     bitrate,
+			PlaylistKey: "/media/" + strings.TrimPrefix(ef.PlaylistKey, "/"),
+		})
+	}
+	var subRends []media.SubtitleRendition
+	for _, sub := range subs {
+		subRends = append(subRends, media.SubtitleRendition{
+			Lang: sub.Lang, Label: sub.Label,
+			URI: "/media/" + strings.TrimPrefix(sub.VTTKey, "/"),
+		})
+	}
+	var b strings.Builder
+	if err := media.BuildMasterPlaylist(&b, renditions, subRends); err != nil {
+		return err
+	}
+	return s.store.Put(ctx, store.MasterKey(e.ID), strings.NewReader(b.String()), int64(b.Len()))
 }
 
 func (s *Server) handleEntryDelete(w http.ResponseWriter, r *http.Request) {

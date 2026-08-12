@@ -257,6 +257,8 @@ export interface StorageUsage {
 
 export interface StorageEntryFile {
   label: "source" | "poster" | "flavors" | "subtitles" | "other";
+  /** Flavor name for flavors rows (one row per flavor). */
+  name?: string;
   bytes: number;
   count: number;
 }
