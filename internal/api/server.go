@@ -127,7 +127,7 @@ func (s *Server) Handler() http.Handler {
 
 	// Exact admin page route: prevents ServeMux's /upload -> /upload/ redirect
 	// (the tus subtree owns /upload/).
-	mux.HandleFunc("GET /upload", s.serveUI)
+	mux.HandleFunc("GET /admin/upload", s.serveUI)
 
 	mux.HandleFunc("GET /healthz", s.handleHealthz)
 	mux.Handle("GET /metrics", s.requireRole(roleAdmin)(http.HandlerFunc(s.handleMetrics)))

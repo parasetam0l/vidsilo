@@ -6,11 +6,11 @@ import { usePathname, useRouter } from "next/navigation";
 import { AppSidebar } from "@/components/app-sidebar";
 import { PageLoader } from "@/components/loading";
 import { useUploadDialog } from "@/components/upload-dialog";
-import { useCreateUserAction } from "@/app/(admin)/users/page";
-import { useCreateCategoryAction } from "@/app/(admin)/categories/page";
-import { useCreateFlavorAction } from "@/app/(admin)/flavors/page";
-import { useCreateAclAction } from "@/app/(admin)/domain-acls/page";
-import { useCreatePlayerAction } from "@/app/(admin)/players/page";
+import { useCreateUserAction } from "@/app/admin/users/page";
+import { useCreateCategoryAction } from "@/app/admin/categories/page";
+import { useCreateFlavorAction } from "@/app/admin/flavors/page";
+import { useCreateAclAction } from "@/app/admin/domain-acls/page";
+import { useCreatePlayerAction } from "@/app/admin/players/page";
 import { useAuth } from "@/components/auth-provider";
 import { getSiteConfig } from "@/lib/site-config";
 import { PlusIcon, UploadCloudIcon } from "lucide-react";
@@ -40,32 +40,32 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   // Per-page app-bar action (page title lives in this header already).
   const action =
-    pathname === "/entries"
+    pathname === "/admin/entries"
       ? { label: t("navUpload"), icon: <UploadCloudIcon className="size-4" />, onClick: openUpload }
-      : pathname === "/users"
+      : pathname === "/admin/users"
         ? { label: t("usersNew"), icon: <PlusIcon className="size-4" />, onClick: createUser }
-        : pathname === "/categories"
+        : pathname === "/admin/categories"
           ? { label: t("newCategory"), icon: <PlusIcon className="size-4" />, onClick: createCategory }
-          : pathname === "/flavors"
+          : pathname === "/admin/flavors"
             ? { label: t("flavorsNew"), icon: <PlusIcon className="size-4" />, onClick: createFlavor }
-            : pathname === "/domain-acls"
+            : pathname === "/admin/domain-acls"
               ? { label: t("aclNew"), icon: <PlusIcon className="size-4" />, onClick: createAcl }
-              : pathname === "/players"
+              : pathname === "/admin/players"
                 ? { label: t("playersNew"), icon: <PlusIcon className="size-4" />, onClick: createPlayer }
                 : null;
   const pageTitles: Record<string, string> = {
-    "/dashboard": t("navDashboard"),
-    "/entries": t("navEntries"),
-    "/upload": t("navUpload"),
-    "/users": t("navUsers"),
-    "/jobs": t("navJobs"),
-    "/analytics": t("navAnalytics"),
-    "/categories": t("navCategories"),
-    "/flavors": t("navFlavors"),
-    "/domain-acls": t("navDomainAcls"),
-    "/players": t("navPlayers"),
-    "/storage": t("navStorage"),
-    "/settings": t("navSettings"),
+    "/admin/dashboard": t("navDashboard"),
+    "/admin/entries": t("navEntries"),
+    "/admin/upload": t("navUpload"),
+    "/admin/users": t("navUsers"),
+    "/admin/jobs": t("navJobs"),
+    "/admin/analytics": t("navAnalytics"),
+    "/admin/categories": t("navCategories"),
+    "/admin/flavors": t("navFlavors"),
+    "/admin/domain-acls": t("navDomainAcls"),
+    "/admin/players": t("navPlayers"),
+    "/admin/storage": t("navStorage"),
+    "/admin/settings": t("navSettings"),
   };
   const pageTitle = pageTitles[pathname] ?? t("appTitle");
 

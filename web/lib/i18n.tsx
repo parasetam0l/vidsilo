@@ -455,7 +455,6 @@ const en = {
   sumTotalAcls: "Total ACLs",
   sumTotalPlayers: "Total players",
   sumDefaultPlayer: "Default player",
-  lastUpdated: "Updated {time}",
 } as const;
 
 export type MessageKey = keyof typeof en;

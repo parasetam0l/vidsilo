@@ -16,7 +16,7 @@ import Link from "next/link";
 
 import { api, type Dashboard, type Entry } from "@/lib/api";
 import { useT, type MessageKey } from "@/lib/i18n";
-import { formatBytes, formatDate, formatDuration, formatGb } from "@/lib/format";
+import { formatBytes, formatDuration, formatGb } from "@/lib/format";
 import { StatusBadge } from "@/components/status-badge";
 import { useUploadDialog } from "@/components/upload-dialog";
 import { useEntryDetailDialog } from "@/components/entry-detail-dialog";
@@ -114,14 +114,10 @@ export default function DashboardPage() {
   const openUpload = useUploadDialog();
   const openEntryDetail = useEntryDetailDialog();
   const [data, setData] = React.useState<Dashboard | null>(null);
-  const [lastRefetch, setLastRefetch] = React.useState<Date | null>(null);
 
   const load = React.useCallback(() => {
     api<Dashboard>("/api/dashboard")
-      .then((d) => {
-        setData(d);
-        setLastRefetch(new Date());
-      })
+      .then(setData)
       .catch((e) => toast.error(e.message));
   }, [toast]);
 
@@ -197,13 +193,6 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-1 flex-col gap-4 px-4 pb-4 pt-0">
-      <div className="flex items-center justify-end">
-        {lastRefetch ? (
-          <span className="text-xs text-muted-foreground">
-            {t("lastUpdated", { time: formatDate(lastRefetch.toISOString()) })}
-          </span>
-        ) : null}
-      </div>
       {data.totalEntries === 0 ? (
         <Card className="relative overflow-hidden border-dashed ">
           <div className="pointer-events-none absolute -top-16 -left-16 size-48 rounded-full bg-primary/10 blur-3xl" />

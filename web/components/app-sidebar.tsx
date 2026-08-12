@@ -76,22 +76,22 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     {
       label: t("navMedia"),
       items: [
-        { title: t("navDashboard"), url: "/dashboard", icon: LayoutDashboardIcon },
-        { title: t("navEntries"), url: "/entries", icon: FilmIcon },
-        { title: t("navCategories"), url: "/categories", icon: FolderTreeIcon },
+        { title: t("navDashboard"), url: "/admin/dashboard", icon: LayoutDashboardIcon },
+        { title: t("navEntries"), url: "/admin/entries", icon: FilmIcon },
+        { title: t("navCategories"), url: "/admin/categories", icon: FolderTreeIcon },
       ],
     },
     {
       label: t("navAdministration"),
       items: [
-        { title: t("navUsers"), url: "/users", icon: UsersIcon },
-        { title: t("navJobs"), url: "/jobs", icon: ListChecksIcon },
-        { title: t("navAnalytics"), url: "/analytics", icon: BarChartIcon },
-        { title: t("navFlavors"), url: "/flavors", icon: SlidersHorizontalIcon },
-        { title: t("navDomainAcls"), url: "/domain-acls", icon: ShieldIcon },
-        { title: t("navPlayers"), url: "/players", icon: MonitorPlayIcon },
-        { title: t("navStorage"), url: "/storage", icon: DatabaseIcon },
-        { title: t("navSettings"), url: "/settings", icon: SettingsIcon },
+        { title: t("navUsers"), url: "/admin/users", icon: UsersIcon },
+        { title: t("navJobs"), url: "/admin/jobs", icon: ListChecksIcon },
+        { title: t("navAnalytics"), url: "/admin/analytics", icon: BarChartIcon },
+        { title: t("navFlavors"), url: "/admin/flavors", icon: SlidersHorizontalIcon },
+        { title: t("navDomainAcls"), url: "/admin/domain-acls", icon: ShieldIcon },
+        { title: t("navPlayers"), url: "/admin/players", icon: MonitorPlayIcon },
+        { title: t("navStorage"), url: "/admin/storage", icon: DatabaseIcon },
+        { title: t("navSettings"), url: "/admin/settings", icon: SettingsIcon },
       ],
     },
   ]
@@ -120,7 +120,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" render={<a href="/dashboard" />}>
+            <SidebarMenuButton size="lg" render={<a href="/admin/dashboard" />}>
               <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
                 <ClapperboardIcon className="size-4" />
               </div>
