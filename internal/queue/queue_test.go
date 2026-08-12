@@ -131,6 +131,89 @@ func TestRequeueStale(t *testing.T) {
 	}
 }
 
+func TestQueueClaimTranscodeParallelAcrossEntries(t *testing.T) {
+	ctx := context.Background()
+	q := New(testdb.Pool(t))
+
+	// Two entries, two flavors each: all four jobs due.
+	e1, e2 := testEntryID(t, q.pool), testEntryID(t, q.pool)
+	ids := make([]int64, 0, 4)
+	for _, eid := range []int64{e1, e2} {
+		for _, fid := range []int64{1, 2} {
+			id, err := q.Enqueue(ctx, "transcode", eid, map[string]any{"flavorId": fid}, 3)
+			if err != nil {
+				t.Fatal(err)
+			}
+			ids = append(ids, id)
+		}
+	}
+	t.Cleanup(func() {
+		_, _ = q.pool.Exec(context.Background(), `DELETE FROM jobs WHERE id = ANY($1)`, ids)
+	})
+
+	// One claim round must take exactly one flavor per entry (parallel
+	// across entries, serial within an entry).
+	jobs, err := q.Claim(ctx, "test-worker", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(jobs) != 2 {
+		t.Fatalf("claimed %d jobs, want 2 (one per entry)", len(jobs))
+	}
+	seen := map[int64]bool{}
+	for _, j := range jobs {
+		if j.EntryID == nil {
+			t.Fatal("transcode job without entry")
+		}
+		if seen[*j.EntryID] {
+			t.Fatalf("two flavors of entry %d claimed in one round", *j.EntryID)
+		}
+		seen[*j.EntryID] = true
+	}
+
+	// While one flavor runs, the other flavor of the SAME entry must not be
+	// claimable, but the other entry's second flavor is.
+	jobs, err = q.Claim(ctx, "test-worker", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(jobs) != 1 {
+		t.Fatalf("second round claimed %d jobs, want 1 (other entry's flavor)", len(jobs))
+	}
+	if jobs[0].EntryID == nil {
+		t.Fatal("transcode job without entry")
+	}
+	if seen[*jobs[0].EntryID] {
+		t.Fatalf("same entry's second flavor claimed while first is running")
+	}
+}
+
+func TestQueueClaimTranscodeRunsParallelEntries(t *testing.T) {
+	ctx := context.Background()
+	q := New(testdb.Pool(t))
+	e1, e2 := testEntryID(t, q.pool), testEntryID(t, q.pool)
+	ids := []int64{}
+	for _, eid := range []int64{e1, e2} {
+		id, err := q.Enqueue(ctx, "transcode", eid, map[string]any{"flavorId": 1}, 3)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ids = append(ids, id)
+	}
+	t.Cleanup(func() {
+		_, _ = q.pool.Exec(context.Background(), `DELETE FROM jobs WHERE id = ANY($1)`, ids)
+	})
+
+	// Both entries' first flavors must be claimable together (parallel).
+	jobs, err := q.Claim(ctx, "test-worker", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(jobs) != 2 {
+		t.Fatalf("claimed %d transcode jobs across two entries, want 2", len(jobs))
+	}
+}
+
 func jobStatus(t *testing.T, q *Queue, id int64) string {
 	t.Helper()
 	var s string

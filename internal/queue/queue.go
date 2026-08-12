@@ -48,15 +48,17 @@ func (q *Queue) EnqueueAt(ctx context.Context, jobType string, entryID int64, pa
 // Claim atomically marks up to n due jobs as running (owned by workerID)
 // and returns them. Job types listed in exclude are skipped (the worker
 // excludes a serialized kind while one of it executes). Serialized types
-// (transcode, download) are additionally limited to their earliest queued
-// job per round, so a claim can never start more than one of them at a time.
+// (download) are additionally limited to their earliest queued job per
+// round, so a claim can never start more than one of them at a time.
+// Transcodes of different entries run in parallel (bounded by the worker
+// pool); flavors of the same entry stay ordered per entry.
 func (q *Queue) Claim(ctx context.Context, workerID string, n int, exclude ...string) ([]db.Job, error) {
 	// pgx encodes a nil []string as SQL NULL, which would turn the
 	// exclusion condition NULL and match nothing — normalize to '{}'.
 	if exclude == nil {
 		exclude = []string{}
 	}
-	serialized := []string{"transcode", "download"}
+	serialized := []string{"download"}
 	tx, err := q.pool.Begin(ctx)
 	if err != nil {
 		return nil, err
@@ -76,6 +78,14 @@ func (q *Queue) Claim(ctx context.Context, workerID string, n int, exclude ...st
 		           NOT EXISTS (SELECT 1 FROM jobs j2 WHERE j2.type = j.type AND j2.status = 'running')
 		           AND NOT EXISTS (SELECT 1 FROM jobs j2
 		                           WHERE j2.type = j.type AND j2.status = 'queued' AND j2.id < j.id)
+		       ))
+		  AND (type <> 'transcode'
+		       OR NOT EXISTS (
+		           -- per-entry ordering: a flavor may start only when no
+		           -- other flavor of the same entry is still running
+		           SELECT 1 FROM jobs j2
+		           WHERE j2.type = 'transcode' AND j2.status = 'running'
+		             AND j2.entry_id = j.entry_id
 		       ))
 		ORDER BY id
 		LIMIT $1
@@ -100,6 +110,23 @@ func (q *Queue) Claim(ctx context.Context, workerID string, n int, exclude ...st
 	if len(jobs) == 0 {
 		return nil, nil
 	}
+
+	// Per-entry transcode ordering: rows locked in this same transaction are
+	// still 'queued' when the NOT EXISTS subquery ran, so two flavors of one
+	// entry could both be claimed in one round. Keep only the earliest
+	// transcode per entry; the rest stay queued and are claimed next round.
+	seen := map[int64]bool{}
+	filtered := jobs[:0]
+	for _, j := range jobs {
+		if j.Type == "transcode" && j.EntryID != nil {
+			if seen[*j.EntryID] {
+				continue
+			}
+			seen[*j.EntryID] = true
+		}
+		filtered = append(filtered, j)
+	}
+	jobs = filtered
 
 	ids := make([]int64, 0, len(jobs))
 	for _, j := range jobs {

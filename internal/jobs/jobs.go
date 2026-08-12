@@ -14,6 +14,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -37,12 +38,23 @@ type Runner struct {
 	// downloadSem serializes URL downloads (one at a time) within this
 	// worker process.
 	downloadSem chan struct{}
-	// transcodeSem serializes flavor transcodes (one at a time).
-	transcodeSem chan struct{}
+	// transcodeSems serializes flavor transcodes PER ENTRY: flavors of the
+	// same entry run one at a time, different entries run in parallel.
+	transcodeMu   sync.Mutex
+	transcodeSems map[int64]*entrySem
+	// SpoolDir caches one downloaded source copy per entry across the whole
+	// pipeline (probe + every flavor). Defaults to os.TempDir().
+	SpoolDir string
+	spoolMu    sync.Mutex
+	spoolCache map[int64]string
 	// Busy flags mirror the semaphores so the claim loop can leave queued
 	// jobs of a busy kind alone (they then honestly show as "queued").
-	transcodeBusy atomic.Bool
-	downloadBusy  atomic.Bool
+	downloadBusy atomic.Bool
+}
+
+type entrySem struct {
+	ch     chan struct{}
+	active int
 }
 
 // EnsureDownloadSem lazily creates the download semaphore.
@@ -52,15 +64,45 @@ func (r *Runner) EnsureDownloadSem() {
 	}
 }
 
-// EnsureTranscodeSem lazily creates the transcode semaphore.
-func (r *Runner) EnsureTranscodeSem() {
-	if r.transcodeSem == nil {
-		r.transcodeSem = make(chan struct{}, 1)
+// acquireTranscodeSem reserves this entry's transcode slot (capacity 1).
+func (r *Runner) acquireTranscodeSem(ctx context.Context, entryID int64) (func(), error) {
+	r.transcodeMu.Lock()
+	if r.transcodeSems == nil {
+		r.transcodeSems = map[int64]*entrySem{}
+	}
+	sem := r.transcodeSems[entryID]
+	if sem == nil {
+		sem = &entrySem{ch: make(chan struct{}, 1)}
+		r.transcodeSems[entryID] = sem
+	}
+	sem.active++
+	r.transcodeMu.Unlock()
+
+	select {
+	case sem.ch <- struct{}{}:
+		var once sync.Once
+		release := func() {
+			once.Do(func() {
+				<-sem.ch
+				r.transcodeMu.Lock()
+				sem.active--
+				if sem.active == 0 {
+					delete(r.transcodeSems, entryID)
+				}
+				r.transcodeMu.Unlock()
+			})
+		}
+		return release, nil
+	case <-ctx.Done():
+		r.transcodeMu.Lock()
+		sem.active--
+		if sem.active == 0 {
+			delete(r.transcodeSems, entryID)
+		}
+		r.transcodeMu.Unlock()
+		return nil, ctx.Err()
 	}
 }
-
-// TranscodeBusy reports whether a flavor transcode is currently executing.
-func (r *Runner) TranscodeBusy() bool { return r.transcodeBusy.Load() }
 
 // DownloadBusy reports whether a URL download is currently executing.
 func (r *Runner) DownloadBusy() bool { return r.downloadBusy.Load() }
@@ -239,17 +281,34 @@ func (c *countingWriter) Write(p []byte) (int, error) {
 	return n, err
 }
 
-// spoolSource downloads the entry's source file to local disk.
+// spoolSource returns a local copy of the entry's source file, cached per
+// entry for the lifetime of the pipeline: probe + every transcode flavor
+// share one download from remote stores. Callers must NOT delete the file;
+// it is removed by clearSpool when the entry reaches a terminal state.
 func (r *Runner) spoolSource(ctx context.Context, e db.Entry) (string, error) {
 	if e.SourceKey == "" {
 		return "", errors.New("entry has no source media")
 	}
+	r.spoolMu.Lock()
+	if r.spoolCache == nil {
+		r.spoolCache = map[int64]string{}
+	}
+	if cached, ok := r.spoolCache[e.ID]; ok {
+		r.spoolMu.Unlock()
+		return cached, nil
+	}
+	r.spoolMu.Unlock()
+
 	rc, err := r.Store.Open(ctx, e.SourceKey)
 	if err != nil {
 		return "", err
 	}
 	defer rc.Close()
-	tmp, err := os.CreateTemp("", "vod-source-*"+path.Ext(e.SourceKey))
+	dir := r.SpoolDir
+	if dir == "" {
+		dir = os.TempDir()
+	}
+	tmp, err := os.CreateTemp(dir, "vod-source-*"+path.Ext(e.SourceKey))
 	if err != nil {
 		return "", err
 	}
@@ -262,7 +321,29 @@ func (r *Runner) spoolSource(ctx context.Context, e db.Entry) (string, error) {
 		os.Remove(tmp.Name())
 		return "", err
 	}
+
+	r.spoolMu.Lock()
+	// A concurrent job may have finished the same download while we were
+	// copying; prefer the registered copy and drop ours.
+	if cached, ok := r.spoolCache[e.ID]; ok {
+		r.spoolMu.Unlock()
+		os.Remove(tmp.Name())
+		return cached, nil
+	}
+	r.spoolCache[e.ID] = tmp.Name()
+	r.spoolMu.Unlock()
 	return tmp.Name(), nil
+}
+
+// clearSpool removes the cached source copy for an entry whose pipeline
+// reached a terminal state (ready, failed, deleted).
+func (r *Runner) clearSpool(entryID int64) {
+	r.spoolMu.Lock()
+	defer r.spoolMu.Unlock()
+	if p, ok := r.spoolCache[entryID]; ok {
+		os.Remove(p) // best effort; temp dir cleans leftovers
+		delete(r.spoolCache, entryID)
+	}
 }
 
 // transcodeParams is the transcode job payload.
@@ -288,7 +369,6 @@ func (r *Runner) Probe(ctx context.Context, job db.Job) error {
 	if err != nil {
 		return err
 	}
-	defer os.Remove(src)
 
 	res, err := media.Probe(ctx, src)
 	if err != nil {
@@ -389,8 +469,8 @@ func (r *Runner) Probe(ctx context.Context, job db.Job) error {
 	if err != nil {
 		return err
 	}
-	// One transcode job per flavor; the queue serializes them (only the
-	// earliest queued transcode job is claimable at a time).
+	// One transcode job per flavor; the queue orders flavors per entry and
+	// runs different entries in parallel.
 	for _, fid := range pending {
 		if _, err := r.Queue.Enqueue(ctx, "transcode", e.ID, transcodeParams{FlavorID: fid}, 3); err != nil {
 			return err
@@ -421,9 +501,9 @@ func (r *Runner) publishSourcePlaylist(ctx context.Context, e db.Entry) error {
 	return r.Store.Put(ctx, store.MasterKey(e.ID), strings.NewReader(b.String()), int64(b.Len()))
 }
 
-// Transcode encodes ONE flavor (probe enqueues one job per flavor, executed
-// serially via transcodeSem) and, when it is the last flavor of the entry,
-// assembles the master playlist and marks the entry ready.
+// Transcode encodes ONE flavor (executed per-entry serially via the
+// entry's transcode semaphore) and, when it is the last flavor of the
+// entry, assembles the master playlist and marks the entry ready.
 func (r *Runner) Transcode(ctx context.Context, job db.Job) error {
 	if job.EntryID == nil {
 		return errors.New("transcode job without entry")
@@ -441,21 +521,19 @@ func (r *Runner) Transcode(ctx context.Context, job db.Job) error {
 		r.failEntry(ctx, e, "transcode failed: "+err.Error())
 		return err
 	}
-	defer os.Remove(src)
 
 	segmentSecs := r.Settings.Int("transcode.segment_seconds", 4)
 	gopSecs := r.Settings.Int("transcode.gop_seconds", 2)
 	preset := r.Settings.String("transcode.preset", "veryfast")
 
-	r.EnsureTranscodeSem()
-	select {
-	case r.transcodeSem <- struct{}{}:
-		defer func() { <-r.transcodeSem }()
-	case <-ctx.Done():
-		return ctx.Err()
+	// Per-entry serialization: flavors of one entry transcode in order,
+	// different entries run in parallel (the worker pool bounds ffmpeg
+	// processes globally).
+	releaseSem, err := r.acquireTranscodeSem(ctx, e.ID)
+	if err != nil {
+		return err
 	}
-	r.transcodeBusy.Store(true)
-	defer r.transcodeBusy.Store(false)
+	defer releaseSem()
 
 	f, err := db.FlavorByID(ctx, r.Pool, params.FlavorID)
 	if err != nil {
@@ -542,6 +620,7 @@ func (r *Runner) finalizeTranscode(ctx context.Context, e db.Entry) error {
 	}
 	_, err := r.Pool.Exec(ctx, `
 		UPDATE entries SET status = 'ready', error = NULL, updated_at = now() WHERE id = $1`, e.ID)
+	r.clearSpool(e.ID)
 	return err
 }
 
@@ -637,6 +716,7 @@ func (r *Runner) buildMaster(ctx context.Context, e db.Entry) error {
 func (r *Runner) failEntry(ctx context.Context, e db.Entry, msg string) {
 	r.Log.Error(msg, "entry", e.ID)
 	_ = db.SetEntryError(ctx, r.Pool, e.ID, db.StatusFailed, msg)
+	r.clearSpool(e.ID)
 }
 
 func (r *Runner) markFlavor(ctx context.Context, entryID, flavorID int64, status db.EntryFlavorStatus, errMsg string) {

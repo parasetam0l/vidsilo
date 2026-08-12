@@ -72,7 +72,14 @@ func cmdWorker(args []string) {
 	}
 
 	q := queue.New(pool)
-	runner := &jobs.Runner{Pool: pool, Store: mediaStore, Queue: q, Settings: svc, Log: log}
+	runner := &jobs.Runner{
+		Pool:     pool,
+		Store:    mediaStore,
+		Queue:    q,
+		Settings: svc,
+		Log:      log,
+		SpoolDir: os.TempDir(),
+	}
 
 	concurrency := svc.Int("transcode.concurrency", 0)
 	if concurrency <= 0 {
@@ -175,10 +182,10 @@ func (w *worker) run(ctx context.Context) {
 }
 
 func (w *worker) claimRound(ctx context.Context, sem chan struct{}) {
-	// Serialization is enforced in SQL (Queue.Claim): transcode/download
-	// jobs are only claimable when none of their kind is running, so queued
-	// ones honestly show as 'In Queue' instead of sitting 'running' behind
-	// the semaphore.
+	// Serialization is enforced in SQL (Queue.Claim): download jobs are only
+	// claimable when none of their kind is running; transcode flavors are
+	// ordered per entry. Queued jobs honestly show as 'In Queue' instead of
+	// sitting 'running' behind a semaphore.
 	jobs, err := w.queue.Claim(ctx, w.workerID, w.concurrency)
 	if err != nil {
 		w.log.Error("claim", "err", err)
