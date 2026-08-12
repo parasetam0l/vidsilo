@@ -7,11 +7,9 @@ import (
 	"time"
 )
 
-// responseCache is a tiny in-memory TTL cache for expensive read-only JSON
-// endpoints (dashboard, storage usage, catalog counts). Values are keyed by
-// URL path+query; entries expire after ttl. Auth-dependent responses must
-// never be cached — only endpoints whose output is identical for every
-// authenticated admin/editor are registered.
+// responseCache is a tiny in-memory TTL cache for read-only JSON endpoints
+// whose output is identical for every caller (public endpoints only).
+// Values are keyed by URL path+query; entries expire after ttl.
 type responseCache struct {
 	mu    sync.Mutex
 	items map[string]cacheItem
@@ -71,9 +69,16 @@ func (w *cacheWriter) WriteHeader(code int)        { w.status = code }
 func (w *cacheWriter) Write(b []byte) (int, error) { return w.buf.Write(b) }
 
 // cacheGET wraps a handler with a short-lived response cache. Only use for
-// deterministic, role-homogeneous GET endpoints.
+// public, deterministic GET endpoints. As a footgun guard, requests that
+// carry credentials (cookies or Authorization) bypass the cache entirely —
+// both on read and write — so an authenticated response can never leak to
+// another user via a shared key.
 func (s *Server) cacheGET(ttl time.Duration, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if hasCredentials(r) {
+			next(w, r)
+			return
+		}
 		key := r.URL.Path + "?" + r.URL.RawQuery
 		if body, ok := s.respCache.get(key); ok {
 			w.Header().Set("Content-Type", "application/json")
@@ -97,6 +102,11 @@ func (s *Server) cacheGET(ttl time.Duration, next http.HandlerFunc) http.Handler
 		w.WriteHeader(cw.status)
 		_, _ = w.Write(cw.buf.Bytes())
 	}
+}
+
+// hasCredentials reports whether the request carries session material.
+func hasCredentials(r *http.Request) bool {
+	return r.Header.Get("Authorization") != "" || len(r.Cookies()) > 0
 }
 
 func itoa(n int) string {

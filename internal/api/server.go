@@ -130,7 +130,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /upload", s.serveUI)
 
 	mux.HandleFunc("GET /healthz", s.handleHealthz)
-	mux.HandleFunc("GET /metrics", s.handleMetrics)
+	mux.Handle("GET /metrics", s.requireRole(roleAdmin)(http.HandlerFunc(s.handleMetrics)))
 	mux.HandleFunc("GET /api/", s.handleNotFound())
 	mux.HandleFunc("/", s.serveUI)
 
@@ -149,9 +149,13 @@ type reqIDKey struct{}
 
 // requestID assigns every request a short unique id (echoed in logs and the
 // X-Request-Id response header) so a slow request can be traced end to end.
+// Client-supplied ids are honored but bounded, so logs cannot be flooded.
 func (s *Server) requestID(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		id := r.Header.Get("X-Request-Id")
+		if len(id) > 64 {
+			id = id[:64]
+		}
 		if id == "" {
 			b := make([]byte, 8)
 			if _, err := rand.Read(b); err == nil {

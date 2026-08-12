@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 	"time"
@@ -12,13 +13,15 @@ func (s *Server) registerAuditRoutes(mux *http.ServeMux) {
 }
 
 // audit records a mutating admin action. It is best-effort: a logging
-// failure must never fail the action itself.
+// failure must never fail the action itself. The insert runs on a
+// cancel-detached context so a client that disconnects mid-request cannot
+// silently drop the trail.
 func (s *Server) audit(r *http.Request, action, entity, entityID, detail string) {
 	u := userFromContext(r.Context())
 	if s.pool == nil {
 		return
 	}
-	_, _ = s.pool.Exec(r.Context(), `
+	_, _ = s.pool.Exec(context.WithoutCancel(r.Context()), `
 		INSERT INTO audit_events (actor_id, actor_email, action, entity, entity_id, detail)
 		VALUES ($1, $2, $3, $4, $5, $6)`,
 		u.ID, u.Email, action, entity, entityID, detail)
