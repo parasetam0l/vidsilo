@@ -163,7 +163,7 @@ export default function FlavorsPage() {
                   className={`cursor-pointer transition-colors hover:bg-muted/40 ${!f.enabled ? "opacity-60" : ""}`}
                   onClick={() => openEdit(f)}
                 >
-                  <TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
                     <Switch checked={f.enabled} onCheckedChange={() => toggleFlavor.mutate(f)} />
                   </TableCell>
                   <TableCell className="font-medium">
