@@ -126,9 +126,15 @@ func (s *Server) handleEntryPatch(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "bad_request", "invalid JSON body")
 		return
 	}
-	if patch.DomainACLID != nil {
-		if _, err := db.ACLByID(r.Context(), s.pool, *patch.DomainACLID); err != nil {
+	if patch.DomainACLID.Set && patch.DomainACLID.Value != nil {
+		if _, err := db.ACLByID(r.Context(), s.pool, *patch.DomainACLID.Value); err != nil {
 			writeError(w, http.StatusBadRequest, "bad_request", "unknown domain acl")
+			return
+		}
+	}
+	if patch.PlayerID.Set && patch.PlayerID.Value != nil {
+		if _, err := db.PlayerByID(r.Context(), s.pool, *patch.PlayerID.Value); err != nil {
+			writeError(w, http.StatusBadRequest, "bad_request", "unknown player")
 			return
 		}
 	}

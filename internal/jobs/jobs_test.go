@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/parasetam0l/vod-app/internal/db"
@@ -149,7 +150,70 @@ func TestPipelineProbeAndTranscode(t *testing.T) {
 	if doneCount == 0 {
 		t.Fatal("no flavors finished")
 	}
+
+	// Poster + sprite must be published (and the poster frame recorded).
+	for _, k := range []string{store.PosterKey(entryID), store.SpriteKey(entryID)} {
+		rc, err := mediaStore.Open(ctx, k)
+		if err != nil {
+			t.Fatalf("open %s: %v", k, err)
+		}
+		b, _ := io.ReadAll(rc)
+		rc.Close()
+		if len(b) == 0 {
+			t.Fatalf("%s is empty", k)
+		}
+	}
+	if e.PosterFrame < 0 || e.PosterFrame >= e.SpriteFrames {
+		t.Fatalf("poster_frame = %d out of range [0, %d)", e.PosterFrame, e.SpriteFrames)
+	}
+
+	// Playback path: resolve the first done flavor's playlist and a segment
+	// the player would fetch — the whole HLS chain must be servable.
+	checked := 0
+	for _, ef := range flavors {
+		if ef.Status != db.FlavorDone || ef.PlaylistKey == "" || checked >= 1 {
+			continue
+		}
+		rc, err := mediaStore.Open(ctx, ef.PlaylistKey)
+		if err != nil {
+			t.Fatalf("rendition playlist %s: %v", ef.PlaylistKey, err)
+		}
+		pl, _ := io.ReadAll(rc)
+		rc.Close()
+		segName := firstSegment(string(pl))
+		if segName == "" {
+			t.Fatalf("no segments in rendition playlist %s:\n%s", ef.PlaylistKey, pl)
+		}
+		segKey := filepath.ToSlash(filepath.Join(filepath.Dir(ef.PlaylistKey), segName))
+		rc, err = mediaStore.Open(ctx, segKey)
+		if err != nil {
+			t.Fatalf("segment %s: %v", segKey, err)
+		}
+		seg, _ := io.ReadAll(rc)
+		rc.Close()
+		if len(seg) < 1024 {
+			t.Fatalf("segment %s suspiciously small: %d bytes", segKey, len(seg))
+		}
+		checked++
+	}
+	if checked == 0 {
+		t.Fatal("no done flavor with a playlist to verify")
+	}
 	_ = errors.Is
+}
+
+// firstSegment extracts the media key on the line after the first #EXTINF.
+func firstSegment(playlist string) string {
+	lines := strings.Split(playlist, "\n")
+	for i := 0; i+1 < len(lines); i++ {
+		if strings.HasPrefix(lines[i], "#EXTINF") {
+			name := strings.TrimSpace(lines[i+1])
+			if name != "" && !strings.HasPrefix(name, "#") {
+				return name
+			}
+		}
+	}
+	return ""
 }
 
 func containsStr(s, sub string) bool {

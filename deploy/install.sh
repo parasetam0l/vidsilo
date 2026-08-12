@@ -33,7 +33,7 @@ for arg in "$@"; do
             echo "  --selfsigned     HTTPS with a locally generated self-signed certificate"
             echo "  --ssl-cert=F --ssl-key=F   HTTPS with your own certificate files"
             echo "  (interactive: answering 'y' to the HTTPS question asks how to obtain SSL)"
-            echo "  --db-password sets a scram password on the vod role (remote app/worker nodes need it)"
+            echo "  --db-password sets a scram password on the vod role (default: a random one is generated)"
             exit 0 ;;
         *) echo "unknown option: $arg"; exit 2 ;;
     esac
@@ -61,7 +61,7 @@ fi
 
 # --- system packages ----------------------------------------------------------
 apt-get update -qq
-apt-get install -y -qq ca-certificates
+apt-get install -y -qq ca-certificates openssl
 
 if [ "$ROLE" = "db" ] || [ "$ROLE" = "app" ] || [ "$ROLE" = "worker" ]; then
     if ! command -v psql >/dev/null 2>&1; then
@@ -83,25 +83,26 @@ mkdir -p "$DATA_DIR" "$CERT_DIR" "$ENV_DIR" /var/log/vod-app
 chown -R "$VOD_USER":"$VOD_USER" "$DATA_DIR" "$CERT_DIR" /var/log/vod-app
 
 # --- database (db role creates the role+db; others assume it exists) ---------
-# Auth model: same-host app/worker nodes use the unix socket with peer auth
-# (no password needed — systemd runs as the vod user, pg_hba defaults to
-# 'local all all peer'). Remote nodes must set a scram password on the role
-# (--db-password) and use a TCP DATABASE_URL; pg_hba.conf must allow it.
+# Auth model: the db role always gets a scram password — when --db-password is
+# not given, install.sh generates one (openssl) and prints it once. Same-host
+# app/worker nodes pick it up from the env file automatically; remote nodes
+# must pass the same --db-password when installing (or copy /etc/vod-app/env).
 DB_ENV="$ENV_DIR/env"
 DB_PASSWORD="${DB_PASSWORD:-}"
+GENERATED_DB_PASSWORD=0
+if [ "$ROLE" = "db" ] && [ -z "$DB_PASSWORD" ]; then
+    DB_PASSWORD="$(openssl rand -hex 24)"
+    GENERATED_DB_PASSWORD=1
+    echo "generated a random postgres password (printed once below)"
+fi
 if [ "$ROLE" = "db" ]; then
     if ! command -v pg_ctlcluster >/dev/null 2>&1; then
         apt-get install -y -qq postgresql
     fi
     systemctl enable --now postgresql 2>/dev/null || true
     if ! su -s /bin/sh postgres -c "psql -tAc \"SELECT 1 FROM pg_roles WHERE rolname='vod'\"" | grep -q 1; then
-        if [ -n "$DB_PASSWORD" ]; then
-            su -s /bin/sh postgres -c "psql -c \"CREATE ROLE vod LOGIN PASSWORD '$DB_PASSWORD'\""
-            echo "created postgres role 'vod' with the password from --db-password"
-        else
-            su -s /bin/sh postgres -c "psql -c \"CREATE ROLE vod LOGIN\""
-            echo "created postgres role 'vod' (peer auth only — remote nodes need --db-password)"
-        fi
+        su -s /bin/sh postgres -c "psql -c \"CREATE ROLE vod LOGIN PASSWORD '$DB_PASSWORD'\""
+        echo "created postgres role 'vod' with a scram password"
     fi
     su -s /bin/sh postgres -c "psql -tAc \"SELECT 1 FROM pg_database WHERE datname='vod'\"" | grep -q 1 ||
         su -s /bin/sh postgres -c "createdb -O vod vod"
@@ -215,6 +216,11 @@ RestartSec=2s
 StateDirectory=vod-app
 LogsDirectory=vod-app
 AmbientCapabilities=CAP_NET_BIND_SERVICE
+# Lightweight process: a hard cap keeps a runaway worker or a media burst
+# from starving the host.
+MemoryHigh=384M
+MemoryMax=512M
+OOMScoreAdjust=100
 
 [Install]
 WantedBy=multi-user.target
@@ -239,6 +245,14 @@ Restart=on-failure
 RestartSec=2s
 Nice=10
 IOSchedulingClass=idle
+# ffmpeg burst protection: MemoryMax hard-caps the whole worker cgroup, so a
+# transcode cannot OOM the host — the kernel (or systemd-oomd on Ubuntu 24.04,
+# enabled by default) kills the offending ffmpeg, the job fails and stays
+# retryable. MemoryHigh throttles before the cap. Tune per machine RAM:
+# transcode.concurrency parallel encoders × ~1-2 GB each.
+MemoryHigh=3G
+MemoryMax=4G
+OOMScoreAdjust=500
 
 [Install]
 WantedBy=multi-user.target
@@ -248,4 +262,9 @@ UNIT
 fi
 
 echo "install complete (role=$ROLE)"
+if [ "$ROLE" = "db" ] && [ "$GENERATED_DB_PASSWORD" = "1" ]; then
+    echo "postgres password for the vod role (save this — it is not stored on disk):"
+    echo "    $DB_PASSWORD"
+    echo "remote app/worker nodes: install with --db-password=$DB_PASSWORD"
+fi
 [ "$ROLE" = "app" ] && echo "first-run admin password: journalctl -u vod-app | grep 'First-run admin'"

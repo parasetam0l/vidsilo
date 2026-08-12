@@ -38,7 +38,10 @@ func Pool(t *testing.T) *pgxpool.Pool {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cfg.ConnConfig.RuntimeParams["search_path"] = schema
+	// Search the per-process schema first, falling back to public so
+	// extension objects (e.g. pg_trgm's gin_trgm_ops) resolve inside the
+	// isolated schema migrations.
+	cfg.ConnConfig.RuntimeParams["search_path"] = schema + ", public"
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
 		t.Fatal(err)

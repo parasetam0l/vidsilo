@@ -7,12 +7,14 @@ See [DESIGN.md](DESIGN.md) for the full design.
 ## Quickstart (Docker)
 
 ```bash
+./deploy/gen-env.sh        # creates .env with a generated postgres password (idempotent)
 docker compose up -d --build
 ```
 
-- App: http://localhost:8080
+- App: http://localhost:8080 (published ports: 80 → 8080, 443 → 8443)
 - First-run admin credentials are logged once: `docker compose logs app | grep password` (sign in with the email, default `admin@localhost`)
 - Worker runs probe/transcode jobs; watch it: `docker compose logs -f worker`
+- The worker is memory-capped (`WORKER_MEM_LIMIT`, default 4g) so an ffmpeg burst cannot OOM the host; the failing job stays retryable
 
 Optional S3/MinIO storage:
 
@@ -32,6 +34,10 @@ sudo sh install.sh --role db       # on the postgres node
 ```
 
 `install.sh` is idempotent: installs postgres/ffmpeg, creates the `vod` user + dirs + systemd units, and restarts services. First-run admin is in `journalctl -u vod-app`. Environment lives in `/etc/vod-app/env` (see `deploy/env.example`).
+
+Secrets on bare metal:
+- The **postgres password** is generated randomly by `install.sh --role db` (openssl) unless `--db-password` is given, and printed once at the end — same-host app/worker nodes pick it up from `/etc/vod-app/env` automatically. The app's admin password is generated at first boot (`journalctl -u vod-app | grep 'First-run admin'`); `vod-app reset-admin` rotates it later.
+- ffmpeg OOM protection: the worker systemd unit runs with `MemoryHigh=3G` / `MemoryMax=4G` (+ `OOMScoreAdjust`), so a transcode burst is capped in its cgroup — the kernel or systemd-oomd (on by default on Ubuntu 24.04) kills the offending ffmpeg, the job fails and stays retryable. Tune the values in `/etc/systemd/system/vod-worker.service` per machine RAM (parallel encoders ≈ `transcode.concurrency` × 1–2 GB).
 
 Horizontal scale: `DATABASE_URL` + shared storage (local: NFS — install warns; s3: no shared FS needed) in `/etc/vod-app/env` on each node. Workers/apps add horizontally with no code changes.
 

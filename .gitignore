@@ -17,6 +17,7 @@ web/next-env.d.ts
 # Runtime data / secrets
 data/
 *.key
+.env
 !deploy/
 .certs/
 

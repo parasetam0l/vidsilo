@@ -168,25 +168,25 @@ function PlayerFormContent({ onClose, initial }: { onClose: () => void; initial?
   const [autoHideControls, setAutoHideControls] = React.useState(cfg.autoHideControls !== false);
   const [error, setError] = React.useState<string | null>(null);
 
+  const buildConfig = (): PlayerConfig => ({
+    accentColor: accentColor.trim() || undefined,
+    logoUrl: logoUrl.trim() || undefined,
+    logoHref: logoHref.trim() || undefined,
+    logoPosition: positions.includes(logoPosition as (typeof positions)[number])
+      ? (logoPosition as (typeof positions)[number])
+      : "top-right",
+    logoSize: Math.max(16, Math.min(512, Number(logoSize) || 64)),
+    logoOpacity: Math.max(0, Math.min(1, Number(logoOpacity) || 0.8)),
+    showLoader,
+    autoHideControls,
+  });
+
   const save = useMutation({
-    mutationFn: () => {
-      const config: PlayerConfig = {
-        accentColor: accentColor.trim() || undefined,
-        logoUrl: logoUrl.trim() || undefined,
-        logoHref: logoHref.trim() || undefined,
-        logoPosition: positions.includes(logoPosition as (typeof positions)[number])
-          ? (logoPosition as (typeof positions)[number])
-          : "top-right",
-        logoSize: Math.max(16, Math.min(512, Number(logoSize) || 64)),
-        logoOpacity: Math.max(0, Math.min(1, Number(logoOpacity) || 0.8)),
-        showLoader,
-        autoHideControls,
-      };
-      return api<Player>(initial ? `/api/players/${initial.id}` : "/api/players", {
+    mutationFn: () =>
+      api<Player>(initial ? `/api/players/${initial.id}` : "/api/players", {
         method: initial ? "PATCH" : "POST",
-        body: JSON.stringify({ name: name.trim(), config }),
-      });
-    },
+        body: JSON.stringify({ name: name.trim(), config: buildConfig() }),
+      }),
     onSuccess: () => {
       toast.success(t("saved"));
       queryClient.invalidateQueries({ queryKey: ["players"] });
@@ -200,6 +200,8 @@ function PlayerFormContent({ onClose, initial }: { onClose: () => void; initial?
       <DialogHeader>
         <DialogTitle>{initial ? t("playersEditTitle", { name: initial.name }) : t("playersNew")}</DialogTitle>
       </DialogHeader>
+
+      <PlayerPreview config={buildConfig()} />
 
       <div className="flex flex-col gap-2">
         <Label className="text-xs font-medium">{t("playersName")}</Label>
@@ -296,6 +298,86 @@ function PlayerFormContent({ onClose, initial }: { onClose: () => void; initial?
           {save.isPending ? t("loading") : t("save")}
         </Button>
       </DialogFooter>
+    </div>
+  );
+}
+
+// PlayerPreview renders a mock of the actual player so design edits (accent,
+// logo watermark, loader) are visible live while editing. No video plays.
+function PlayerPreview({ config }: { config: PlayerConfig }) {
+  const [logoFailed, setLogoFailed] = React.useState(false);
+
+  const accent =
+    config.accentColor && /^#[0-9a-fA-F]{3,8}$/.test(config.accentColor) ? config.accentColor : "#ffffff";
+  const positionClass = {
+    "top-left": "left-3 top-3",
+    "top-right": "right-3 top-3",
+    "bottom-left": "left-3 bottom-12",
+    "bottom-right": "right-3 bottom-12",
+  }[config.logoPosition ?? "top-right"];
+  const size = config.logoSize ?? 64;
+  const opacity = config.logoOpacity ?? 0.8;
+
+  return (
+    <div className="relative aspect-video w-full select-none overflow-hidden rounded-xl border bg-black">
+      {config.logoUrl ? (
+        logoFailed ? (
+          <div
+            className={`absolute z-10 grid place-items-center rounded border border-dashed border-white/30 bg-white/5 ${positionClass}`}
+            style={{ width: size, height: size, opacity }}
+          >
+            <span className="text-[8px] font-medium tracking-widest text-white/40">LOGO</span>
+          </div>
+        ) : (
+          <div className={`absolute z-10 ${positionClass}`} style={{ width: size, height: size, opacity }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              key={config.logoUrl}
+              src={config.logoUrl}
+              alt=""
+              className="h-full w-full object-contain"
+              draggable={false}
+              onLoad={() => setLogoFailed(false)}
+              onError={() => setLogoFailed(true)}
+            />
+          </div>
+        )
+      ) : null}
+
+      {config.showLoader !== false ? (
+        <div
+          className="absolute right-3 top-3 z-10 size-7 animate-spin rounded-full border-2 border-white/20"
+          style={{ borderTopColor: accent }}
+        />
+      ) : null}
+
+      <div className="absolute inset-0 grid place-items-center">
+        <div className="grid size-14 place-items-center rounded-full text-black" style={{ backgroundColor: accent }}>
+          <svg viewBox="0 0 24 24" className="ml-0.5 size-7 fill-current">
+            <path d="M8 5v14l11-7z" />
+          </svg>
+        </div>
+      </div>
+
+      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-3">
+        <div className="relative h-1.5 rounded-full bg-white/25">
+          <div className="absolute h-full rounded-full" style={{ width: "35%", backgroundColor: accent }} />
+        </div>
+        <div className="mt-2 flex items-center gap-2 text-xs text-white/80">
+          <svg viewBox="0 0 24 24" className="size-4 fill-current">
+            <path d="M6 4h4v16H6zM14 4h4v16h-4z" />
+          </svg>
+          <svg viewBox="0 0 24 24" className="size-4 fill-current opacity-70">
+            <path d="M3 9v6h4l5 5V4L7 9H3z" />
+          </svg>
+          <span className="tabular-nums opacity-80">0:07 / 0:21</span>
+          <div className="ml-auto flex items-center gap-2 opacity-80">
+            <span className="h-3 w-5 rounded-sm border border-white/60" />
+            <span className="h-3 w-5 rounded-sm border border-white/60" />
+            <span className="h-3 w-5 rounded-sm border border-white/60" />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

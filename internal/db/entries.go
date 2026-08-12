@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -177,27 +178,69 @@ func ListAllEntries(ctx context.Context, pool *pgxpool.Pool) ([]Entry, error) {
 }
 
 func UpdateEntry(ctx context.Context, pool *pgxpool.Pool, id int64, patch EntryPatch) (Entry, error) {
+	// Every field is presence-sensitive: absent keys keep their current DB
+	// value, so a partial PATCH can never wipe metadata. Explicit null
+	// (Set=true, Value=nil) clears nullable columns (category, acl, player).
 	if _, err := pool.Exec(ctx, `
-		UPDATE entries SET title = $1, description = $2, category_id = $3, is_public = $4,
-			domain_acl_id = $5, access_denied = COALESCE($6::boolean, access_denied),
-			player_id = $7, updated_at = now()
-		WHERE id = $8`,
-		patch.Title, patch.Description, patch.CategoryID, patch.IsPublic, patch.DomainACLID,
-		patch.AccessDenied, patch.PlayerID, id); err != nil {
+		UPDATE entries SET
+			title = COALESCE($1::text, title),
+			description = COALESCE($2::text, description),
+			category_id = CASE WHEN $3::bigint IS NOT NULL THEN $3
+			                   WHEN $3::text IS NULL AND $4 THEN NULL ELSE category_id END,
+			is_public = COALESCE($5::boolean, is_public),
+			domain_acl_id = CASE WHEN $6::bigint IS NOT NULL THEN $6
+			                     WHEN $6::text IS NULL AND $7 THEN NULL ELSE domain_acl_id END,
+			access_denied = COALESCE($8::boolean, access_denied),
+			player_id = CASE WHEN $9::bigint IS NOT NULL THEN $9
+			                 WHEN $9::text IS NULL AND $10 THEN NULL ELSE player_id END,
+			updated_at = now()
+		WHERE id = $11`,
+		patch.Title, patch.Description,
+		patch.CategoryID.Value, patch.CategoryID.Set,
+		patch.IsPublic,
+		patch.DomainACLID.Value, patch.DomainACLID.Set,
+		patch.AccessDenied,
+		patch.PlayerID.Value, patch.PlayerID.Set,
+		id); err != nil {
 		return Entry{}, err
 	}
 	return EntryByID(ctx, pool, id)
 }
 
+// OptInt64 distinguishes "absent" from "explicit null" in PATCH bodies:
+//   - absent (key missing)      → Set=false, Value=nil  → keep the DB value
+//   - explicit null             → Set=true,  Value=nil  → clear the column
+//   - explicit value            → Set=true,  Value=&n   → set the column
+type OptInt64 struct {
+	Set   bool
+	Value *int64
+}
+
+// UnmarshalJSON records presence, preserving the null value.
+func (o *OptInt64) UnmarshalJSON(b []byte) error {
+	o.Set = true
+	if string(b) == "null" {
+		o.Value = nil
+		return nil
+	}
+	var v int64
+	if err := json.Unmarshal(b, &v); err != nil {
+		return err
+	}
+	o.Value = &v
+	return nil
+}
+
 type EntryPatch struct {
-	Title       string   `json:"title"`
-	Description string   `json:"description"`
-	CategoryID  *int64   `json:"categoryId"`
-	IsPublic    bool     `json:"isPublic"`
-	// DomainACLID is the named embed ACL; nil = "Allow All".
-	DomainACLID *int64   `json:"domainAclId"`
-	// PlayerID is the assigned player design; nil = the Default player.
-	PlayerID *int64 `json:"playerId"`
+	// Title/Description/IsPublic are presence-sensitive; an empty string or
+	// false is still an explicit value, so the UI's full-body saves keep
+	// their current semantics.
+	Title       *string `json:"title"`
+	Description *string `json:"description"`
+	CategoryID  OptInt64 `json:"categoryId"`
+	IsPublic    *bool    `json:"isPublic"`
+	// DomainACLID is the named embed ACL; explicit null = "Allow All".
+	DomainACLID OptInt64 `json:"domainAclId"`
 	// AccessDenied hides the entry from all viewers (editors/admins can
 	// still manage it). Omit to leave access untouched.
 	AccessDenied *bool `json:"accessDenied"`
@@ -206,6 +249,8 @@ type EntryPatch struct {
 	FlavorIDs *[]int64 `json:"flavorIds"`
 	// PosterFrame, when present, re-extracts the poster from this sprite frame.
 	PosterFrame *int `json:"posterFrame"`
+	// PlayerID is the assigned player design; explicit null = Default player.
+	PlayerID OptInt64 `json:"playerId"`
 }
 
 func DeleteEntry(ctx context.Context, pool *pgxpool.Pool, id int64) error {

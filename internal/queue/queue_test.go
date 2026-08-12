@@ -115,8 +115,10 @@ func TestRequeueStale(t *testing.T) {
 	if _, err := q.Claim(ctx, "test-worker", 10); err != nil {
 		t.Fatal(err)
 	}
-	// Pretend the worker died 30 minutes ago.
-	_, _ = q.pool.Exec(ctx, `UPDATE jobs SET started_at = now() - interval '30 minutes' WHERE id = $1`, id)
+	// Pretend the worker died 30 minutes ago (both started_at and the
+	// 0009 heartbeat must look stale).
+	_, _ = q.pool.Exec(ctx, `UPDATE jobs SET started_at = now() - interval '30 minutes',
+		heartbeat_at = now() - interval '30 minutes' WHERE id = $1`, id)
 	n, err := q.RequeueStale(ctx, 15*time.Minute)
 	if err != nil {
 		t.Fatal(err)
