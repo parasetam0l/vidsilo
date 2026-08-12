@@ -2,11 +2,15 @@ package api
 
 import (
 	"compress/gzip"
+	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"io/fs"
 	"log/slog"
 	"net/http"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
@@ -39,6 +43,7 @@ type Server struct {
 	loginLimiter *rateLimiter
 	loginGuard   *loginGuard
 	denylist     *Denylist
+	respCache    *responseCache
 	spoolDir     string
 }
 
@@ -71,6 +76,7 @@ func NewServer(log *slog.Logger, uiFS fs.FS, pool *pgxpool.Pool, secret []byte, 
 		loginLimiter: newRateLimiter(loginRate, loginRate),
 		loginGuard:   &loginGuard{failures: map[string]int{}, lockedAt: map[string]time.Time{}},
 		denylist:     NewDenylist(pool),
+		respCache:    newResponseCache(),
 	}
 	if ds != nil {
 		s.tusHandler = s.newTusHandler(ds)
@@ -113,10 +119,12 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /upload", s.serveUI)
 
 	mux.HandleFunc("GET /healthz", s.handleHealthz)
+	mux.HandleFunc("GET /metrics", s.handleMetrics)
 	mux.HandleFunc("GET /api/", s.handleNotFound())
 	mux.HandleFunc("/", s.serveUI)
 
 	var h http.Handler = mux
+	h = s.requestID(h)
 	h = s.rateLimitAPI(h) // token buckets: tight on /api/auth, generous elsewhere
 	h = s.originCheck(h)
 	h = s.securityHeaders(h)
@@ -124,6 +132,31 @@ func (s *Server) Handler() http.Handler {
 	h = s.accessLog(h)
 	h = gzipMiddleware(h)
 	return h
+}
+
+type reqIDKey struct{}
+
+// requestID assigns every request a short unique id (echoed in logs and the
+// X-Request-Id response header) so a slow request can be traced end to end.
+func (s *Server) requestID(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		id := r.Header.Get("X-Request-Id")
+		if id == "" {
+			b := make([]byte, 8)
+			if _, err := rand.Read(b); err == nil {
+				id = hex.EncodeToString(b)
+			} else {
+				id = strconv.FormatInt(time.Now().UnixNano(), 36)
+			}
+		}
+		w.Header().Set("X-Request-Id", id)
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), reqIDKey{}, id)))
+	})
+}
+
+func requestIDFromContext(ctx context.Context) string {
+	id, _ := ctx.Value(reqIDKey{}).(string)
+	return id
 }
 
 // rateLimitAPI applies token buckets to every /api/* route: the tight login
@@ -179,6 +212,12 @@ func (s *Server) internalError(w http.ResponseWriter, r *http.Request, op string
 // Pages are served with no-cache (a truncated mid-deploy response must never
 // stick in a heuristic cache); content-hashed _next assets are immutable.
 func (s *Server) serveUI(w http.ResponseWriter, r *http.Request) {
+	// Server-side root redirect: no blank flash / history entry from the
+	// client-side window.location.replace.
+	if r.URL.Path == "/" {
+		http.Redirect(w, r, "/dashboard", http.StatusFound)
+		return
+	}
 	p := strings.TrimPrefix(r.URL.Path, "/")
 	if p == "" {
 		p = "index.html"
@@ -257,16 +296,51 @@ func (g *gzipResponseWriter) Write(b []byte) (int, error) {
 	return g.ResponseWriter.Write(b)
 }
 
+// statusWriter records the response status and byte count for access logs.
+type statusWriter struct {
+	http.ResponseWriter
+	status int
+	bytes  int64
+}
+
+func (w *statusWriter) WriteHeader(code int) {
+	if w.status == 0 {
+		w.status = code
+	}
+	w.ResponseWriter.WriteHeader(code)
+}
+
+func (w *statusWriter) Write(b []byte) (int, error) {
+	if w.status == 0 {
+		w.status = http.StatusOK
+	}
+	n, err := w.ResponseWriter.Write(b)
+	w.bytes += int64(n)
+	return n, err
+}
+
 func (s *Server) accessLog(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
-		next.ServeHTTP(w, r)
-		s.Log.Info("http",
+		sw := &statusWriter{ResponseWriter: w}
+		next.ServeHTTP(sw, r)
+		if sw.status == 0 {
+			sw.status = http.StatusOK
+		}
+		recordRequest(sw.status, sw.bytes, time.Since(start))
+		reqID := requestIDFromContext(r.Context())
+		logArgs := []any{
 			"method", r.Method,
 			"path", r.URL.Path,
 			"remote", r.RemoteAddr,
+			"status", sw.status,
+			"bytes", sw.bytes,
 			"dur", time.Since(start).Round(time.Microsecond).String(),
-		)
+		}
+		if reqID != "" {
+			logArgs = append(logArgs, "req_id", reqID)
+		}
+		s.Log.Info("http", logArgs...)
 	})
 }
 

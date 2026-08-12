@@ -290,12 +290,15 @@ func loadOrCreateSelfSigned(log *slog.Logger, cfg *config.Config) (tls.Certifica
 	return cert, nil
 }
 
-// plainServer is an HTTP listener with sane timeouts.
+// plainServer is an HTTP listener with sane timeouts: header read, whole-body
+// read, and write limits stop slow/hanging clients from holding connections.
 func plainServer(port int, h http.Handler) *http.Server {
 	return &http.Server{
 		Addr:              fmt.Sprintf(":%d", port),
 		Handler:           h,
 		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      10 * time.Minute, // large media range responses need room
 		IdleTimeout:       120 * time.Second,
 	}
 }

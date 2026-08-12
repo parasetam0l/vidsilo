@@ -21,6 +21,19 @@ type beacon struct {
 	Seconds  int64  `json:"seconds"`
 }
 
+// sanitizeBeacon rejects obviously bogus client beacons (fake ids, absurd
+// watch values). Server-measured bytes are the ground truth metric; these
+// guards keep the client-reported counters honest.
+func sanitizeBeacon(b *beacon) bool {
+	if len(b.PublicID) > 64 || len(b.ViewerID) > 128 {
+		return false
+	}
+	if b.Seconds < 0 || b.Seconds > 3600*24 {
+		return false
+	}
+	return b.PublicID != ""
+}
+
 // resolveBeaconEntry maps a public id to an internal entry id.
 func (s *Server) resolveBeaconEntry(r *http.Request, publicID string) (int64, bool) {
 	if publicID == "" {
@@ -35,7 +48,7 @@ func (s *Server) resolveBeaconEntry(r *http.Request, publicID string) (int64, bo
 
 func (s *Server) handleAnalyticsPlay(w http.ResponseWriter, r *http.Request) {
 	var b beacon
-	if err := decodeJSON(r, &b); err != nil {
+	if err := decodeJSON(r, &b); err != nil || !sanitizeBeacon(&b) {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
@@ -47,7 +60,7 @@ func (s *Server) handleAnalyticsPlay(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleAnalyticsWatch(w http.ResponseWriter, r *http.Request) {
 	var b beacon
-	if err := decodeJSON(r, &b); err != nil {
+	if err := decodeJSON(r, &b); err != nil || !sanitizeBeacon(&b) {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
