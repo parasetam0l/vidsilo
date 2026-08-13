@@ -150,8 +150,8 @@ function AnalyticsInner() {
 
   return (
     <div className="flex flex-1 flex-col gap-4 px-4 pb-4 pt-0">
-      {/* KPI Cards */}
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      {/* KPI Cards — same style as the dashboard's */}
+      <div className="grid auto-rows-min gap-4 md:grid-cols-2 xl:grid-cols-4">
         {cards.map((c) => (
           <Card
             key={c.title}
@@ -161,7 +161,7 @@ function AnalyticsInner() {
               className={`pointer-events-none absolute -top-10 -right-10 size-28 rounded-full blur-3xl ${c.blob}`}
             />
             <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+              <CardTitle className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
                 {c.title}
               </CardTitle>
               <div
@@ -171,9 +171,12 @@ function AnalyticsInner() {
               </div>
             </CardHeader>
             <CardContent className="relative">
-              <div className="text-3xl font-semibold tracking-tight tabular-nums">
-                {c.value}
+              <div className="flex items-end justify-between gap-3">
+                <div className="text-3xl font-semibold tracking-tight tabular-nums">
+                  {c.value}
+                </div>
               </div>
+              <p className="mt-1 text-xs text-muted-foreground">{t("analyticsRangeHint")}</p>
             </CardContent>
           </Card>
         ))}

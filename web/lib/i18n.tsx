@@ -139,6 +139,7 @@ const en = {
   actOpen: "Open",
   actEmbed: "Embed",
   embedTitle: "Embed this video",
+  analyticsRangeHint: "in the selected range",
   analyticsTopEntries: "Top entries",
   analyticsEmpty: "No viewing data yet — views will appear here.",
   colEntry: "Entry",
