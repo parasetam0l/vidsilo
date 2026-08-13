@@ -371,7 +371,11 @@ func isUniqueViolation(err error) bool {
 	return errors.As(err, &pgErr) && pgErr.Code == "23505"
 }
 
-// libraryMode resolves the public library policy.
+// libraryMode resolves the public library policy. A nil settings service
+// (unit-test wiring) means "enabled": serve everything.
 func (s *Server) libraryMode() string {
+	if s.settings == nil {
+		return "enabled"
+	}
 	return s.settings.String("library.mode", "disabled")
 }
