@@ -438,7 +438,7 @@ const en = {
   libraryEmpty: "No public videos yet — check back soon.",
   libraryNoResults: "No videos match your search — try different keywords or categories.",
   libraryError: "Could not load the library — try again later.",
-  libraryResults: "{total} video{s}",
+  libraryResults: "{total} video{s} found",
   librarySortLabel: "Sort videos",
   librarySortNewest: "Newest",
   librarySortOldest: "Oldest",
