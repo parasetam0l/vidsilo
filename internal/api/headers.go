@@ -21,6 +21,8 @@ func (s *Server) securityHeaders(next http.Handler) http.Handler {
 		h := w.Header()
 		h.Set("X-Content-Type-Options", "nosniff")
 		h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		// The app is a private VOD platform — nothing should be indexed.
+		h.Set("X-Robots-Tag", "noindex, nofollow")
 		if r.TLS != nil {
 			h.Set("Strict-Transport-Security", "max-age=63072000")
 		}

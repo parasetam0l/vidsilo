@@ -18,6 +18,16 @@ export const metadata: Metadata = {
     template: "%s | VOD Admin",
   },
   description: "VOD platform admin panel",
+  // Private platform: nothing gets indexed (also enforced by robots.txt and
+  // the X-Robots-Tag header).
+  robots: {
+    index: false,
+    follow: false,
+    googleBot: {
+      index: false,
+      follow: false,
+    },
+  },
 };
 
 const themeInitScript = `(function(){try{var t=localStorage.getItem("theme");var dark=t==="dark"||(t!="light"&&!window.matchMedia("(prefers-color-scheme: light)").matches);document.documentElement.classList.toggle("dark",dark)}catch(e){document.documentElement.classList.add("dark")}})()`;
