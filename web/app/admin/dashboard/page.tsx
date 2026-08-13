@@ -243,7 +243,7 @@ export default function DashboardPage() {
                 ) : null}
               </CardTitle>
               <div
-                className={`flex size-9 shrink-0 items-center justify-center rounded-lg `}
+                className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${kpi.tile}`}
               >
                 <kpi.icon className="size-4.5" />
               </div>

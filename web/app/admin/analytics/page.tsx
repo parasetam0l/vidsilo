@@ -165,7 +165,7 @@ function AnalyticsInner() {
                 {c.title}
               </CardTitle>
               <div
-                className={`flex size-9 shrink-0 items-center justify-center rounded-lg `}
+                className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${c.tile}`}
               >
                 <c.icon className="size-4.5" />
               </div>
