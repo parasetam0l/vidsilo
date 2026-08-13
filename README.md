@@ -113,6 +113,12 @@ go run ./cmd/vod-app server      # backend on :8090
 Tests: `go test ./...` (needs `DATABASE_URL`, ffmpeg; S3 tests need `S3_*` +
 MinIO — CI provides both), `cd web && npm test` and `npm run lint`.
 
+## License
+
+AGPL-3.0 — [LICENSE](LICENSE). Free to use, modify and host; network
+deployment of modified versions must publish their source under the same
+terms (server-side copyleft).
+
 ## CI & releases
 
 Single manual workflow (Actions → Run workflow): pre-checks, security scans
