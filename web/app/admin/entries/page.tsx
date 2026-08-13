@@ -19,7 +19,7 @@ import { api, type Category, type Entry, type EntryList } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import { useDialog } from "@/hooks/use-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { formatBytes, formatDate, formatDuration } from "@/lib/format";
+import { formatDate, formatDuration } from "@/lib/format";
 import { StatusBadge } from "@/components/status-badge";
 import { EmptyState } from "@/components/empty-state";
 import { EntryThumb } from "@/components/entry-thumb";
@@ -249,7 +249,6 @@ export default function EntriesPage() {
                 <TableHead>{t("colStatus")}</TableHead>
                 <TableHead>{t("colCategory")}</TableHead>
                 <TableHead>{t("colDuration")}</TableHead>
-                <TableHead>{t("colSize")}</TableHead>
                 <TableHead>{t("colUploaded")}</TableHead>
                 <TableHead>{t("colVisibility")}</TableHead>
                 <TableHead className="w-10" />
@@ -295,9 +294,6 @@ export default function EntriesPage() {
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {formatDuration(e.durationMs)}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {formatBytes(e.sourceSize)}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {formatDate(e.createdAt)}

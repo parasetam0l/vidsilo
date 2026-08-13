@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CircleAlertIcon, CircleCheckIcon, PencilIcon, Trash2, UsersIcon } from "lucide-react";
 
 import { api, ApiError, displayName, type Role, type User } from "@/lib/api";
-import { useT } from "@/lib/i18n";
+import { useT, type MessageKey } from "@/lib/i18n";
 import { useDialog } from "@/hooks/use-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { fieldErrors, userSchema, userEditSchema, type FieldErrors } from "@/lib/validators";
@@ -32,6 +32,13 @@ import {
 } from "@/components/ui/table";
 
 const roles: Role[] = ["admin", "editor", "uploader", "viewer"];
+
+const roleLabels: Record<Role, MessageKey> = {
+  admin: "roleAdmin",
+  editor: "roleEditor",
+  uploader: "roleUploader",
+  viewer: "roleViewer",
+};
 
 const roleBadgeStyles: Record<Role, string> = {
   admin: "bg-blue-500/10 text-blue-500 border-blue-500/30",
@@ -167,7 +174,7 @@ export default function UsersPage() {
                     <TableCell className="font-medium">{displayName(u)}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className={`capitalize font-medium text-xs ${roleBadgeStyles[u.role]}`}>
-                        {u.role}
+                        {t(roleLabels[u.role])}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -307,21 +314,21 @@ function UserFormContent({
           <Label className="text-xs font-medium">{t("colRole")}</Label>
           <Select
             className="rounded-lg"
-            options={roles.map((r) => ({ value: r, label: r.toUpperCase() }))}
+            options={roles.map((r) => ({ value: r, label: t(roleLabels[r]) }))}
             value={role}
             onChange={(v) => setRole(v as Role)}
             placeholder={t("colRole")}
           />
         </div>
         {editing ? (
-          <div className="flex items-center justify-between gap-3 rounded-xl border bg-muted/30 p-3">
-            <Label className="text-sm font-medium">{t("colStatus")}</Label>
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs font-medium">{t("colStatus")}</Label>
             <Select
               options={[
                 { value: "active", label: t("statusActive") },
                 { value: "disabled", label: t("statusDisabled") },
               ]}
-              className="w-36 rounded-lg"
+              className="rounded-lg"
               value={disabled ? "disabled" : "active"}
               onChange={(v) => setDisabled(v === "disabled")}
             />

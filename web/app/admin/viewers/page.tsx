@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { PencilIcon, Trash2, UsersIcon } from "lucide-react";
+import { CircleAlertIcon, CircleCheckIcon, PencilIcon, Trash2, UserRoundIcon } from "lucide-react";
 
 import { api, displayName, type Viewer, type ViewerList } from "@/lib/api";
 import { useT } from "@/lib/i18n";
@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
+import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { EmptyState } from "@/components/empty-state";
@@ -133,15 +133,20 @@ export default function ViewersPage() {
                       <TableCell className="font-medium">{displayName(v)}</TableCell>
                       <TableCell>
                         <Badge
-                          variant="outline"
-                          className={
-                            v.disabled
-                              ? "bg-red-500/10 text-red-500 border-red-500/30"
-                              : "bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
-                          }
-                        >
-                          {v.disabled ? t("viewerDisabled") : t("viewerActive")}
-                        </Badge>
+                            variant="outline"
+                            className={
+                              v.disabled
+                                ? "gap-1.5 capitalize bg-red-500/15 text-red-500 border-red-500/30"
+                                : "gap-1.5 capitalize bg-emerald-500/15 text-emerald-500 border-emerald-500/30"
+                            }
+                          >
+                            {v.disabled ? (
+                              <CircleAlertIcon className="size-3" />
+                            ) : (
+                              <CircleCheckIcon className="size-3" />
+                            )}
+                            {v.disabled ? t("viewerDisabled") : t("viewerActive")}
+                          </Badge>
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">
                         {formatDate(v.createdAt)}
@@ -159,7 +164,7 @@ export default function ViewersPage() {
             </TableBody>
           </Table>
           {!isLoading && viewers.length === 0 ? (
-            <EmptyState icon={UsersIcon} description={t("viewerEmpty")} />
+            <EmptyState icon={UserRoundIcon} description={t("viewerEmpty")} />
           ) : null}
         </CardContent>
       </Card>
@@ -232,12 +237,17 @@ function ViewerFormContent({ onClose, initial }: { onClose: () => void; initial?
             placeholder={initial ? t("viewerPasswordHint") : ""}
           />
         </div>
-        <div className="flex items-center justify-between rounded-xl border bg-muted/30 p-3.5">
-          <div className="space-y-0.5">
-            <Label className="text-sm font-medium">{t("viewerActive")}</Label>
-            <p className="text-xs text-muted-foreground">{t("viewerDisabled")}</p>
-          </div>
-          <Switch checked={!disabled} onCheckedChange={(v) => setDisabled(!v)} />
+        <div className="flex flex-col gap-1.5">
+          <Label className="text-xs font-medium">{t("colStatus")}</Label>
+          <Select
+            options={[
+              { value: "active", label: t("statusActive") },
+              { value: "disabled", label: t("statusDisabled") },
+            ]}
+            className="rounded-lg"
+            value={disabled ? "disabled" : "active"}
+            onChange={(v) => setDisabled(v === "disabled")}
+          />
         </div>
         {error ? <FormError message={error} /> : null}
       </div>
