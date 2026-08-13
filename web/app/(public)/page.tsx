@@ -38,6 +38,15 @@ export default function LibraryPage() {
     filtersRef.current = { debouncedQ, category, sort };
   }, [debouncedQ, category, sort]);
 
+  // Tab title: the configured site name (VOD App by default).
+  React.useEffect(() => {
+    if (!siteName) return;
+    const id = window.setTimeout(() => {
+      document.title = siteName;
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [siteName]);
+
   // Gate: when the library is disabled, the site root already redirects —
   // this catches direct visits to /library. In login_only mode anonymous
   // visitors go to the viewer login.

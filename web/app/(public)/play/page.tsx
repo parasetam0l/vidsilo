@@ -56,10 +56,10 @@ export default function PlayPage() {
     const id = window.setTimeout(() => {
       getSiteConfig()
         .then((cfg) => {
-          document.title = `${info.title} | ${cfg.siteName || t("appTitle")}`;
+          document.title = `${info.title} | ${cfg.siteName || "VOD App"}`;
         })
         .catch(() => {
-          document.title = `${info.title} | ${t("appTitle")}`;
+          document.title = `${info.title} | VOD App`;
         });
       setMeta("og:title", info.title);
       if (info.description) setMeta("og:description", info.description);

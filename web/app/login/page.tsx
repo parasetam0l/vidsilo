@@ -37,10 +37,10 @@ export default function ViewerLoginPage() {
     const id = window.setTimeout(() => {
       getSiteConfig()
         .then((cfg) => {
-          document.title = `${t("libraryLoginTitle")} | ${cfg.siteName || t("appTitle")}`;
+          document.title = `${t("libraryLoginTitle")} | ${cfg.siteName || "VOD App"}`;
         })
         .catch(() => {
-          document.title = `${t("libraryLoginTitle")} | ${t("appTitle")}`;
+          document.title = `${t("libraryLoginTitle")} | VOD App`;
         });
     }, 0);
     return () => window.clearTimeout(id);

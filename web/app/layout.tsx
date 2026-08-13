@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "VOD Admin",
-    template: "%s | VOD Admin",
+    default: "VOD App",
+    template: "%s | VOD App",
   },
   description: "VOD platform admin panel",
   // Private platform: nothing gets indexed (also enforced by robots.txt and

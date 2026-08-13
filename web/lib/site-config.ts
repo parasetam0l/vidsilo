@@ -38,7 +38,7 @@ function cachedSiteConfig(): SiteConfig | null {
 
 export function getSiteConfig(): Promise<SiteConfig> {
   if (typeof window === "undefined") {
-    return Promise.resolve({ siteName: "VOD", defaultLang: "en", libraryMode: "disabled" });
+    return Promise.resolve({ siteName: "VOD App", defaultLang: "en", libraryMode: "disabled" });
   }
   const cached = cachedSiteConfig();
   if (cached) {
@@ -69,7 +69,7 @@ export function getSiteConfig(): Promise<SiteConfig> {
 // served from the cached site-config. It falls back to the i18n app name
 // until the config resolves, so there is never a visible flash.
 export function useSiteName(): string {
-  const [name, setName] = React.useState<string>(() => cachedSiteConfig()?.siteName ?? "VOD");
+  const [name, setName] = React.useState<string>(() => cachedSiteConfig()?.siteName ?? "VOD App");
   React.useEffect(() => {
     let alive = true;
     getSiteConfig()

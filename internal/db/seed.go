@@ -15,7 +15,7 @@ import (
 // defaultSettings are the code defaults from DESIGN §4.3. Admin edits land in
 // the settings table and win over these.
 var defaultSettings = map[string]any{
-	"site_name":                 "VOD",
+	"site_name":                 "VOD App",
 	"default_lang":              "en",
 	"upload.max_size_bytes":     8 << 30,
 	"upload.allowed_extensions": []string{"mp4", "mov", "mkv", "webm", "m4v", "avi"},

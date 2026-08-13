@@ -25,7 +25,7 @@ const settingsAdminRole = "admin"
 func (s *Server) handleSiteConfig(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "public, max-age=300")
 	writeJSON(w, http.StatusOK, map[string]string{
-		"siteName":    s.settings.String("site_name", "VOD"),
+		"siteName":    s.settings.String("site_name", "VOD App"),
 		"defaultLang": s.settings.String("default_lang", "en"),
 		"libraryMode": s.settings.String("library.mode", "disabled"),
 	})
