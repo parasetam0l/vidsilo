@@ -238,21 +238,27 @@ func (s *Server) internalError(w http.ResponseWriter, r *http.Request, op string
 func (s *Server) serveUI(w http.ResponseWriter, r *http.Request) {
 	// Server-side root handling: the library IS the root when enabled (the
 	// export's index.html renders it); login_only visitors go to the viewer
-	// login; disabled visitors land on the staff dashboard.
+	// login. When the library is disabled every public surface — the root,
+	// the viewer sign-in and the player page — points at the staff login.
+	// /embed stays public so third-party embeds keep working.
+	mode := s.libraryMode()
 	if r.URL.Path == "/" {
-		switch s.libraryMode() {
+		switch mode {
 		case "login_only":
 			http.Redirect(w, r, "/login", http.StatusFound)
+			return
 		case "disabled":
-			http.Redirect(w, r, "/admin/dashboard", http.StatusFound)
-		}
-		if r.URL.Path != "/" {
+			http.Redirect(w, r, "/admin/login", http.StatusFound)
 			return
 		}
 	}
 	p := strings.TrimPrefix(r.URL.Path, "/")
 	if p == "" {
 		p = "index.html"
+	}
+	if mode == "disabled" && (p == "play" || strings.HasPrefix(p, "play/") || p == "login") {
+		http.Redirect(w, r, "/admin/login", http.StatusFound)
+		return
 	}
 	// The admin export is a directory of pages, not a single admin.html —
 	// /admin (with or without a trailing slash) would fall through to a raw

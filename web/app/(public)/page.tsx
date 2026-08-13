@@ -45,7 +45,7 @@ export default function LibraryPage() {
     getSiteConfig()
       .then((cfg) => {
         if (cfg.libraryMode === "disabled") {
-          window.location.replace("/admin/dashboard");
+          window.location.replace("/admin/login");
           return;
         }
         if (cfg.libraryMode !== "login_only") return;

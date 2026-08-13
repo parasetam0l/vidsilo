@@ -556,6 +556,12 @@ func (s *Server) serveStaticPage(w http.ResponseWriter, r *http.Request, file st
 }
 
 func (s *Server) handlePlayPage(w http.ResponseWriter, r *http.Request) {
+	// The player is a public surface: when the library is disabled, direct
+	// links point at the staff login (embeds stay exempt).
+	if s.libraryMode() == "disabled" {
+		http.Redirect(w, r, "/admin/login", http.StatusFound)
+		return
+	}
 	s.serveStaticPage(w, r, "play.html")
 }
 
