@@ -37,7 +37,7 @@ func TestCrossNodePropagation(t *testing.T) {
 		<-stopB
 	}()
 
-	if nodeB.String("site_name", "") != "VOD" {
+	if nodeB.String("site_name", "") != "VOD App" {
 		t.Fatalf("node B initial site_name = %q", nodeB.String("site_name", ""))
 	}
 
