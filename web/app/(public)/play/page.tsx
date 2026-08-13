@@ -59,7 +59,7 @@ export default function PlayPage() {
     const id = window.setTimeout(() => {
       getSiteConfig()
         .then((cfg) => {
-          document.title = `${info.title} | ${cfg.siteName || "VOD App"}`;
+          document.title = `${info.title} | ${cfg.siteName || "Vidsilo"}`;
         })
         .catch(() => {
           document.title = `${info.title} | VOD App`;

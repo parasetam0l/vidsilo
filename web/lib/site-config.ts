@@ -38,7 +38,7 @@ function cachedSiteConfig(): SiteConfig | null {
 
 export function getSiteConfig(): Promise<SiteConfig> {
   if (typeof window === "undefined") {
-    return Promise.resolve({ siteName: "VOD App", defaultLang: "en", libraryMode: "disabled" });
+    return Promise.resolve({ siteName: "Vidsilo", defaultLang: "en", libraryMode: "disabled" });
   }
   const cached = cachedSiteConfig();
   if (cached) {

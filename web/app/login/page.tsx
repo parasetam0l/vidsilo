@@ -37,7 +37,7 @@ export default function ViewerLoginPage() {
     const id = window.setTimeout(() => {
       getSiteConfig()
         .then((cfg) => {
-          document.title = `${t("libraryLoginTitle")} | ${cfg.siteName || "VOD App"}`;
+          document.title = `${t("libraryLoginTitle")} | ${cfg.siteName || "Vidsilo"}`;
         })
         .catch(() => {
           document.title = `${t("libraryLoginTitle")} | VOD App`;
