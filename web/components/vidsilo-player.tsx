@@ -25,7 +25,7 @@ function beacon(path: string, body: unknown) {
   }).catch(() => {});
 }
 
-export function VODPlayer({
+export function VidsiloPlayer({
   info,
   publicId,
   autoplay,
@@ -52,16 +52,16 @@ export function VODPlayer({
   const [duration, setDuration] = React.useState(info.durationMs ?? 0);
   const [volume, setVolume] = React.useState(() => {
     if (typeof window === "undefined") return 1;
-    const v = Number(localStorage.getItem("vod-volume"));
+    const v = Number(localStorage.getItem("vidsilo-volume"));
     return v >= 0 && v <= 1 ? v : 1;
   });
   const [mutedState, setMutedState] = React.useState(() => {
     if (typeof window === "undefined") return !!muted;
-    return localStorage.getItem("vod-muted") === "1" || !!muted;
+    return localStorage.getItem("vidsilo-muted") === "1" || !!muted;
   });
   const [rate, setRate] = React.useState(() => {
     if (typeof window === "undefined") return 1;
-    const r = Number(localStorage.getItem("vod-rate"));
+    const r = Number(localStorage.getItem("vidsilo-rate"));
     return [0.5, 0.75, 1, 1.25, 1.5, 2].includes(r) ? r : 1;
   });
   const [levels, setLevels] = React.useState<{ index: number; height: number }[]>([]);
@@ -121,13 +121,13 @@ export function VODPlayer({
   }, [muted, volume, mutedState, rate]);
 
   React.useEffect(() => {
-    localStorage.setItem("vod-volume", String(volume));
+    localStorage.setItem("vidsilo-volume", String(volume));
   }, [volume]);
   React.useEffect(() => {
-    localStorage.setItem("vod-muted", mutedState ? "1" : "0");
+    localStorage.setItem("vidsilo-muted", mutedState ? "1" : "0");
   }, [mutedState]);
   React.useEffect(() => {
-    localStorage.setItem("vod-rate", String(rate));
+    localStorage.setItem("vidsilo-rate", String(rate));
   }, [rate]);
 
   React.useEffect(() => {

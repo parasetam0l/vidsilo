@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/parasetam0l/vod-app/internal/db"
-	"github.com/parasetam0l/vod-app/internal/safeurl"
-	"github.com/parasetam0l/vod-app/internal/store"
+	"github.com/parasetam0l/vidsilo/internal/db"
+	"github.com/parasetam0l/vidsilo/internal/safeurl"
+	"github.com/parasetam0l/vidsilo/internal/store"
 )
 
 // registerMediaRoutes: range-capable /media serving with immutable caching,
@@ -302,7 +302,7 @@ func slugifyTitle(s string) string {
 const (
 	brandingLogoMaxBytes = 2 << 20 // logos are small; cap the proxy response
 	brandingLogoTimeout  = 15 * time.Second
-	brandingUserAgent    = "vod-app-branding/0.1"
+	brandingUserAgent    = "vidsilo-branding/0.1"
 )
 
 // handleBrandingLogo proxies an external logo image through the app origin.

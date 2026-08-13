@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/parasetam0l/vod-app/internal/testdb"
+	"github.com/parasetam0l/vidsilo/internal/testdb"
 )
 
 // Integration tests against a live database (docker compose up -d db).

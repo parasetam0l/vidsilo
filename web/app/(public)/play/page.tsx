@@ -7,7 +7,7 @@ import { api, type PlayInfo } from "@/lib/api";
 import { getSiteConfig, useSiteName, useAppVersion } from "@/lib/site-config";
 import { useT } from "@/lib/i18n";
 import { useToast } from "@/hooks/use-toast";
-import { VODPlayer } from "@/components/vod-player";
+import { VidsiloPlayer } from "@/components/vidsilo-player";
 import { LoadingCircle } from "@/components/loading";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LanguageSelect } from "@/components/language-select";
@@ -63,7 +63,7 @@ export default function PlayPage() {
           document.title = `${info.title} | ${cfg.siteName || "Vidsilo"}`;
         })
         .catch(() => {
-          document.title = `${info.title} | VOD App`;
+          document.title = `${info.title} | Vidsilo App`;
         });
       setMeta("og:title", info.title);
       if (info.description) setMeta("og:description", info.description);
@@ -117,7 +117,7 @@ export default function PlayPage() {
           </div>
         ) : (
           <>
-            <VODPlayer info={info} publicId={uuid} autoplay={opts.autoplay} muted={opts.muted} loop={opts.loop} branding={info.player} startTime={opts.startTime} />
+            <VidsiloPlayer info={info} publicId={uuid} autoplay={opts.autoplay} muted={opts.muted} loop={opts.loop} branding={info.player} startTime={opts.startTime} />
             <h1 className="mt-4 text-xl font-semibold">{info.title}</h1>
             {info.description ? (
               <p className="mt-1 text-sm text-muted-foreground">{info.description}</p>

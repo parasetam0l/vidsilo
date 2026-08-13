@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/parasetam0l/vod-app/internal/db"
-	"github.com/parasetam0l/vod-app/internal/password"
+	"github.com/parasetam0l/vidsilo/internal/db"
+	"github.com/parasetam0l/vidsilo/internal/password"
 )
 
 // registerUserRoutes: admin-only user management.

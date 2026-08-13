@@ -6,8 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/parasetam0l/vod-app/internal/db"
-	"github.com/parasetam0l/vod-app/internal/store"
+	"github.com/parasetam0l/vidsilo/internal/db"
+	"github.com/parasetam0l/vidsilo/internal/store"
 )
 
 // registerDashboardRoutes: KPI snapshot for the admin dashboard.

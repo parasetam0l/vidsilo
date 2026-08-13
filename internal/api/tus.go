@@ -7,10 +7,10 @@ import (
 
 	"github.com/tus/tusd/v2/pkg/handler"
 
-	"github.com/parasetam0l/vod-app/internal/upload"
+	"github.com/parasetam0l/vidsilo/internal/upload"
 )
 
-// newTusHandler builds the tusd handler wired to the VOD data store. The
+// newTusHandler builds the tusd handler wired to the Vidsilo data store. The
 // returned handler expects an authenticated request (role middleware applied
 // by the caller) and records the uploader id into the datastore context.
 func (s *Server) newTusHandler(ds *upload.DataStore) http.Handler {

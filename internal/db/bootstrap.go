@@ -9,7 +9,7 @@ import (
 
 // advisoryLockKey serializes bootstrap (migrations + seeds) across
 // concurrently booting app/worker nodes sharing one Postgres.
-const advisoryLockKey = 0x766f6461 // "voda"
+const advisoryLockKey = 0x76696473696c6f // "vidsilo"
 
 // withBootstrapLock acquires a dedicated pool connection and the bootstrap
 // advisory lock, runs fn, then releases both. Multiple nodes booting at once

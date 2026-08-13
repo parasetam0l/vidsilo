@@ -1,4 +1,4 @@
-module github.com/parasetam0l/vod-app
+module github.com/parasetam0l/vidsilo
 
 go 1.26
 

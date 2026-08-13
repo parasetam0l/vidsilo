@@ -35,10 +35,10 @@ export function formatGb(bytes: number): string {
 
 export function viewerId(): string {
   if (typeof window === "undefined") return "";
-  let id = localStorage.getItem("vod-viewer-id");
+  let id = localStorage.getItem("vidsilo-viewer-id");
   if (!id) {
     id = crypto.randomUUID();
-    localStorage.setItem("vod-viewer-id", id);
+    localStorage.setItem("vidsilo-viewer-id", id);
   }
   return id;
 }

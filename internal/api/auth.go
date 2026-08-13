@@ -13,14 +13,14 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/parasetam0l/vod-app/internal/db"
-	"github.com/parasetam0l/vod-app/internal/password"
-	"github.com/parasetam0l/vod-app/internal/secrets"
+	"github.com/parasetam0l/vidsilo/internal/db"
+	"github.com/parasetam0l/vidsilo/internal/password"
+	"github.com/parasetam0l/vidsilo/internal/secrets"
 )
 
 const (
-	accessCookieName  = "vod_session"
-	refreshCookieName = "vod_refresh"
+	accessCookieName  = "vidsilo_session"
+	refreshCookieName = "vidsilo_refresh"
 	refreshTTL        = 7 * 24 * time.Hour
 	userCtxKey        = ctxKey("user")
 )

@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/parasetam0l/vod-app/internal/db"
-	"github.com/parasetam0l/vod-app/internal/testdb"
+	"github.com/parasetam0l/vidsilo/internal/db"
+	"github.com/parasetam0l/vidsilo/internal/testdb"
 )
 
 // Two services sharing one Postgres simulate two app nodes: an update made
@@ -41,17 +41,17 @@ func TestCrossNodePropagation(t *testing.T) {
 		t.Fatalf("node B initial site_name = %q", nodeB.String("site_name", ""))
 	}
 
-	raw, _ := json.Marshal("ClusterVOD")
+	raw, _ := json.Marshal("ClusterVidsilo")
 	if err := nodeA.Update(ctx, "site_name", raw); err != nil {
 		t.Fatal(err)
 	}
-	if nodeB.String("site_name", "") == "ClusterVOD" {
+	if nodeB.String("site_name", "") == "ClusterVidsilo" {
 		t.Fatal("node B saw the update before any reload (impossible)")
 	}
 
 	deadline := time.Now().Add(3 * time.Second)
 	for time.Now().Before(deadline) {
-		if nodeB.String("site_name", "") == "ClusterVOD" {
+		if nodeB.String("site_name", "") == "ClusterVidsilo" {
 			return // propagated via Run
 		}
 		time.Sleep(10 * time.Millisecond)

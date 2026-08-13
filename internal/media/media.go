@@ -16,7 +16,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/parasetam0l/vod-app/internal/store"
+	"github.com/parasetam0l/vidsilo/internal/store"
 )
 
 // Manager runs ffmpeg/ffprobe and reads/writes media through a Store.
@@ -33,7 +33,7 @@ func (m *Manager) spool(ctx context.Context, key string) (string, error) {
 		return "", err
 	}
 	defer rc.Close()
-	tmp, err := os.CreateTemp(m.TempDir, "vod-media-*")
+	tmp, err := os.CreateTemp(m.TempDir, "vidsilo-media-*")
 	if err != nil {
 		return "", err
 	}
@@ -147,7 +147,7 @@ func (m *Manager) SpriteGrid(ctx context.Context, entryID int64, srcPath string,
 	vf := fmt.Sprintf("fps=10,select='not(mod(n,%d))',scale=%d:%d,tile=%dx%d,crop=%d:%d:0:0",
 		step, SpriteFrameW, SpriteFrameH, spriteCols, spriteCols,
 		SpriteFrameW*spriteCols, rows*SpriteFrameH)
-	spriteTmp, err := os.CreateTemp(m.TempDir, "vod-sprite-*.jpg")
+	spriteTmp, err := os.CreateTemp(m.TempDir, "vidsilo-sprite-*.jpg")
 	if err != nil {
 		return 0, err
 	}
@@ -171,7 +171,7 @@ func (m *Manager) SpriteGrid(ctx context.Context, entryID int64, srcPath string,
 
 // ExtractPosterFromSource pulls frame atMs from the source video (probe path).
 func (m *Manager) ExtractPosterFromSource(ctx context.Context, entryID int64, srcPath string, atMs int64) error {
-	posterTmp, err := os.CreateTemp(m.TempDir, "vod-poster-*.jpg")
+	posterTmp, err := os.CreateTemp(m.TempDir, "vidsilo-poster-*.jpg")
 	if err != nil {
 		return err
 	}
@@ -200,7 +200,7 @@ func (m *Manager) ExtractPoster(ctx context.Context, entryID int64, frame int) e
 	row := frame / spriteCols
 	crop := fmt.Sprintf("crop=%d:%d:%d:%d,scale=640:-2",
 		SpriteFrameW, SpriteFrameH, col*SpriteFrameW, row*SpriteFrameH)
-	posterTmp, err := os.CreateTemp(m.TempDir, "vod-poster-*.jpg")
+	posterTmp, err := os.CreateTemp(m.TempDir, "vidsilo-poster-*.jpg")
 	if err != nil {
 		return err
 	}
@@ -258,7 +258,7 @@ func TranscodeFlavor(ctx context.Context, srcPath, outDir string, f Flavor, prog
 		"-force_key_frames", fmt.Sprintf("expr:gte(t,n_forced*%d)", f.GopSecs),
 		"-c:a", "aac", "-b:a", strconv.Itoa(f.AudioBitrate)+"k", "-ac", "2",
 		"-hls_time", strconv.Itoa(f.SegmentSecs),
-		"-hls_playlist_type", "vod",
+		"-hls_playlist_type", "vidsilo",
 		"-hls_segment_filename", path.Join(outDir, "seg_%05d.ts"),
 		path.Join(outDir, "index.m3u8"),
 	)

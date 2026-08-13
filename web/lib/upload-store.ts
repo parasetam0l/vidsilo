@@ -31,8 +31,8 @@ export interface UploadJob {
   finishedAt?: string;
 }
 
-const STORAGE_KEY = "vod-uploads";
-const COMPLETED_KEY = "vod-uploads-completed";
+const STORAGE_KEY = "vidsilo-uploads";
+const COMPLETED_KEY = "vidsilo-uploads-completed";
 const listeners = new Set<() => void>();
 
 let jobs: UploadJob[] = load();

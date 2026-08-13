@@ -9,9 +9,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/parasetam0l/vod-app/internal/db"
-	"github.com/parasetam0l/vod-app/internal/media"
-	"github.com/parasetam0l/vod-app/internal/store"
+	"github.com/parasetam0l/vidsilo/internal/db"
+	"github.com/parasetam0l/vidsilo/internal/media"
+	"github.com/parasetam0l/vidsilo/internal/store"
 )
 
 func (s *Server) registerEntryRoutes(mux *http.ServeMux, tusHandler http.Handler) {

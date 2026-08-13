@@ -105,7 +105,7 @@ function AdminLayoutBody({ children }: { children: React.ReactNode }) {
   };
   const pageTitle = pageTitles[pathname] ?? t("appTitle");
 
-  // Translatable window title per page: "Dashboard | VOD Admin".
+  // Translatable window title per page: "Dashboard | Vidsilo Admin".
   // The <title> element is React-managed (RSC payload) and gets re-asserted
   // on re-renders (e.g. the auth loading transition), so re-apply the title
   // after every commit, deferred past React's head sync. The site name comes

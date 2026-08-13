@@ -3,7 +3,7 @@
 // Minimal IndexedDB helper for upload blobs: files are stored by upload job
 // id so a hard refresh can resume interrupted uploads without re-selecting
 // the file. No dependencies; falls back gracefully when IDB is unavailable.
-const DB_NAME = "vod-uploads";
+const DB_NAME = "vidsilo-uploads";
 const STORE = "blobs";
 
 function openDb(): Promise<IDBDatabase> {

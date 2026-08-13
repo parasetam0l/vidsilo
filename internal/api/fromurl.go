@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/parasetam0l/vod-app/internal/db"
-	"github.com/parasetam0l/vod-app/internal/safeurl"
+	"github.com/parasetam0l/vidsilo/internal/db"
+	"github.com/parasetam0l/vidsilo/internal/safeurl"
 )
 
 // registerFromURLRoutes: URL import — a validation pass ("Check URLs") and

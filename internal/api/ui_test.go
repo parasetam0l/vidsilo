@@ -5,8 +5,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/parasetam0l/vod-app/internal/settings"
-	"github.com/parasetam0l/vod-app/internal/ui"
+	"github.com/parasetam0l/vidsilo/internal/settings"
+	"github.com/parasetam0l/vidsilo/internal/ui"
 )
 
 func TestServeUICleanURLs(t *testing.T) {

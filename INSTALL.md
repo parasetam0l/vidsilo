@@ -43,8 +43,8 @@ Pick **Single server → Bare metal**. The wizard:
 2. Installs Postgres + the app + the worker as systemd services (all-in-one).
 3. Generates a Postgres password, asks the TLS question, and starts everything.
 
-Services: `vod-app` (API/UI/media), `vod-worker` (transcode queue), `postgresql`.
-Env file: `/etc/vod-app/env`. First-run admin: `journalctl -u vod-app | grep 'First-run admin'`.
+Services: `vidsilo` (API/UI/media), `vidsilo-worker` (transcode queue), `postgresql`.
+Env file: `/etc/vidsilo/env`. First-run admin: `journalctl -u vidsilo | grep 'First-run admin'`.
 
 ## High availability — Bare metal
 
@@ -75,14 +75,14 @@ Pick **High availability → Kubernetes**. The wizard:
 3. Creates the secrets and applies `deploy/k8s/`:
 
    - Postgres StatefulSet + PVC (in-cluster database)
-   - `vod-app` Deployment (2 replicas) + Service
-   - `vod-worker` Deployment
+   - `vidsilo` Deployment (2 replicas) + Service
+   - `vidsilo-worker` Deployment
    - Ingress (nginx, cert-manager ready)
    - ConfigMap + Secret (DB credentials, storage/TLS settings)
 
 ```bash
-kubectl rollout status deployment/vod-app deployment/vod-worker
-kubectl logs deployment/vod-app -c app | grep 'First-run admin'
+kubectl rollout status deployment/vidsilo deployment/vidsilo-worker
+kubectl logs deployment/vidsilo -c app | grep 'First-run admin'
 ```
 
 Swap to an external database by changing the `database-url` secret value.
@@ -117,7 +117,7 @@ Non-interactive defaults: `single` / `baremetal` / `app`.
 ## After install
 
 - **Admin login**: first-run password is printed once (journal/container logs); rotate
-  anytime with `vod-app reset-admin` (or `docker compose exec app vod-app reset-admin`).
+  anytime with `vidsilo reset-admin` (or `docker compose exec app vidsilo reset-admin`).
 - **Backups**: `deploy/backup.sh DIR [--with-media]` — the wizard can install a daily cron
   (Docker path). Restore order: DB dump → media → start.
 - **Upgrades**: pull the new release binary or image, restart the services.

@@ -1,5 +1,5 @@
 // Package logging provides an in-process size-rotating file writer: JSON logs
-// go to stdout AND to DATA_DIR/logs/vod-app.log (10 MB × 5 files), with the
+// go to stdout AND to DATA_DIR/logs/vidsilo.log (10 MB × 5 files), with the
 // same behavior on Docker and bare metal.
 package logging
 

@@ -1,5 +1,5 @@
 #!/bin/sh
-# VOD install wizard — the only install mechanism.
+# Vidsilo install wizard — the only install mechanism.
 #
 # Paths:
 #   Single Server + Docker       (PATH A)
@@ -22,11 +22,11 @@ YES=0
 ROLE=""
 ENV_FILE=""
 NO_START=0
-VOD_USER=vod
-DATA_DIR=/var/lib/vod-app/data
-CERT_DIR=/var/lib/vod-app/certs
-ENV_DIR=/etc/vod-app
-BIN=/usr/local/bin/vod-app
+Vidsilo_USER=vidsilo
+DATA_DIR=/var/lib/vidsilo/data
+CERT_DIR=/var/lib/vidsilo/certs
+ENV_DIR=/etc/vidsilo
+BIN=/usr/local/bin/vidsilo
 DB_ENV="$ENV_DIR/env"
 GENERATED_DB_PASSWORD=0
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -83,7 +83,7 @@ interactive() { [ -t 0 ] && [ "$YES" = "0" ]; }
 
 if [ -t 0 ] && [ "$YES" = "0" ]; then
     if [ -z "$MODE" ]; then
-        echo "How do you want to install VOD?"
+        echo "How do you want to install Vidsilo?"
         echo "  1) Single server"
         echo "  2) High availability"
         ask "Choice" 1
@@ -162,7 +162,7 @@ install_docker_single() {
     BUILD_MODE=1
     if interactive; then
         echo "What should the docker image be?"
-        echo "  1) Pull from ghcr.io/parasetam0l/vod-app (recommended)"
+        echo "  1) Pull from ghcr.io/parasetam0l/vidsilo (recommended)"
         echo "  2) Build locally"
         ask "Choice" 1
         BUILD_MODE="$REPLY"
@@ -193,10 +193,10 @@ install_docker_single() {
     if [ -t 0 ] && [ "$YES" = "0" ]; then
         ask "Install a daily backup cron (pg_dump + media)?" y
         if [ "$REPLY" = "y" ] || [ "$REPLY" = "Y" ]; then
-            mkdir -p /var/backups/vod
-            ( crontab -l 2>/dev/null | grep -v vod-backup; \
-              echo "0 3 * * * cd $REPO_ROOT && docker compose exec -T db pg_dump -U vod vod | gzip > /var/backups/vod/vod-\$(date +\\%Y\\%m\\%d).sql.gz" ) | crontab -
-            echo "backup cron installed (daily 03:00 → /var/backups/vod)"
+            mkdir -p /var/backups/vidsilo
+            ( crontab -l 2>/dev/null | grep -v vidsilo-backup; \
+              echo "0 3 * * * cd $REPO_ROOT && docker compose exec -T db pg_dump -U vidsilo vidsilo | gzip > /var/backups/vidsilo/vidsilo-\$(date +\\%Y\\%m\\%d).sql.gz" ) | crontab -
+            echo "backup cron installed (daily 03:00 → /var/backups/vidsilo)"
         fi
     fi
 }
@@ -207,7 +207,7 @@ version_ge() { # version_ge CURRENT REQUIRED (semver-ish major.minor)
 }
 
 build_from_source() {
-    echo "Building vod-app from source..."
+    echo "Building vidsilo from source..."
     MISSING=""
     if ! command -v go >/dev/null 2>&1 || ! version_ge "$(go version 2>/dev/null | sed -E 's/.*go([0-9]+(\.[0-9]+)?).*/\1/')" 1.26; then
         MISSING="$MISSING go>=1.26"
@@ -233,17 +233,17 @@ build_from_source() {
     cd "$REPO_ROOT"
     mkdir -p internal/ui/web/out
     cp -r web/out/. internal/ui/web/out/
-    CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o "$BIN" ./cmd/vod-app
+    CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o "$BIN" ./cmd/vidsilo
     chmod +x "$BIN"
     echo "built $BIN from source"
 }
 
 install_binary() {
     if [ -x "$BIN" ]; then return; fi
-    echo "vod-app binary not found at $BIN."
+    echo "vidsilo binary not found at $BIN."
     SRC=release
     if interactive; then
-        echo "How should we get the vod-app binary?"
+        echo "How should we get the vidsilo binary?"
         echo "  1) Download the prebuilt release (recommended)"
         echo "  2) Build from source"
         ask "Choice" 1
@@ -256,7 +256,7 @@ install_binary() {
     case "$SRC" in
         release)
             echo "downloading latest release binary (linux-$BIN_ARCH)..."
-            curl -fL -o "$BIN" "https://github.com/parasetam0l/vod-app/releases/latest/download/vod-app-linux-$BIN_ARCH"
+            curl -fL -o "$BIN" "https://github.com/parasetam0l/vidsilo/releases/latest/download/vidsilo-linux-$BIN_ARCH"
             ;;
         source)
             build_from_source
@@ -298,12 +298,12 @@ setup_db() { # DB_HOST (empty = same host)
         apt-get install -y -qq postgresql
     fi
     systemctl enable --now postgresql 2>/dev/null || true
-    if ! su -s /bin/sh postgres -c "psql -tAc \"SELECT 1 FROM pg_roles WHERE rolname='vod'\"" | grep -q 1; then
-        su -s /bin/sh postgres -c "psql -c \"CREATE ROLE vod LOGIN PASSWORD '$DB_PASSWORD'\""
-        echo "created postgres role 'vod' with a scram password"
+    if ! su -s /bin/sh postgres -c "psql -tAc \"SELECT 1 FROM pg_roles WHERE rolname='vidsilo'\"" | grep -q 1; then
+        su -s /bin/sh postgres -c "psql -c \"CREATE ROLE vidsilo LOGIN PASSWORD '$DB_PASSWORD'\""
+        echo "created postgres role 'vidsilo' with a scram password"
     fi
-    su -s /bin/sh postgres -c "psql -tAc \"SELECT 1 FROM pg_database WHERE datname='vod'\"" | grep -q 1 ||
-        su -s /bin/sh postgres -c "createdb -O vod vod"
+    su -s /bin/sh postgres -c "psql -tAc \"SELECT 1 FROM pg_database WHERE datname='vidsilo'\"" | grep -q 1 ||
+        su -s /bin/sh postgres -c "createdb -O vidsilo vidsilo"
 }
 
 # --- env file (bare metal) ----------------------------------------------------
@@ -314,13 +314,13 @@ write_env() { # DB_HOST, STORAGE vars pre-set in the environment
         echo "creating $DB_ENV"
         if [ -n "${DB_HOST:-}" ]; then
             cat > "$DB_ENV" <<EOF
-DATABASE_URL=postgres://vod:$DB_PASSWORD@$DB_HOST:5432/vod
+DATABASE_URL=postgres://vidsilo:$DB_PASSWORD@$DB_HOST:5432/vidsilo
 DATA_DIR=$DATA_DIR
 STORAGE_DRIVER=${STORAGE_DRIVER:-local}
 EOF
         else
             cat > "$DB_ENV" <<EOF
-DATABASE_URL=postgres:///vod?host=/var/run/postgresql
+DATABASE_URL=postgres:///vidsilo?host=/var/run/postgresql
 DATA_DIR=$DATA_DIR
 STORAGE_DRIVER=${STORAGE_DRIVER:-local}
 EOF
@@ -332,7 +332,7 @@ EOF
         [ -z "${S3_SECRET_KEY:-}" ] || echo "S3_SECRET_KEY=$S3_SECRET_KEY" >> "$DB_ENV"
         [ -z "${S3_REGION:-}" ] || echo "S3_REGION=$S3_REGION" >> "$DB_ENV"
     fi
-    chown "$VOD_USER":"$VOD_USER" "$DB_ENV"
+    chown "$Vidsilo_USER":"$Vidsilo_USER" "$DB_ENV"
     chmod 600 "$DB_ENV"
     if [ -n "${TLS_MODE:-}" ] && ! grep -q '^TLS_MODE=' "$DB_ENV" 2>/dev/null; then
         {
@@ -342,27 +342,27 @@ EOF
             [ -z "${TLS_KEY_FILE:-}" ] || echo "TLS_KEY_FILE=$TLS_KEY_FILE"
             echo "TLS_CERT_DIR=$CERT_DIR"
         } >> "$DB_ENV"
-        chown "$VOD_USER":"$VOD_USER" "$DB_ENV"
+        chown "$Vidsilo_USER":"$Vidsilo_USER" "$DB_ENV"
     fi
 }
 
 # --- systemd units (bare metal) ------------------------------------------------
 install_unit_app() {
-    install -m 644 -o root -g root /dev/stdin /etc/systemd/system/vod-app.service <<'UNIT'
+    install -m 644 -o root -g root /dev/stdin /etc/systemd/system/vidsilo.service <<'UNIT'
 [Unit]
-Description=VOD app server
+Description=Vidsilo app server
 After=network-online.target postgresql.service
 Wants=network-online.target
 
 [Service]
-User=vod
-Group=vod
-EnvironmentFile=/etc/vod-app/env
-ExecStart=/usr/local/bin/vod-app server
+User=vidsilo
+Group=vidsilo
+EnvironmentFile=/etc/vidsilo/env
+ExecStart=/usr/local/bin/vidsilo server
 Restart=on-failure
 RestartSec=2s
-StateDirectory=vod-app
-LogsDirectory=vod-app
+StateDirectory=vidsilo
+LogsDirectory=vidsilo
 AmbientCapabilities=CAP_NET_BIND_SERVICE
 MemoryHigh=384M
 MemoryMax=512M
@@ -372,21 +372,21 @@ OOMScoreAdjust=100
 WantedBy=multi-user.target
 UNIT
     systemctl daemon-reload
-    [ "$NO_START" = "1" ] || systemctl enable --now vod-app
+    [ "$NO_START" = "1" ] || systemctl enable --now vidsilo
 }
 
 install_unit_worker() {
-    install -m 644 -o root -g root /dev/stdin /etc/systemd/system/vod-worker.service <<'UNIT'
+    install -m 644 -o root -g root /dev/stdin /etc/systemd/system/vidsilo-worker.service <<'UNIT'
 [Unit]
-Description=VOD worker
+Description=Vidsilo worker
 After=network-online.target postgresql.service
 Wants=network-online.target
 
 [Service]
-User=vod
-Group=vod
-EnvironmentFile=/etc/vod-app/env
-ExecStart=/usr/local/bin/vod-app worker
+User=vidsilo
+Group=vidsilo
+EnvironmentFile=/etc/vidsilo/env
+ExecStart=/usr/local/bin/vidsilo worker
 Restart=on-failure
 RestartSec=2s
 Nice=10
@@ -399,16 +399,16 @@ OOMScoreAdjust=500
 WantedBy=multi-user.target
 UNIT
     systemctl daemon-reload
-    [ "$NO_START" = "1" ] || systemctl enable --now vod-worker
+    [ "$NO_START" = "1" ] || systemctl enable --now vidsilo-worker
 }
 
 # --- shared dirs ---------------------------------------------------------------
 setup_dirs() {
-    if ! id "$VOD_USER" >/dev/null 2>&1; then
-        useradd --system --create-home "$VOD_USER"
+    if ! id "$Vidsilo_USER" >/dev/null 2>&1; then
+        useradd --system --create-home "$Vidsilo_USER"
     fi
-    mkdir -p "$DATA_DIR" "$CERT_DIR" "$ENV_DIR" /var/log/vod-app
-    chown -R "$VOD_USER":"$VOD_USER" "$DATA_DIR" "$CERT_DIR" /var/log/vod-app
+    mkdir -p "$DATA_DIR" "$CERT_DIR" "$ENV_DIR" /var/log/vidsilo
+    chown -R "$Vidsilo_USER":"$Vidsilo_USER" "$DATA_DIR" "$CERT_DIR" /var/log/vidsilo
     if ! command -v ffmpeg >/dev/null 2>&1; then
         apt-get install -y -qq ffmpeg
     fi
@@ -424,13 +424,13 @@ ask_storage() {
     echo "  2) NFS shared mount"
     ask "Choice" 1
     if [ "$REPLY" = "2" ]; then
-        printf "NFS export (server:/path, e.g. 10.0.0.5:/srv/vod): "
+        printf "NFS export (server:/path, e.g. 10.0.0.5:/srv/vidsilo): "
         read -r NFS_EXPORT
         apt-get install -y -qq nfs-common
         mkdir -p "$DATA_DIR"
         grep -q "$NFS_EXPORT" /etc/fstab || echo "$NFS_EXPORT $DATA_DIR nfs defaults,noatime 0 0" >> /etc/fstab
         mount -a
-        chown -R "$VOD_USER":"$VOD_USER" "$DATA_DIR"
+        chown -R "$Vidsilo_USER":"$Vidsilo_USER" "$DATA_DIR"
         STORAGE_DRIVER=local
     else
         printf "S3 endpoint (e.g. https://s3.amazonaws.com or http://minio:9000): "
@@ -458,10 +458,10 @@ install_baremetal_single() {
     install_unit_worker
     echo "install complete (single server, bare metal)"
     [ "$GENERATED_DB_PASSWORD" = "1" ] && {
-        echo "postgres password for the vod role (save this — it is not stored on disk):"
+        echo "postgres password for the vidsilo role (save this — it is not stored on disk):"
         echo "    $DB_PASSWORD"
     }
-    echo "first-run admin password: journalctl -u vod-app | grep 'First-run admin'"
+    echo "first-run admin password: journalctl -u vidsilo | grep 'First-run admin'"
 }
 
 # --- PATH C: HA bare metal -----------------------------------------------------
@@ -473,7 +473,7 @@ install_ha_baremetal() {
             GENERATED_DB_PASSWORD=1
             setup_db
             echo "install complete (ha, db node)"
-            echo "postgres password for the vod role (save this — it is not stored on disk):"
+            echo "postgres password for the vidsilo role (save this — it is not stored on disk):"
             echo "    $DB_PASSWORD"
             echo "app/worker nodes: install with --db-password=$DB_PASSWORD" ;;
         app)
@@ -481,7 +481,7 @@ install_ha_baremetal() {
             setup_dirs
             if interactive; then
                 printf "Database host (IP or hostname): "; read -r DB_HOST
-                printf "Postgres password for the vod role: "; read -r DB_PASSWORD
+                printf "Postgres password for the vidsilo role: "; read -r DB_PASSWORD
                 ask_storage
                 printf "Load balancer IP (for TRUSTED_PROXIES; empty to skip): "; read -r LB_IP
                 [ -z "$LB_IP" ] || TRUSTED_PROXIES="$LB_IP"
@@ -492,13 +492,13 @@ install_ha_baremetal() {
             write_env
             install_unit_app
             echo "install complete (ha, app node)"
-            echo "first-run admin password: journalctl -u vod-app | grep 'First-run admin'" ;;
+            echo "first-run admin password: journalctl -u vidsilo | grep 'First-run admin'" ;;
         worker)
             install_binary
             setup_dirs
             if interactive; then
                 printf "Database host (IP or hostname): "; read -r DB_HOST
-                printf "Postgres password for the vod role: "; read -r DB_PASSWORD
+                printf "Postgres password for the vidsilo role: "; read -r DB_PASSWORD
                 ask_storage
             elif [ -z "$ENV_FILE" ]; then
                 echo "worker installs need interactivity or --env-file"; exit 1
@@ -510,30 +510,30 @@ install_ha_baremetal() {
             interactive || { echo "the load balancer install is interactive-only"; exit 1; }
             apt-get install -y -qq nginx
             echo "App node addresses (IPs or hostnames, one per line; blank line to finish):"
-            > /tmp/vod_upstreams
+            > /tmp/vidsilo_upstreams
             while :; do
                 printf "  app node: "; read -r NODE
                 [ -z "$NODE" ] && break
-                echo "    server $NODE:80 max_fails=3 fail_timeout=30s;" >> /tmp/vod_upstreams
+                echo "    server $NODE:80 max_fails=3 fail_timeout=30s;" >> /tmp/vidsilo_upstreams
             done
-            if [ ! -s /tmp/vod_upstreams ]; then
+            if [ ! -s /tmp/vidsilo_upstreams ]; then
                 echo "no app nodes given — aborting"; exit 1
             fi
             {
-                echo "upstream vod_apps {"
-                cat /tmp/vod_upstreams
+                echo "upstream vidsilo_apps {"
+                cat /tmp/vidsilo_upstreams
                 echo "}"
-                sed -n '/^server {/,$p' "$REPO_ROOT/deploy/lb/vod-app.conf" | sed '/upstream vod_apps {/,/^}/d'
-            } > /etc/nginx/sites-available/vod-app.conf
-            rm -f /tmp/vod_upstreams
-            ln -sf /etc/nginx/sites-available/vod-app.conf /etc/nginx/sites-enabled/vod-app.conf
+                sed -n '/^server {/,$p' "$REPO_ROOT/deploy/lb/vidsilo.conf" | sed '/upstream vidsilo_apps {/,/^}/d'
+            } > /etc/nginx/sites-available/vidsilo.conf
+            rm -f /tmp/vidsilo_upstreams
+            ln -sf /etc/nginx/sites-available/vidsilo.conf /etc/nginx/sites-enabled/vidsilo.conf
             rm -f /etc/nginx/sites-enabled/default
             nginx -t
             systemctl enable --now nginx
             systemctl reload nginx
             MYIP="$(hostname -I 2>/dev/null | awk '{print $1}')"
             echo "install complete (ha, load balancer)"
-            echo "set TRUSTED_PROXIES=$MYIP on every app node (install with --env or edit /etc/vod-app/env)" ;;
+            echo "set TRUSTED_PROXIES=$MYIP on every app node (install with --env or edit /etc/vidsilo/env)" ;;
     esac
 }
 
@@ -560,25 +560,25 @@ install_kubernetes() {
 
     DB_PASSWORD="${DB_PASSWORD:-$(openssl rand -hex 24)}"
     K8S_DIR="$REPO_ROOT/deploy/k8s"
-    kubectl create secret generic vod-secrets --dry-run=client -o yaml \
+    kubectl create secret generic vidsilo-secrets --dry-run=client -o yaml \
         --from-literal=db-password="$DB_PASSWORD" \
-        --from-literal=database-url="postgres://vod:$DB_PASSWORD@vod-postgres:5432/vod" \
+        --from-literal=database-url="postgres://vidsilo:$DB_PASSWORD@vidsilo-postgres:5432/vidsilo" \
         ${S3_ACCESS_KEY:+--from-literal=S3_ACCESS_KEY=$S3_ACCESS_KEY} \
         ${S3_SECRET_KEY:+--from-literal=S3_SECRET_KEY=$S3_SECRET_KEY} \
         | kubectl apply -f -
     if [ "$REPLY" = "2" ]; then
-        kubectl patch configmap vod-config --type merge -p "{\"data\":{\"STORAGE_DRIVER\":\"s3\",\"S3_ENDPOINT\":\"$S3_ENDPOINT\",\"S3_BUCKET\":\"$S3_BUCKET\"}}"
+        kubectl patch configmap vidsilo-config --type merge -p "{\"data\":{\"STORAGE_DRIVER\":\"s3\",\"S3_ENDPOINT\":\"$S3_ENDPOINT\",\"S3_BUCKET\":\"$S3_BUCKET\"}}"
     fi
     kubectl apply -f "$K8S_DIR"
     if [ -n "${DOMAIN:-}" ]; then
-        kubectl patch ingress vod-app --type json \
+        kubectl patch ingress vidsilo --type json \
             -p '[{"op":"replace","path":"/spec/rules/0/host","value":"'$DOMAIN'"}]'
-        [ "$CERT_MANAGER" = "1" ] && kubectl patch ingress vod-app --type json \
-            -p '[{"op":"add","path":"/spec/tls","value":[{"hosts":["'$DOMAIN'"],"secretName":"vod-tls"}]}]'
+        [ "$CERT_MANAGER" = "1" ] && kubectl patch ingress vidsilo --type json \
+            -p '[{"op":"add","path":"/spec/tls","value":[{"hosts":["'$DOMAIN'"],"secretName":"vidsilo-tls"}]}]'
     fi
     echo "install complete (ha, kubernetes)"
-    echo "watch rollout: kubectl rollout status deployment/vod-app deployment/vod-worker"
-    echo "first-run admin password: kubectl logs deployment/vod-app -c app | grep 'First-run admin'"
+    echo "watch rollout: kubectl rollout status deployment/vidsilo deployment/vidsilo-worker"
+    echo "first-run admin password: kubectl logs deployment/vidsilo -c app | grep 'First-run admin'"
 }
 
 # --- dispatch ------------------------------------------------------------------

@@ -3,12 +3,12 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: vod-app
+  name: vidsilo
   labels:
-    app: vod-app
+    app: vidsilo
 spec:
   selector:
-    app: vod-app
+    app: vidsilo
   ports:
     - port: 8080
       name: http
@@ -16,34 +16,34 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: vod-app
+  name: vidsilo
   labels:
-    app: vod-app
+    app: vidsilo
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: vod-app
+      app: vidsilo
   template:
     metadata:
       labels:
-        app: vod-app
+        app: vidsilo
     spec:
       containers:
         - name: app
-          image: ghcr.io/parasetam0l/vod-app:latest
+          image: ghcr.io/parasetam0l/vidsilo:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
               name: http
           envFrom:
             - configMapRef:
-                name: vod-config
+                name: vidsilo-config
           env:
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
-                  name: vod-secrets
+                  name: vidsilo-secrets
                   key: database-url
             - name: TLS_CERT_DIR
               value: /data/certs
@@ -65,4 +65,4 @@ spec:
       volumes:
         - name: data
           persistentVolumeClaim:
-            claimName: vod-media
+            claimName: vidsilo-media

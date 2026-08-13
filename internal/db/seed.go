@@ -9,7 +9,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/parasetam0l/vod-app/internal/password"
+	"github.com/parasetam0l/vidsilo/internal/password"
 )
 
 // defaultSettings are the code defaults from DESIGN §4.3. Admin edits land in

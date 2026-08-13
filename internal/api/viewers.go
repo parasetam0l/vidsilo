@@ -13,9 +13,9 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
-	"github.com/parasetam0l/vod-app/internal/db"
-	"github.com/parasetam0l/vod-app/internal/password"
-	"github.com/parasetam0l/vod-app/internal/secrets"
+	"github.com/parasetam0l/vidsilo/internal/db"
+	"github.com/parasetam0l/vidsilo/internal/password"
+	"github.com/parasetam0l/vidsilo/internal/secrets"
 )
 
 // Viewers are public library accounts. Their sessions use separate cookies
@@ -23,8 +23,8 @@ import (
 // admin API (role checks see no user at all).
 
 const (
-	viewerAccessCookieName  = "vod_viewer"
-	viewerRefreshCookieName = "vod_viewer_refresh"
+	viewerAccessCookieName  = "vidsilo_viewer"
+	viewerRefreshCookieName = "vidsilo_viewer_refresh"
 	viewerRefreshTTL        = 7 * 24 * time.Hour
 )
 

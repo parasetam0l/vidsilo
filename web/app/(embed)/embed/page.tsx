@@ -4,7 +4,7 @@ import * as React from "react";
 
 import { api, type PlayInfo } from "@/lib/api";
 import { useT } from "@/lib/i18n";
-import { VODPlayer } from "@/components/vod-player";
+import { VidsiloPlayer } from "@/components/vidsilo-player";
 import { LoadingCircle } from "@/components/loading";
 
 function uuidFromPath(): string {
@@ -53,7 +53,7 @@ export default function EmbedPage() {
           {t("playerVideoStatus")}
         </div>
       ) : (
-        <VODPlayer info={info} publicId={uuid} autoplay={opts.autoplay} muted={opts.muted} loop={opts.loop} branding={info.player} startTime={opts.startTime} />
+        <VidsiloPlayer info={info} publicId={uuid} autoplay={opts.autoplay} muted={opts.muted} loop={opts.loop} branding={info.player} startTime={opts.startTime} />
       )}
     </div>
   );

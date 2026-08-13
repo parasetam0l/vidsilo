@@ -1,15 +1,15 @@
 # Postgres StatefulSet for the in-cluster database (single replica is
-# sufficient for the VOD catalog; use an external DB for larger HA).
+# sufficient for the Vidsilo catalog; use an external DB for larger HA).
 apiVersion: v1
 kind: Service
 metadata:
-  name: vod-postgres
+  name: vidsilo-postgres
   labels:
-    app: vod-postgres
+    app: vidsilo-postgres
 spec:
   clusterIP: None
   selector:
-    app: vod-postgres
+    app: vidsilo-postgres
   ports:
     - port: 5432
       name: postgres
@@ -17,33 +17,33 @@ spec:
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: vod-postgres
+  name: vidsilo-postgres
   labels:
-    app: vod-postgres
+    app: vidsilo-postgres
 spec:
-  serviceName: vod-postgres
+  serviceName: vidsilo-postgres
   replicas: 1
   selector:
     matchLabels:
-      app: vod-postgres
+      app: vidsilo-postgres
   template:
     metadata:
       labels:
-        app: vod-postgres
+        app: vidsilo-postgres
     spec:
       containers:
         - name: postgres
           image: postgres:17-alpine
           env:
             - name: POSTGRES_USER
-              value: vod
+              value: vidsilo
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: vod-secrets
+                  name: vidsilo-secrets
                   key: db-password
             - name: POSTGRES_DB
-              value: vod
+              value: vidsilo
           ports:
             - containerPort: 5432
               name: postgres
@@ -52,7 +52,7 @@ spec:
               mountPath: /var/lib/postgresql/data
           readinessProbe:
             exec:
-              command: ["pg_isready", "-U", "vod"]
+              command: ["pg_isready", "-U", "vidsilo"]
             initialDelaySeconds: 5
             periodSeconds: 5
   volumeClaimTemplates:

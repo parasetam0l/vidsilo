@@ -20,12 +20,12 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/parasetam0l/vod-app/internal/db"
-	"github.com/parasetam0l/vod-app/internal/media"
-	"github.com/parasetam0l/vod-app/internal/queue"
-	"github.com/parasetam0l/vod-app/internal/safeurl"
-	"github.com/parasetam0l/vod-app/internal/settings"
-	"github.com/parasetam0l/vod-app/internal/store"
+	"github.com/parasetam0l/vidsilo/internal/db"
+	"github.com/parasetam0l/vidsilo/internal/media"
+	"github.com/parasetam0l/vidsilo/internal/queue"
+	"github.com/parasetam0l/vidsilo/internal/safeurl"
+	"github.com/parasetam0l/vidsilo/internal/settings"
+	"github.com/parasetam0l/vidsilo/internal/store"
 )
 
 type Runner struct {
@@ -193,7 +193,7 @@ func (r *Runner) Download(ctx context.Context, job db.Job) error {
 	if err != nil {
 		return fail(err.Error())
 	}
-	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; vod-app/0.1)")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; vidsilo/0.1)")
 	resp, err := client.Do(req)
 	if err != nil {
 		return fail(err.Error())
@@ -207,7 +207,7 @@ func (r *Runner) Download(ctx context.Context, job db.Job) error {
 		return fail("file exceeds the configured max upload size")
 	}
 
-	src, err := os.CreateTemp(os.TempDir(), "vod-download-*."+ext)
+	src, err := os.CreateTemp(os.TempDir(), "vidsilo-download-*."+ext)
 	if err != nil {
 		return fail(err.Error())
 	}
@@ -315,7 +315,7 @@ func (r *Runner) spoolSource(ctx context.Context, e db.Entry) (string, error) {
 	if dir == "" {
 		dir = os.TempDir()
 	}
-	tmp, err := os.CreateTemp(dir, "vod-source-*"+path.Ext(e.SourceKey))
+	tmp, err := os.CreateTemp(dir, "vidsilo-source-*"+path.Ext(e.SourceKey))
 	if err != nil {
 		return "", err
 	}
@@ -647,7 +647,7 @@ func (r *Runner) flavorOutputDir(ctx context.Context, e db.Entry, f db.Flavor) (
 		dir := local.Root() + "/" + store.FlavorDir(e.ID, f.Name)
 		return dir, func() { _ = os.RemoveAll(dir) }, nil
 	}
-	dir, err := os.MkdirTemp("", "vod-flavor-*")
+	dir, err := os.MkdirTemp("", "vidsilo-flavor-*")
 	if err != nil {
 		return "", nil, err
 	}

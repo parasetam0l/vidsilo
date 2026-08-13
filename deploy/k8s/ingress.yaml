@@ -5,9 +5,9 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: vod-app
+  name: vidsilo
   labels:
-    app: vod
+    app: vidsilo
   annotations:
     # cert-manager example (install cert-manager for automatic certs):
     # cert-manager.io/cluster-issuer: letsencrypt
@@ -16,17 +16,17 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-    - host: vod.example.com
+    - host: vidsilo.example.com
       http:
         paths:
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: vod-app
+                name: vidsilo
                 port:
                   name: http
   # Uncomment with cert-manager:
   # tls:
-  #   - hosts: [vod.example.com]
-  #     secretName: vod-tls
+  #   - hosts: [vidsilo.example.com]
+  #     secretName: vidsilo-tls

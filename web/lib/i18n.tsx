@@ -11,8 +11,8 @@ export type Locale = (typeof locales)[number];
 
 const en = {
   // app
-  appName: "VOD",
-  appTitle: "VOD Admin",
+  appName: "Vidsilo",
+  appTitle: "Vidsilo Admin",
   error: "Something went wrong",
   deleted: "Deleted",
   loading: "Loading…",
@@ -83,7 +83,7 @@ const en = {
   passwordChanged: "Password updated",
 
   // login
-  loginTitle: "Sign in to VOD",
+  loginTitle: "Sign in to Vidsilo",
   loginPrompt: "Please sign in to continue.",
   loginEmail: "Email",
   loginUsername: "Username",
@@ -107,7 +107,7 @@ const en = {
   dashBandwidth: "Bandwidth",
   dashBandwidthHint: "view traffic — {today} GB served today",
   analyticsDisabled: "Analytics is disabled — bandwidth is not being counted.",
-  dashWelcomeTitle: "Welcome to VOD",
+  dashWelcomeTitle: "Welcome to Vidsilo",
   dashWelcomeDesc:
     "Your library is empty — upload your first video to start building your catalog.",
   dashUploadFirst: "Upload a video",

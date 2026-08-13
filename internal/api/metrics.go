@@ -33,13 +33,13 @@ func recordRequest(status int, bytes int64, dur time.Duration) {
 func (s *Server) handleMetrics(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
-	body := "# TYPE vod_http_requests_total counter\n" +
-		"vod_http_requests_total " + strconv.FormatInt(httpRequests.Load(), 10) + "\n" +
-		"# TYPE vod_http_errors_total counter\n" +
-		"vod_http_errors_total " + strconv.FormatInt(httpErrors.Load(), 10) + "\n" +
-		"# TYPE vod_http_response_bytes_total counter\n" +
-		"vod_http_response_bytes_total " + strconv.FormatInt(httpBytes.Load(), 10) + "\n" +
-		"# TYPE vod_http_request_duration_seconds counter\n" +
-		"vod_http_request_duration_seconds_total " + strconv.FormatFloat(float64(httpSeconds.Load())/1e6, 'f', 6, 64) + "\n"
+	body := "# TYPE vidsilo_http_requests_total counter\n" +
+		"vidsilo_http_requests_total " + strconv.FormatInt(httpRequests.Load(), 10) + "\n" +
+		"# TYPE vidsilo_http_errors_total counter\n" +
+		"vidsilo_http_errors_total " + strconv.FormatInt(httpErrors.Load(), 10) + "\n" +
+		"# TYPE vidsilo_http_response_bytes_total counter\n" +
+		"vidsilo_http_response_bytes_total " + strconv.FormatInt(httpBytes.Load(), 10) + "\n" +
+		"# TYPE vidsilo_http_request_duration_seconds counter\n" +
+		"vidsilo_http_request_duration_seconds_total " + strconv.FormatFloat(float64(httpSeconds.Load())/1e6, 'f', 6, 64) + "\n"
 	_, _ = w.Write([]byte(body))
 }

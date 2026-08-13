@@ -1,0 +1,19 @@
+# /etc/systemd/system/vidsilo.service — server: API + UI + media
+[Unit]
+Description=Vidsilo app server
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+User=vidsilo
+Group=vidsilo
+EnvironmentFile=/etc/vidsilo/env
+ExecStart=/usr/local/bin/vidsilo server
+Restart=on-failure
+RestartSec=2s
+StateDirectory=vidsilo
+LogsDirectory=vidsilo
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+
+[Install]
+WantedBy=multi-user.target

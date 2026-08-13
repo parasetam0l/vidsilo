@@ -13,7 +13,7 @@ export interface SiteConfig {
   version: string;
 }
 
-const CACHE_KEY = "vod-site-config";
+const CACHE_KEY = "vidsilo-site-config";
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
 interface CacheEntry {

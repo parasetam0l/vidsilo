@@ -1,0 +1,18 @@
+# /etc/systemd/system/vidsilo-worker.service — worker: probe + transcode
+[Unit]
+Description=Vidsilo worker
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+User=vidsilo
+Group=vidsilo
+EnvironmentFile=/etc/vidsilo/env
+ExecStart=/usr/local/bin/vidsilo worker
+Restart=on-failure
+RestartSec=2s
+Nice=10
+IOSchedulingClass=idle
+
+[Install]
+WantedBy=multi-user.target

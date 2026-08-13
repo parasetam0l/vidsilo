@@ -68,7 +68,7 @@ func Client() *http.Client {
 	}
 }
 
-var userAgent = "Mozilla/5.0 (compatible; vod-app/0.1)"
+var userAgent = "Mozilla/5.0 (compatible; vidsilo/0.1)"
 
 // contentTypeExt maps common video content types to file extensions.
 var contentTypeExt = map[string]string{

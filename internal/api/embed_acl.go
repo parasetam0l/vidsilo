@@ -6,8 +6,8 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/parasetam0l/vod-app/internal/db"
-	"github.com/parasetam0l/vod-app/internal/store"
+	"github.com/parasetam0l/vidsilo/internal/db"
+	"github.com/parasetam0l/vidsilo/internal/store"
 )
 
 // entryAllowed decides whether an anonymous viewer may load an entry's

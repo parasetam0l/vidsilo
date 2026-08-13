@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/parasetam0l/vod-app/internal/db"
+	"github.com/parasetam0l/vidsilo/internal/db"
 )
 
 // registerCategoryRoutes: tree list for everyone, admin CRUD.

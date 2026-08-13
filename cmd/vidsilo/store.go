@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/parasetam0l/vod-app/internal/config"
-	"github.com/parasetam0l/vod-app/internal/settings"
-	"github.com/parasetam0l/vod-app/internal/store"
+	"github.com/parasetam0l/vidsilo/internal/config"
+	"github.com/parasetam0l/vidsilo/internal/settings"
+	"github.com/parasetam0l/vidsilo/internal/store"
 )
 
 // buildStore constructs the configured storage driver. For the s3 driver the

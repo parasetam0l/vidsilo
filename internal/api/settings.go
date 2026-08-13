@@ -5,8 +5,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/parasetam0l/vod-app/internal/build"
-	"github.com/parasetam0l/vod-app/internal/settings"
+	"github.com/parasetam0l/vidsilo/internal/build"
+	"github.com/parasetam0l/vidsilo/internal/settings"
 )
 
 // registerSettingsRoutes: GET lists everything with restart flags; PATCH

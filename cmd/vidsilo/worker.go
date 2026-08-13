@@ -13,12 +13,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/parasetam0l/vod-app/internal/analytics"
-	"github.com/parasetam0l/vod-app/internal/config"
-	"github.com/parasetam0l/vod-app/internal/db"
-	"github.com/parasetam0l/vod-app/internal/jobs"
-	"github.com/parasetam0l/vod-app/internal/queue"
-	"github.com/parasetam0l/vod-app/internal/settings"
+	"github.com/parasetam0l/vidsilo/internal/analytics"
+	"github.com/parasetam0l/vidsilo/internal/config"
+	"github.com/parasetam0l/vidsilo/internal/db"
+	"github.com/parasetam0l/vidsilo/internal/jobs"
+	"github.com/parasetam0l/vidsilo/internal/queue"
+	"github.com/parasetam0l/vidsilo/internal/settings"
 )
 
 // randHex returns n random bytes hex-encoded (worker id suffix).
@@ -34,7 +34,7 @@ func randHex(n int) string {
 // sized by transcode.concurrency (default GOMAXPROCS-1) so parallel ffmpeg
 // processes never exceed the configured limit.
 func cmdWorker(args []string) {
-	log, closeLog := newSlog("vod-worker.log")
+	log, closeLog := newSlog("vidsilo-worker.log")
 	defer closeLog()
 	slog.SetDefault(log)
 

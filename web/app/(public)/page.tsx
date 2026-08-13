@@ -39,7 +39,7 @@ export default function LibraryPage() {
     filtersRef.current = { debouncedQ, category, sort };
   }, [debouncedQ, category, sort]);
 
-  // Tab title: the configured site name (VOD App by default).
+  // Tab title: the configured site name (Vidsilo App by default).
   React.useEffect(() => {
     if (!siteName) return;
     const id = window.setTimeout(() => {

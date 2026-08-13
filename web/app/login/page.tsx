@@ -40,7 +40,7 @@ export default function ViewerLoginPage() {
           document.title = `${t("libraryLoginTitle")} | ${cfg.siteName || "Vidsilo"}`;
         })
         .catch(() => {
-          document.title = `${t("libraryLoginTitle")} | VOD App`;
+          document.title = `${t("libraryLoginTitle")} | Vidsilo App`;
         });
     }, 0);
     return () => window.clearTimeout(id);

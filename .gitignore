@@ -3,7 +3,7 @@
 *.test
 *.out
 coverage.txt
-/vod-app
+/vidsilo
 bin/
 
 # Next.js / web

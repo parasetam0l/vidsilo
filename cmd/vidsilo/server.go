@@ -22,22 +22,22 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/parasetam0l/vod-app/internal/api"
-	"github.com/parasetam0l/vod-app/internal/analytics"
-	"github.com/parasetam0l/vod-app/internal/config"
-	"github.com/parasetam0l/vod-app/internal/db"
-	"github.com/parasetam0l/vod-app/internal/media"
-	"github.com/parasetam0l/vod-app/internal/queue"
-	"github.com/parasetam0l/vod-app/internal/secrets"
-	"github.com/parasetam0l/vod-app/internal/settings"
-	"github.com/parasetam0l/vod-app/internal/store"
-	"github.com/parasetam0l/vod-app/internal/ui"
+	"github.com/parasetam0l/vidsilo/internal/api"
+	"github.com/parasetam0l/vidsilo/internal/analytics"
+	"github.com/parasetam0l/vidsilo/internal/config"
+	"github.com/parasetam0l/vidsilo/internal/db"
+	"github.com/parasetam0l/vidsilo/internal/media"
+	"github.com/parasetam0l/vidsilo/internal/queue"
+	"github.com/parasetam0l/vidsilo/internal/secrets"
+	"github.com/parasetam0l/vidsilo/internal/settings"
+	"github.com/parasetam0l/vidsilo/internal/store"
+	"github.com/parasetam0l/vidsilo/internal/ui"
 	"golang.org/x/crypto/acme/autocert"
-	"github.com/parasetam0l/vod-app/internal/upload"
+	"github.com/parasetam0l/vidsilo/internal/upload"
 )
 
 func cmdServer(args []string) {
-	log, closeLog := newSlog("vod-app.log")
+	log, closeLog := newSlog("vidsilo.log")
 	defer closeLog()
 	slog.SetDefault(log)
 
@@ -260,7 +260,7 @@ func loadOrCreateSelfSigned(log *slog.Logger, cfg *config.Config) (tls.Certifica
 	}
 	tmpl := x509.Certificate{
 		SerialNumber:          serial,
-		Subject:               pkix.Name{CommonName: "vod-app self-signed"},
+		Subject:               pkix.Name{CommonName: "vidsilo self-signed"},
 		NotBefore:             time.Now().Add(-time.Hour),
 		NotAfter:              time.Now().AddDate(10, 0, 0),
 		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment | x509.KeyUsageCertSign,

@@ -1,4 +1,4 @@
--- 0001_init: full VOD platform schema
+-- 0001_init: full Vidsilo platform schema
 
 CREATE TABLE users (
     id            bigserial PRIMARY KEY,

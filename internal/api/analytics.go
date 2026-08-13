@@ -3,7 +3,7 @@ package api
 import (
 	"net/http"
 
-	"github.com/parasetam0l/vod-app/internal/db"
+	"github.com/parasetam0l/vidsilo/internal/db"
 )
 
 // registerAnalyticsRoutes: public beacons (rate-limited generously) and the

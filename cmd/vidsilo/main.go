@@ -1,11 +1,11 @@
-// Command vod-app is the single binary: server | worker | migrate | version.
+// Command vidsilo is the single binary: server | worker | migrate | version.
 package main
 
 import (
 	"fmt"
 	"os"
 
-	"github.com/parasetam0l/vod-app/internal/build"
+	"github.com/parasetam0l/vidsilo/internal/build"
 )
 
 func main() {
@@ -31,14 +31,14 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, `vod-app - self-hosted VOD platform
+	fmt.Fprintln(os.Stderr, `vidsilo - self-hosted Vidsilo platform
 
 Usage:
-  vod-app server       run the HTTP server (API + UI + media)
-  vod-app worker       run the transcode worker (probe + transcode jobs)
-  vod-app migrate      migrate media between storage drivers
-  vod-app reset-admin  rotate the admin password and print it once
-  vod-app version      print the version
+  vidsilo server       run the HTTP server (API + UI + media)
+  vidsilo worker       run the transcode worker (probe + transcode jobs)
+  vidsilo migrate      migrate media between storage drivers
+  vidsilo reset-admin  rotate the admin password and print it once
+  vidsilo version      print the version
 
 Environment:
   DATABASE_URL      postgres connection string (required)

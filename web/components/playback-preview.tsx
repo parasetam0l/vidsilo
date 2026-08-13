@@ -6,7 +6,7 @@ import { PlayIcon, VideoIcon, XIcon } from "lucide-react";
 import { api, type PlayInfo } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import { useToast } from "@/hooks/use-toast";
-import { VODPlayer } from "@/components/vod-player";
+import { VidsiloPlayer } from "@/components/vidsilo-player";
 import { formatDuration } from "@/lib/format";
 
 // Playback preview shared by the entry metadata tab, the embed tab and the
@@ -32,7 +32,7 @@ export function PlaybackPreview({
   if (preview) {
     return (
       <div className="group relative overflow-hidden rounded-2xl border bg-black/80 shadow-md">
-        <VODPlayer info={preview} publicId={publicId} autoplay />
+        <VidsiloPlayer info={preview} publicId={publicId} autoplay />
         <button
           type="button"
           onClick={() => setPreview(null)}

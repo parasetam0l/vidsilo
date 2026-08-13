@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/parasetam0l/vod-app/internal/db"
+	"github.com/parasetam0l/vidsilo/internal/db"
 )
 
 // Hand-rolled HS256 JWT: header.payload.signature, constant-time verify.

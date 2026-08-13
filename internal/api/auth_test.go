@@ -10,11 +10,11 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/parasetam0l/vod-app/internal/db"
-	"github.com/parasetam0l/vod-app/internal/password"
-	"github.com/parasetam0l/vod-app/internal/secrets"
-	"github.com/parasetam0l/vod-app/internal/settings"
-	"github.com/parasetam0l/vod-app/internal/testdb"
+	"github.com/parasetam0l/vidsilo/internal/db"
+	"github.com/parasetam0l/vidsilo/internal/password"
+	"github.com/parasetam0l/vidsilo/internal/secrets"
+	"github.com/parasetam0l/vidsilo/internal/settings"
+	"github.com/parasetam0l/vidsilo/internal/testdb"
 )
 
 // Integration tests against a live database (docker compose up -d db).

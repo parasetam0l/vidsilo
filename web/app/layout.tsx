@@ -17,7 +17,7 @@ export const metadata: Metadata = {
     default: "Vidsilo",
     template: "%s | Vidsilo",
   },
-  description: "VOD platform admin panel",
+  description: "Vidsilo platform admin panel",
   // Private platform: nothing gets indexed (also enforced by robots.txt and
   // the X-Robots-Tag header).
   robots: {

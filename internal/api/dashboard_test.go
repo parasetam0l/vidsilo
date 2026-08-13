@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/parasetam0l/vod-app/internal/store"
+	"github.com/parasetam0l/vidsilo/internal/store"
 )
 
 // storageUsed must count only the media tree — access logs, the secret key
@@ -23,7 +23,7 @@ func TestStorageUsedCountsMediaOnly(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(root, "logs"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "logs", "vod-app.log"), make([]byte, 5000), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "logs", "vidsilo.log"), make([]byte, 5000), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(root, "secret.key"), make([]byte, 32), 0o644); err != nil {
@@ -46,7 +46,7 @@ func TestStorageUsedEmptyCatalog(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(root, "logs"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "logs", "vod-app.log"), make([]byte, 4096), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "logs", "vidsilo.log"), make([]byte, 4096), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	st, err := store.NewLocal(root)

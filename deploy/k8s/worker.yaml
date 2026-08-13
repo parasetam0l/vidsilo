@@ -2,32 +2,32 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: vod-worker
+  name: vidsilo-worker
   labels:
-    app: vod-worker
+    app: vidsilo-worker
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: vod-worker
+      app: vidsilo-worker
   template:
     metadata:
       labels:
-        app: vod-worker
+        app: vidsilo-worker
     spec:
       containers:
         - name: worker
-          image: ghcr.io/parasetam0l/vod-app:latest
+          image: ghcr.io/parasetam0l/vidsilo:latest
           imagePullPolicy: IfNotPresent
-          command: ["/usr/local/bin/vod-app", "worker"]
+          command: ["/usr/local/bin/vidsilo", "worker"]
           envFrom:
             - configMapRef:
-                name: vod-config
+                name: vidsilo-config
           env:
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
-                  name: vod-secrets
+                  name: vidsilo-secrets
                   key: database-url
             - name: TLS_CERT_DIR
               value: /data/certs
@@ -43,4 +43,4 @@ spec:
       volumes:
         - name: data
           persistentVolumeClaim:
-            claimName: vod-media
+            claimName: vidsilo-media

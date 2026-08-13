@@ -26,7 +26,7 @@ COPY . .
 # stale pages would linger in the embedded FS.
 RUN rm -rf internal/ui/web/out
 COPY --from=web /app/web/out internal/ui/web/out
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/vod-app ./cmd/vod-app
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/vidsilo ./cmd/vidsilo
 
 # ---- runtime: ubuntu + ffmpeg -----------------------------------------------
 FROM ubuntu:24.04
@@ -36,16 +36,16 @@ RUN apt-get update \
     && ffmpeg -encoders 2>/dev/null | grep -q libx264 \
     && ffmpeg -encoders 2>/dev/null | grep -q libx265 \
     || { echo "libx264/libx265 encoders missing"; exit 1; }
-RUN useradd --system --create-home vod || useradd --system --create-home --uid 2000 vod
-USER vod
+RUN useradd --system --create-home vidsilo || useradd --system --create-home --uid 2000 vidsilo
+USER vidsilo
 WORKDIR /data
 VOLUME /data
-COPY --from=build /out/vod-app /usr/local/bin/vod-app
+COPY --from=build /out/vidsilo /usr/local/bin/vidsilo
 EXPOSE 8080 8443
 # Healthcheck hits the plain-HTTP listener (HTTP_PORT, default 8080 in the
 # image). It stays correct for every TLS mode since /healthz is exempt from
 # the HTTP->HTTPS redirect.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -fsS http://127.0.0.1:8080/healthz >/dev/null 2>&1 || exit 1
-ENTRYPOINT ["/usr/local/bin/vod-app"]
+ENTRYPOINT ["/usr/local/bin/vidsilo"]
 CMD ["server"]

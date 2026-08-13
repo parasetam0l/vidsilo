@@ -1,4 +1,4 @@
-// Package upload wires tusd to the VOD catalog + storage. Uploads spool to
+// Package upload wires tusd to the Vidsilo catalog + storage. Uploads spool to
 // local disk (always resumable, driver-independent), then stream into the
 // media store on completion — a zero-copy rename for the local driver, one
 // PUT for s3. Completion flips the entry into the probe pipeline.
@@ -23,15 +23,15 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/tus/tusd/v2/pkg/handler"
 
-	"github.com/parasetam0l/vod-app/internal/queue"
-	"github.com/parasetam0l/vod-app/internal/settings"
-	"github.com/parasetam0l/vod-app/internal/store"
+	"github.com/parasetam0l/vidsilo/internal/queue"
+	"github.com/parasetam0l/vidsilo/internal/settings"
+	"github.com/parasetam0l/vidsilo/internal/store"
 )
 
 // CtxUserID is set by the API layer on requests entering the tus handler.
 type ctxKey string
 
-const CtxUserID ctxKey = "vod-uploader-id"
+const CtxUserID ctxKey = "vidsilo-uploader-id"
 
 // newUploadID generates the tus upload resource id.
 func newUploadID() string {

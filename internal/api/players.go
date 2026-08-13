@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/parasetam0l/vod-app/internal/db"
+	"github.com/parasetam0l/vidsilo/internal/db"
 )
 
 // registerPlayerRoutes: player design CRUD. Listing is open to editors+

@@ -8,8 +8,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/parasetam0l/vod-app/internal/config"
-	"github.com/parasetam0l/vod-app/internal/store"
+	"github.com/parasetam0l/vidsilo/internal/config"
+	"github.com/parasetam0l/vidsilo/internal/store"
 )
 
 // cmdMigrate streams media from a source store into the currently configured

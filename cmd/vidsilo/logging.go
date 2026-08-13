@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/parasetam0l/vod-app/internal/logging"
+	"github.com/parasetam0l/vidsilo/internal/logging"
 )
 
 // newSlog builds the JSON logger: stdout always, plus the in-process

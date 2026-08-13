@@ -27,8 +27,8 @@ export interface UrlDownloadJob {
   finishedAt?: string;
 }
 
-const STORAGE_KEY = "vod-url-downloads";
-const COMPLETED_KEY = "vod-url-downloads-completed";
+const STORAGE_KEY = "vidsilo-url-downloads";
+const COMPLETED_KEY = "vidsilo-url-downloads-completed";
 const listeners = new Set<() => void>();
 
 let jobs: UrlDownloadJob[] = load();

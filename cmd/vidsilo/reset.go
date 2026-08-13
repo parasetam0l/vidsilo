@@ -8,9 +8,9 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/parasetam0l/vod-app/internal/config"
-	"github.com/parasetam0l/vod-app/internal/db"
-	"github.com/parasetam0l/vod-app/internal/password"
+	"github.com/parasetam0l/vidsilo/internal/config"
+	"github.com/parasetam0l/vidsilo/internal/db"
+	"github.com/parasetam0l/vidsilo/internal/password"
 )
 
 // cmdResetAdmin rotates the admin password and prints it once. Requires host

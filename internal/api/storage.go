@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/parasetam0l/vod-app/internal/db"
-	"github.com/parasetam0l/vod-app/internal/store"
+	"github.com/parasetam0l/vidsilo/internal/db"
+	"github.com/parasetam0l/vidsilo/internal/store"
 )
 
 // registerStorageRoutes: storage usage and per-entry file breakdown.

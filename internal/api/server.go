@@ -17,12 +17,12 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/parasetam0l/vod-app/internal/analytics"
-	"github.com/parasetam0l/vod-app/internal/media"
-	"github.com/parasetam0l/vod-app/internal/queue"
-	"github.com/parasetam0l/vod-app/internal/settings"
-	"github.com/parasetam0l/vod-app/internal/store"
-	"github.com/parasetam0l/vod-app/internal/upload"
+	"github.com/parasetam0l/vidsilo/internal/analytics"
+	"github.com/parasetam0l/vidsilo/internal/media"
+	"github.com/parasetam0l/vidsilo/internal/queue"
+	"github.com/parasetam0l/vidsilo/internal/settings"
+	"github.com/parasetam0l/vidsilo/internal/store"
+	"github.com/parasetam0l/vidsilo/internal/upload"
 )
 
 // Server wires the HTTP surface: API routes, embedded UI, middleware.

@@ -54,14 +54,14 @@ docker compose logs app | grep 'First-run admin'
 
 ```
 web/ (Next.js static export) ─┐
-                              ├─ embedded into ─► vod-app (single Go binary)
+                              ├─ embedded into ─► vidsilo (single Go binary)
 internal/ (api, queue, store) ─┘
         │
         ├── Postgres: catalog, users, jobs, analytics
         └── Storage: local disk (DATA_DIR) or S3/MinIO (with LRU cache)
 
-vod-app server  — API + UI + media streaming (HLS, range requests)
-vod-app worker  — queue consumer: probe, transcode, downloads
+vidsilo server  — API + UI + media streaming (HLS, range requests)
+vidsilo worker  — queue consumer: probe, transcode, downloads
 ```
 
 Horizontal scale: add app/worker nodes against the same Postgres + shared
@@ -90,9 +90,9 @@ Full env reference: [deploy/env.example](deploy/env.example).
 ## Operations
 
 - **Backups**: `deploy/backup.sh` (catalog dump + optional media tarball); restore = dump → media → start. Docker users get an optional cron from the install wizard.
-- **Admin password**: first-run is logged once; rotate anytime with `vod-app reset-admin`.
-- **Upgrades**: Docker — `docker compose pull && docker compose up -d`; bare metal — replace the binary and `systemctl restart vod-app vod-worker`.
-- **Storage migration**: `vod-app migrate --source-driver=local --source-data-dir=/old/data [--prune]`, or lazy zero-downtime promotion via `FALLBACK_STORAGE_DRIVER`.
+- **Admin password**: first-run is logged once; rotate anytime with `vidsilo reset-admin`.
+- **Upgrades**: Docker — `docker compose pull && docker compose up -d`; bare metal — replace the binary and `systemctl restart vidsilo vidsilo-worker`.
+- **Storage migration**: `vidsilo migrate --source-driver=local --source-data-dir=/old/data [--prune]`, or lazy zero-downtime promotion via `FALLBACK_STORAGE_DRIVER`.
 
 ## Security
 
@@ -107,7 +107,7 @@ and an audit trail for admin mutations.
 ```bash
 docker compose up -d db          # Postgres 17 on :5432
 cd web && npm run dev            # Next dev server (proxies /api to :8090)
-go run ./cmd/vod-app server      # backend on :8090
+go run ./cmd/vidsilo server      # backend on :8090
 ```
 
 Tests: `go test ./...` (needs `DATABASE_URL`, ffmpeg; S3 tests need `S3_*` +

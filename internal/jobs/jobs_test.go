@@ -11,11 +11,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/parasetam0l/vod-app/internal/db"
-	"github.com/parasetam0l/vod-app/internal/queue"
-	"github.com/parasetam0l/vod-app/internal/settings"
-	"github.com/parasetam0l/vod-app/internal/store"
-	"github.com/parasetam0l/vod-app/internal/testdb"
+	"github.com/parasetam0l/vidsilo/internal/db"
+	"github.com/parasetam0l/vidsilo/internal/queue"
+	"github.com/parasetam0l/vidsilo/internal/settings"
+	"github.com/parasetam0l/vidsilo/internal/store"
+	"github.com/parasetam0l/vidsilo/internal/testdb"
 )
 
 // Integration test of the full probe + transcode pipeline against a live DB.
