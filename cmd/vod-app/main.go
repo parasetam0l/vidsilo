@@ -4,9 +4,9 @@ package main
 import (
 	"fmt"
 	"os"
-)
 
-const version = "0.1.0"
+	"github.com/parasetam0l/vod-app/internal/build"
+)
 
 func main() {
 	if len(os.Args) < 2 {
@@ -23,7 +23,7 @@ func main() {
 	case "reset-admin":
 		cmdResetAdmin(os.Args[2:])
 	case "version":
-		fmt.Println(version)
+		fmt.Println(build.Version)
 	default:
 		usage()
 		os.Exit(2)

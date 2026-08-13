@@ -9,6 +9,8 @@ export interface SiteConfig {
   defaultLang: string;
   /** disabled | login_only | enabled */
   libraryMode: string;
+  /** App version, served by the backend (single source: internal/build) */
+  version: string;
 }
 
 const CACHE_KEY = "vod-site-config";
@@ -38,7 +40,7 @@ function cachedSiteConfig(): SiteConfig | null {
 
 export function getSiteConfig(): Promise<SiteConfig> {
   if (typeof window === "undefined") {
-    return Promise.resolve({ siteName: "Vidsilo", defaultLang: "en", libraryMode: "disabled" });
+    return Promise.resolve({ siteName: "Vidsilo", defaultLang: "en", libraryMode: "disabled", version: "" });
   }
   const cached = cachedSiteConfig();
   if (cached) {
@@ -71,7 +73,7 @@ export function getSiteConfig(): Promise<SiteConfig> {
 // first client render would crash with a hydration error); the cached or
 // fetched value lands right after hydration.
 export function useSiteName(): string {
-  const [name, setName] = React.useState<string>("VOD App");
+  const [name, setName] = React.useState<string>("Vidsilo");
   React.useEffect(() => {
     let alive = true;
     getSiteConfig()
@@ -84,4 +86,23 @@ export function useSiteName(): string {
     };
   }, []);
   return name;
+}
+
+// useAppVersion renders the app version served by the backend (the single
+// source of truth is internal/build). Empty until the cached site-config
+// is loaded, so SSR/hydration never mismatch.
+export function useAppVersion(): string {
+  const [version, setVersion] = React.useState<string>("");
+  React.useEffect(() => {
+    let alive = true;
+    getSiteConfig()
+      .then((cfg) => {
+        if (alive) setVersion(cfg.version);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+  return version;
 }

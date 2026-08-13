@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 
 import { api, type PlayInfo } from "@/lib/api";
-import { getSiteConfig, useSiteName } from "@/lib/site-config";
+import { getSiteConfig, useSiteName, useAppVersion } from "@/lib/site-config";
 import { useT } from "@/lib/i18n";
 import { useToast } from "@/hooks/use-toast";
 import { VODPlayer } from "@/components/vod-player";
@@ -23,6 +23,7 @@ function uuidFromPath(): string {
 export default function PlayPage() {
   const t = useT();
   const siteName = useSiteName();
+  const appVersion = useAppVersion();
   const toast = useToast();
   const [uuid] = React.useState(uuidFromPath);
   const [info, setInfo] = React.useState<PlayInfo | null>(null);
@@ -83,7 +84,7 @@ export default function PlayPage() {
             </div>
             <span className="flex flex-col leading-none">
               <span className="text-sm font-semibold text-foreground">{siteName}</span>
-              <span className="mt-0.5 text-xs text-muted-foreground">{t("appVersion")}</span>
+              <span className="mt-0.5 text-xs text-muted-foreground">{appVersion}</span>
             </span>
           </Link>
           <div className="ml-auto flex items-center gap-2">

@@ -62,13 +62,14 @@ import { api, displayName, type StorageUsage } from "@/lib/api"
 import { formatBytes } from "@/lib/format"
 import { Progress } from "@/components/ui/progress"
 import { locales, useI18n, useT } from "@/lib/i18n"
-import { useSiteName } from "@/lib/site-config"
+import { useSiteName, useAppVersion } from "@/lib/site-config"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
   const router = useRouter()
   const t = useT()
   const siteName = useSiteName()
+  const appVersion = useAppVersion()
   const { confirm } = useDialog()
   const { user, logout } = useAuth()
   const { theme, set: setTheme } = useTheme()
@@ -130,7 +131,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               </div>
               <div className="flex flex-col gap-0.5 leading-none">
                 <span className="font-medium">{siteName}</span>
-                <span className="text-xs text-muted-foreground">{t("appVersion")}</span>
+                <span className="text-xs text-muted-foreground">{appVersion}</span>
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>

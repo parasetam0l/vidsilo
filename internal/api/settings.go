@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/parasetam0l/vod-app/internal/build"
 	"github.com/parasetam0l/vod-app/internal/settings"
 )
 
@@ -28,6 +29,7 @@ func (s *Server) handleSiteConfig(w http.ResponseWriter, r *http.Request) {
 		"siteName":    s.settings.String("site_name", "Vidsilo"),
 		"defaultLang": s.settings.String("default_lang", "en"),
 		"libraryMode": s.settings.String("library.mode", "disabled"),
+		"version":     build.Version,
 	})
 }
 

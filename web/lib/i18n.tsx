@@ -15,7 +15,6 @@ const en = {
   appTitle: "VOD Admin",
   error: "Something went wrong",
   deleted: "Deleted",
-  appVersion: "v0.1.0",
   loading: "Loading…",
   save: "Save",
   saved: "Saved",

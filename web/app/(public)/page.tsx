@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 
 import { api, type CatalogCategory, type CatalogResponse, type Viewer } from "@/lib/api";
-import { getSiteConfig, useSiteName } from "@/lib/site-config";
+import { getSiteConfig, useSiteName, useAppVersion } from "@/lib/site-config";
 import { useT } from "@/lib/i18n";
 import { formatDuration } from "@/lib/format";
 import { LoadingCircle } from "@/components/loading";
@@ -22,6 +22,7 @@ const PAGE_SIZE = 24;
 export default function LibraryPage() {
   const t = useT();
   const siteName = useSiteName();
+  const appVersion = useAppVersion();
   const [q, setQ] = React.useState("");
   const [debouncedQ, setDebouncedQ] = React.useState("");
   const [category, setCategory] = React.useState<string>("");
@@ -154,7 +155,7 @@ export default function LibraryPage() {
             </div>
             <span className="flex flex-col leading-none">
               <span className="text-sm font-semibold text-foreground">{siteName}</span>
-              <span className="mt-0.5 text-xs text-muted-foreground">{t("appVersion")}</span>
+              <span className="mt-0.5 text-xs text-muted-foreground">{appVersion}</span>
             </span>
           </Link>
           <div className="ml-auto flex items-center gap-2">
