@@ -202,29 +202,77 @@ install_docker_single() {
 }
 
 # --- binary acquisition -------------------------------------------------------
+version_ge() { # version_ge CURRENT REQUIRED (semver-ish major.minor)
+    printf '%s\n%s\n' "$2" "$1" | sort -V -C
+}
+
+build_from_source() {
+    echo "Building vod-app from source..."
+    MISSING=""
+    if ! command -v go >/dev/null 2>&1 || ! version_ge "$(go version 2>/dev/null | sed -E 's/.*go([0-9]+(\.[0-9]+)?).*/\1/')" 1.26; then
+        MISSING="$MISSING go>=1.26"
+    fi
+    if ! command -v node >/dev/null 2>&1 || [ "$(node -v 2>/dev/null | tr -d v | cut -d. -f1)" -lt 20 ]; then
+        MISSING="$MISSING node>=20"
+    fi
+    if [ -n "$MISSING" ]; then
+        echo "missing toolchain:$MISSING"
+        if interactive; then
+            ask "Install them? (snap go --classic, nodesource node 24)" y
+            [ "$REPLY" = "y" ] || [ "$REPLY" = "Y" ] || { echo "aborted"; exit 1; }
+        else
+            echo "aborted — install go>=1.26 and node>=20, then re-run"; exit 1
+        fi
+        command -v go >/dev/null 2>&1 || snap install go --classic
+        command -v node >/dev/null 2>&1 || { curl -fsSL https://deb.nodesource.com/setup_24.x | bash - && apt-get install -y -qq nodejs; }
+        export PATH="/snap/bin:$PATH"
+    fi
+    cd "$REPO_ROOT/web"
+    NEXT_OUTPUT=export npm ci >/dev/null 2>&1 || true
+    NEXT_OUTPUT=export npm run build
+    cd "$REPO_ROOT"
+    mkdir -p internal/ui/web/out
+    cp -r web/out/. internal/ui/web/out/
+    CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o "$BIN" ./cmd/vod-app
+    chmod +x "$BIN"
+    echo "built $BIN from source"
+}
+
 install_binary() {
     if [ -x "$BIN" ]; then return; fi
     echo "vod-app binary not found at $BIN."
-    if command -v docker >/dev/null 2>&1; then
-        if [ -t 0 ] && [ "$YES" = "0" ]; then
-            ask "Download the latest release binary? (y=release, n=extract from ghcr image)" y
-            [ "$REPLY" = "n" ] || [ "$REPLY" = "N" ] && SRC=image || SRC=release
-        else
-            SRC=release
-        fi
-    else
-        SRC=release
+    SRC=release
+    if interactive; then
+        echo "How should we get the vod-app binary?"
+        echo "  1) Download the prebuilt release (recommended)"
+        echo "  2) Extract from the ghcr.io docker image"
+        echo "  3) Build from source"
+        ask "Choice" 1
+        case "$REPLY" in
+            1) SRC=release ;;
+            2) SRC=image ;;
+            3) SRC=source ;;
+            *) echo "invalid choice"; exit 2 ;;
+        esac
     fi
-    if [ "$SRC" = "release" ]; then
-        echo "downloading latest release binary (linux-$BIN_ARCH)..."
-        curl -fL -o "$BIN" "https://github.com/parasetam0l/vod-app/releases/latest/download/vod-app-linux-$BIN_ARCH"
-    else
-        echo "extracting binary from ghcr.io/parasetam0l/vod-app:latest..."
-        docker pull ghcr.io/parasetam0l/vod-app:latest >/dev/null
-        CID="$(docker create ghcr.io/parasetam0l/vod-app:latest)"
-        docker cp "$CID:/usr/local/bin/vod-app" "$BIN"
-        docker rm "$CID" >/dev/null
-    fi
+    case "$SRC" in
+        release)
+            echo "downloading latest release binary (linux-$BIN_ARCH)..."
+            curl -fL -o "$BIN" "https://github.com/parasetam0l/vod-app/releases/latest/download/vod-app-linux-$BIN_ARCH"
+            ;;
+        image)
+            command -v docker >/dev/null 2>&1 || { echo "docker is required for the image-extract path — use option 1 or 3"; exit 1; }
+            echo "extracting binary from ghcr.io/parasetam0l/vod-app:latest..."
+            docker pull ghcr.io/parasetam0l/vod-app:latest >/dev/null
+            CID="$(docker create ghcr.io/parasetam0l/vod-app:latest)"
+            docker cp "$CID:/usr/local/bin/vod-app" "$BIN"
+            docker rm "$CID" >/dev/null
+            ;;
+        source)
+            build_from_source
+            ;;
+    esac
+    [ -x "$BIN" ] || { echo "binary acquisition failed"; exit 1; }
     chmod +x "$BIN"
     echo "binary installed: $BIN"
 }
