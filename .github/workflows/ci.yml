@@ -69,7 +69,7 @@ jobs:
       - name: Web build (static export, embedded by the Go binary)
         run: |
           npm run build
-          cp -r web/out/. ../internal/ui/web/out/
+          cp -r out/. ../internal/ui/web/out/
         working-directory: web
         env:
           NEXT_OUTPUT: export
@@ -116,7 +116,7 @@ jobs:
         run: |
           npm ci
           npm run build
-          cp -r web/out/. ../internal/ui/web/out/
+          cp -r out/. ../internal/ui/web/out/
         working-directory: web
         env:
           NEXT_OUTPUT: export
