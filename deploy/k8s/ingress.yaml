@@ -1,0 +1,32 @@
+# Ingress: TLS termination here (cert-manager) or pass-through to the app's
+# autocert (set the ingressClassName / annotations per your cluster). The app
+# listens on 8080; with TLS_MODE=letsencrypt it can also obtain certs itself
+# if this ingress just passes 80/443 through.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: vod-app
+  labels:
+    app: vod
+  annotations:
+    # cert-manager example (install cert-manager for automatic certs):
+    # cert-manager.io/cluster-issuer: letsencrypt
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: vod.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: vod-app
+                port:
+                  name: http
+  # Uncomment with cert-manager:
+  # tls:
+  #   - hosts: [vod.example.com]
+  #     secretName: vod-tls

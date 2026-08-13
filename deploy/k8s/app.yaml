@@ -1,0 +1,68 @@
+# App server: API + UI + media. Media storage is either an in-cluster PVC
+# (local) or S3 — see the STORAGE_DRIVER / S3_* entries in the ConfigMap.
+apiVersion: v1
+kind: Service
+metadata:
+  name: vod-app
+  labels:
+    app: vod-app
+spec:
+  selector:
+    app: vod-app
+  ports:
+    - port: 8080
+      name: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vod-app
+  labels:
+    app: vod-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: vod-app
+  template:
+    metadata:
+      labels:
+        app: vod-app
+    spec:
+      containers:
+        - name: app
+          image: ghcr.io/parasetam0l/vod-app:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+          envFrom:
+            - configMapRef:
+                name: vod-config
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: vod-secrets
+                  key: database-url
+            - name: TLS_CERT_DIR
+              value: /data/certs
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 512Mi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: vod-media

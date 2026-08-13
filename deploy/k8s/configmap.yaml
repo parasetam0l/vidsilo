@@ -1,0 +1,18 @@
+# ConfigMap for the app/worker deployments. STORAGE_DRIVER is local (the
+# vod-media PVC) or s3 — fill the S3_* entries when using S3/MinIO.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vod-config
+  labels:
+    app: vod
+data:
+  DATA_DIR: /data
+  STORAGE_DRIVER: local
+  TLS_MODE: off
+  TLS_DOMAINS: ""
+  HTTP_PORT: "8080"
+  # S3 (optional — requires the secret s3-* entries):
+  # S3_ENDPOINT: https://s3.amazonaws.com
+  # S3_BUCKET: vod
+  # S3_REGION: us-east-1

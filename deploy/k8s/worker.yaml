@@ -1,0 +1,46 @@
+# Transcode worker: consumes the queue from the same Postgres.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vod-worker
+  labels:
+    app: vod-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vod-worker
+  template:
+    metadata:
+      labels:
+        app: vod-worker
+    spec:
+      containers:
+        - name: worker
+          image: ghcr.io/parasetam0l/vod-app:latest
+          imagePullPolicy: IfNotPresent
+          command: ["/usr/local/bin/vod-app", "worker"]
+          envFrom:
+            - configMapRef:
+                name: vod-config
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: vod-secrets
+                  key: database-url
+            - name: TLS_CERT_DIR
+              value: /data/certs
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              memory: 4Gi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: vod-media

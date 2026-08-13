@@ -1,0 +1,14 @@
+# Shared media storage: one PVC used by app + worker (works with a single
+# node or with shared block storage / NFS provisioner). With STORAGE_DRIVER=s3
+# in the ConfigMap this PVC is unused.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: vod-media
+  labels:
+    app: vod
+spec:
+  accessModes: ["ReadWriteMany"]
+  resources:
+    requests:
+      storage: 100Gi
