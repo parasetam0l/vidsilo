@@ -121,9 +121,9 @@ jobs:
         env:
           NEXT_OUTPUT: export
       - name: gosec (Go static analysis)
-        uses: securego/gosec-action@v2
-        with:
-          args: -severity=medium -confidence=medium ./...
+        run: |
+          go install github.com/securego/gosec/v2/cmd/gosec@v2.28.0
+          gosec -severity=medium -confidence=medium ./...
       - name: govulncheck (Go dependencies)
         uses: golang/govulncheck-action@v1
         with:
