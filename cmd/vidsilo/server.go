@@ -97,7 +97,7 @@ func cmdServer(args []string) {
 		Log:      log,
 		SpoolDir: filepath.Join(cfg.DataDir, "uploads"),
 	}
-	if err := os.MkdirAll(ds.SpoolDir, 0o755); err != nil {
+	if err := os.MkdirAll(ds.SpoolDir, 0o750); err != nil {
 		log.Error("spool dir", "err", err)
 		os.Exit(1)
 	}
@@ -240,7 +240,7 @@ func serverTLSCertificate(cfg *config.Config, log *slog.Logger) (tls.Certificate
 // generates, persists and returns a fresh one (ECDSA P-256, 10-year validity,
 // SANs covering localhost plus TLS_DOMAINS when set).
 func loadOrCreateSelfSigned(log *slog.Logger, cfg *config.Config) (tls.Certificate, error) {
-	if err := os.MkdirAll(cfg.TLSCertDir, 0o755); err != nil {
+	if err := os.MkdirAll(cfg.TLSCertDir, 0o750); err != nil {
 		return tls.Certificate{}, err
 	}
 	certPath := filepath.Join(cfg.TLSCertDir, "selfsigned.pem")
@@ -279,7 +279,7 @@ func loadOrCreateSelfSigned(log *slog.Logger, cfg *config.Config) (tls.Certifica
 	}
 	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
 	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER})
-	if err := os.WriteFile(certPath, certPEM, 0o644); err != nil {
+	if err := os.WriteFile(certPath, certPEM, 0o600); err != nil {
 		return tls.Certificate{}, err
 	}
 	if err := os.WriteFile(keyPath, keyPEM, 0o600); err != nil {
@@ -324,7 +324,7 @@ func newHTTPSRedirect(cfg *config.Config) http.HandlerFunc {
 		if cfg.HTTPSPublicPort != 443 {
 			host = net.JoinHostPort(host, strconv.Itoa(cfg.HTTPSPublicPort))
 		}
-		http.Redirect(w, r, "https://"+host+r.URL.RequestURI(), http.StatusMovedPermanently)
+		http.Redirect(w, r, "https://"+host+r.URL.RequestURI(), http.StatusMovedPermanently) // #nosec G710 -- scheme-only upgrade of the client-supplied host
 	}
 }
 

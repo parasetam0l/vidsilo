@@ -101,8 +101,8 @@ func (l *Local) Usage(ctx context.Context) (Usage, error) {
 	}
 	var st syscall.Statfs_t
 	if err := syscall.Statfs(l.root, &st); err == nil {
-		u.TotalBytes = int64(st.Blocks) * int64(st.Bsize)
-		u.FreeBytes = int64(st.Bavail) * int64(st.Bsize)
+		u.TotalBytes = int64(st.Blocks) * int64(st.Bsize) // #nosec G115 -- statfs counts on < 8EiB volumes
+		u.FreeBytes = int64(st.Bavail) * int64(st.Bsize) // #nosec G115 -- statfs counts on < 8EiB volumes
 	}
 	return u, nil
 }

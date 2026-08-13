@@ -35,7 +35,7 @@ func NewCache(backend Store, root string, maxSize int64) (*Cache, error) {
 	if maxSize <= 0 {
 		return nil, fmt.Errorf("store: cache max size must be positive")
 	}
-	if err := os.MkdirAll(root, 0o755); err != nil {
+	if err := os.MkdirAll(root, 0o750); err != nil {
 		return nil, err
 	}
 	c := &Cache{
@@ -136,10 +136,10 @@ func (c *Cache) Put(ctx context.Context, key string, r io.Reader, size int64) er
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	p := c.pathForKey(key)
-	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(p), 0o750); err != nil {
 		return nil
 	}
-	f, err := os.Create(p)
+	f, err := os.Create(p) // #nosec G304 -- key-derived internal path
 	if err != nil {
 		return nil
 	}
@@ -175,7 +175,7 @@ func (c *Cache) Open(ctx context.Context, key string) (io.ReadSeekCloser, error)
 	}
 	defer rc.Close()
 	p := c.pathForKey(key)
-	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(p), 0o750); err != nil {
 		return rc, nil // serve the spool without caching
 	}
 	tmp, err := os.CreateTemp(filepath.Dir(p), ".cache-*")
@@ -199,7 +199,7 @@ func (c *Cache) Open(ctx context.Context, key string) (io.ReadSeekCloser, error)
 	c.mu.Lock()
 	c.insertLocked(key, n)
 	c.mu.Unlock()
-	f, err := os.Open(p)
+	f, err := os.Open(p) // #nosec G304 -- key-derived internal path
 	if err != nil {
 		return nil, err
 	}

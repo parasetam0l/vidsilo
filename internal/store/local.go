@@ -17,7 +17,7 @@ type Local struct {
 }
 
 func NewLocal(root string) (*Local, error) {
-	if err := os.MkdirAll(root, 0o755); err != nil {
+	if err := os.MkdirAll(root, 0o750); err != nil {
 		return nil, fmt.Errorf("store: create data dir: %w", err)
 	}
 	return &Local{root: root}, nil
@@ -46,7 +46,7 @@ func (l *Local) Put(ctx context.Context, key string, r io.Reader, size int64) er
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(p), 0o750); err != nil {
 		return err
 	}
 	tmp, err := os.CreateTemp(filepath.Dir(p), ".tmp-*")
@@ -71,7 +71,7 @@ func (l *Local) MoveIn(key, srcPath string) error {
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(p), 0o750); err != nil {
 		return err
 	}
 	return os.Rename(srcPath, p)
@@ -82,7 +82,7 @@ func (l *Local) Open(ctx context.Context, key string) (io.ReadSeekCloser, error)
 	if err != nil {
 		return nil, err
 	}
-	f, err := os.Open(p)
+	f, err := os.Open(p) // #nosec G304 -- key-derived internal path
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return nil, ErrNotFound

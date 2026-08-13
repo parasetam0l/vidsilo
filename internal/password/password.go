@@ -87,7 +87,7 @@ func verifyArgon(pw, encoded string) bool {
 	if err != nil {
 		return false
 	}
-	got := argon2.IDKey([]byte(pw), salt, t, m, uint8(p), uint32(len(want)))
+	got := argon2.IDKey([]byte(pw), salt, t, m, uint8(p), uint32(len(want))) // #nosec G115 -- want is a fixed 32-byte derived key
 	return subtle.ConstantTimeCompare(got, want) == 1
 }
 

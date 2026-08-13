@@ -12,7 +12,7 @@ import (
 // 32-byte key at path when none exists yet. Rotating the file logs everyone
 // out (documented in README).
 func LoadOrCreate(path string) ([]byte, error) {
-	if data, err := os.ReadFile(path); err == nil && len(data) >= 32 {
+	if data, err := os.ReadFile(path); err == nil && len(data) >= 32 { // #nosec G304 -- operator-set config path
 		return data, nil
 	}
 	key := make([]byte, 32)

@@ -327,13 +327,13 @@ func (s *Server) handleBrandingLogo(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), brandingLogoTimeout)
 	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil) // #nosec G704 -- safeurl.Client() resolves+validates the target
 	if err != nil {
 		s.internalError(w, r, "branding logo request", err)
 		return
 	}
 	req.Header.Set("User-Agent", brandingUserAgent)
-	resp, err := safeurl.Client().Do(req)
+	resp, err := safeurl.Client().Do(req) // #nosec G704 -- safeurl.Client() validates the resolved target
 	if err != nil {
 		writeError(w, http.StatusBadGateway, "bad_gateway", "cannot fetch logo")
 		return

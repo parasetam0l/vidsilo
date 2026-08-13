@@ -678,7 +678,7 @@ func (r *Runner) publishFlavor(ctx context.Context, e db.Entry, f db.Flavor, dir
 			return "", err
 		}
 		key := store.FlavorSegmentKey(e.ID, f.Name, filepath.ToSlash(rel))
-		fh, err := os.Open(p)
+		fh, err := os.Open(p) // #nosec G304 -- internal segment path
 		if err != nil {
 			return "", err
 		}

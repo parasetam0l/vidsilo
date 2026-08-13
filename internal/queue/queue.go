@@ -24,12 +24,16 @@ func New(pool *pgxpool.Pool) *Queue {
 
 // Enqueue adds a job (or re-enqueues after a failure retry).
 func (q *Queue) Enqueue(ctx context.Context, jobType string, entryID int64, payload any, maxAttempts int) (int64, error) {
-	return q.EnqueueAt(ctx, jobType, entryID, payload, maxAttempts, time.Now())
+	return q.EnqueueAt(ctx, jobType, entryID, payload, maxAttempts, time.Time{})
 }
 
 // EnqueueAt adds a job scheduled at runAt. Used to stagger serialized job
 // kinds (transcode flavors, URL downloads) so they are claimed one at a
-// time and honestly show as 'queued' until their turn.
+// time and honestly show as 'queued' until their turn. A zero runAt stamps
+// the DATABASE clock (now()), so run_at and the claim's run_at <= now()
+// compare against a single clock — a client-supplied time.Now() could be
+// ahead of the DB clock (VM clock skew) and briefly schedule jobs in the
+// future.
 func (q *Queue) EnqueueAt(ctx context.Context, jobType string, entryID int64, payload any, maxAttempts int, runAt time.Time) (int64, error) {
 	raw, err := json.Marshal(payload)
 	if err != nil {
@@ -39,6 +43,13 @@ func (q *Queue) EnqueueAt(ctx context.Context, jobType string, entryID int64, pa
 		maxAttempts = 5
 	}
 	var id int64
+	if runAt.IsZero() {
+		err = q.pool.QueryRow(ctx, `
+			INSERT INTO jobs (type, entry_id, payload, max_attempts, run_at)
+			VALUES ($1, $2, $3::jsonb, $4, now())
+			RETURNING id`, jobType, entryID, raw, maxAttempts).Scan(&id)
+		return id, err
+	}
 	err = q.pool.QueryRow(ctx, `
 		INSERT INTO jobs (type, entry_id, payload, max_attempts, run_at)
 		VALUES ($1, $2, $3::jsonb, $4, $5)

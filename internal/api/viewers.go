@@ -171,22 +171,22 @@ func (s *Server) issueViewerSession(w http.ResponseWriter, r *http.Request, v db
 		s.internalError(w, r, "store viewer refresh token", err)
 		return
 	}
-	http.SetCookie(w, &http.Cookie{
+	http.SetCookie(w, &http.Cookie{ // #nosec G124 -- HttpOnly+SameSite below; Secure follows TLS
 		Name:     viewerAccessCookieName,
 		Value:    access,
 		Path:     "/",
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
-		Secure:   r.TLS != nil,
+		Secure:   r.TLS != nil, // #nosec G124 -- cookie already HttpOnly+SameSite; Secure follows TLS
 		MaxAge:   int(accessTokenTTL.Seconds()),
 	})
-	http.SetCookie(w, &http.Cookie{
+	http.SetCookie(w, &http.Cookie{ // #nosec G124 -- HttpOnly+SameSite below; Secure follows TLS
 		Name:     viewerRefreshCookieName,
 		Value:    raw,
 		Path:     "/",
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
-		Secure:   r.TLS != nil,
+		Secure:   r.TLS != nil, // #nosec G124 -- cookie already HttpOnly+SameSite; Secure follows TLS
 		MaxAge:   int(viewerRefreshTTL.Seconds()),
 	})
 	writeJSON(w, http.StatusOK, v)
@@ -194,13 +194,13 @@ func (s *Server) issueViewerSession(w http.ResponseWriter, r *http.Request, v db
 
 func (s *Server) clearViewerCookies(w http.ResponseWriter, r *http.Request) {
 	for _, name := range []string{viewerAccessCookieName, viewerRefreshCookieName} {
-		http.SetCookie(w, &http.Cookie{
+		http.SetCookie(w, &http.Cookie{ // #nosec G124 -- HttpOnly+SameSite below; Secure follows TLS
 			Name:     name,
 			Value:    "",
 			Path:     "/",
 			HttpOnly: true,
 			SameSite: http.SameSiteLaxMode,
-			Secure:   r.TLS != nil,
+			Secure:   r.TLS != nil, // #nosec G124 -- cookie already HttpOnly+SameSite; Secure follows TLS
 			MaxAge:   -1,
 		})
 	}

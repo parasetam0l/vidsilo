@@ -74,6 +74,7 @@ type ffprobeOutput struct {
 
 // Probe runs ffprobe against the file at srcPath.
 func Probe(ctx context.Context, srcPath string) (*ProbeResult, error) {
+	// #nosec G204 -- ffmpeg/ffprobe argv (no shell); srcPath is an internal store path
 	cmd := exec.CommandContext(ctx, "ffprobe",
 		"-v", "error", "-print_format", "json", "-show_format", "-show_streams", srcPath)
 	var out bytes.Buffer
@@ -154,7 +155,7 @@ func (m *Manager) SpriteGrid(ctx context.Context, entryID int64, srcPath string,
 	spriteTmp.Close()
 	defer os.Remove(spriteTmp.Name())
 
-	cmd := exec.CommandContext(ctx, "ffmpeg", "-y",
+	cmd := exec.CommandContext(ctx, "ffmpeg", "-y", // #nosec G204 -- internal paths, no shell
 		"-i", srcPath,
 		"-t", fmt.Sprintf("%dms", scanEnd),
 		"-vf", vf,
@@ -177,7 +178,7 @@ func (m *Manager) ExtractPosterFromSource(ctx context.Context, entryID int64, sr
 	}
 	posterTmp.Close()
 	defer os.Remove(posterTmp.Name())
-	cmd := exec.CommandContext(ctx, "ffmpeg", "-y",
+	cmd := exec.CommandContext(ctx, "ffmpeg", "-y", // #nosec G204 -- internal paths, no shell
 		"-ss", fmt.Sprintf("%dms", atMs),
 		"-i", srcPath,
 		"-frames:v", "1", "-vf", "scale=640:-2", "-q:v", "3",
@@ -207,7 +208,7 @@ func (m *Manager) ExtractPoster(ctx context.Context, entryID int64, frame int) e
 	posterTmp.Close()
 	defer os.Remove(posterTmp.Name())
 
-	cmd := exec.CommandContext(ctx, "ffmpeg", "-y", "-i", spritePath,
+	cmd := exec.CommandContext(ctx, "ffmpeg", "-y", "-i", spritePath, // #nosec G204 -- internal paths, no shell
 		"-vf", crop, "-q:v", "3", posterTmp.Name())
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("ffmpeg poster: %w: %s", err, out)
@@ -231,7 +232,7 @@ type Flavor struct {
 
 // TranscodeFlavor encodes one rendition to HLS into outDir.
 func TranscodeFlavor(ctx context.Context, srcPath, outDir string, f Flavor, progress func(frac float64)) error {
-	if err := os.MkdirAll(outDir, 0o755); err != nil {
+	if err := os.MkdirAll(outDir, 0o750); err != nil {
 		return err
 	}
 	videoCodec := "libx264"
@@ -262,7 +263,7 @@ func TranscodeFlavor(ctx context.Context, srcPath, outDir string, f Flavor, prog
 		"-hls_segment_filename", path.Join(outDir, "seg_%05d.ts"),
 		path.Join(outDir, "index.m3u8"),
 	)
-	cmd := exec.CommandContext(ctx, "ffmpeg", args...)
+	cmd := exec.CommandContext(ctx, "ffmpeg", args...) // #nosec G204 -- internal paths, no shell
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		return err
@@ -326,7 +327,7 @@ func escapeQuoted(s string) string {
 
 // putFile streams a local file into the store.
 func putFile(ctx context.Context, st store.Store, key, path string) error {
-	f, err := os.Open(path)
+	f, err := os.Open(path) // #nosec G304 -- internal store path
 	if err != nil {
 		return err
 	}

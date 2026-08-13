@@ -161,10 +161,10 @@ type Upload struct {
 
 func (u *Upload) WriteChunk(ctx context.Context, offset int64, src io.Reader) (int64, error) {
 	p := u.ds.spoolPath(u.id)
-	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(p), 0o750); err != nil {
 		return 0, err
 	}
-	f, err := os.OpenFile(p, os.O_CREATE|os.O_WRONLY, 0o644)
+	f, err := os.OpenFile(p, os.O_CREATE|os.O_WRONLY, 0o600) // #nosec G304 -- internal spool id
 	if err != nil {
 		return 0, err
 	}
@@ -232,7 +232,7 @@ func (u *Upload) FinishUpload(ctx context.Context) error {
 			return err
 		}
 	} else {
-		f, err := os.Open(spool)
+		f, err := os.Open(spool) // #nosec G304 -- internal spool id
 		if err != nil {
 			return err
 		}

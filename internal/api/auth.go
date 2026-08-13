@@ -293,22 +293,22 @@ func (s *Server) issueSession(w http.ResponseWriter, r *http.Request, u db.User)
 		return
 	}
 
-	http.SetCookie(w, &http.Cookie{
+	http.SetCookie(w, &http.Cookie{ // #nosec G124 -- HttpOnly+SameSite below; Secure follows TLS
 		Name:     accessCookieName,
 		Value:    access,
 		Path:     "/",
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
-		Secure:   r.TLS != nil,
+		Secure:   r.TLS != nil, // #nosec G124 -- cookie already HttpOnly+SameSite; Secure follows TLS
 		MaxAge:   int(accessTokenTTL.Seconds()),
 	})
-	http.SetCookie(w, &http.Cookie{
+	http.SetCookie(w, &http.Cookie{ // #nosec G124 -- HttpOnly+SameSite below; Secure follows TLS
 		Name:     refreshCookieName,
 		Value:    raw,
 		Path:     "/",
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
-		Secure:   r.TLS != nil,
+		Secure:   r.TLS != nil, // #nosec G124 -- cookie already HttpOnly+SameSite; Secure follows TLS
 		MaxAge:   int(refreshTTL.Seconds()),
 	})
 	writeJSON(w, http.StatusOK, u)
@@ -316,13 +316,13 @@ func (s *Server) issueSession(w http.ResponseWriter, r *http.Request, u db.User)
 
 func (s *Server) clearSessionCookies(w http.ResponseWriter, r *http.Request) {
 	for _, name := range []string{accessCookieName, refreshCookieName} {
-		http.SetCookie(w, &http.Cookie{
+		http.SetCookie(w, &http.Cookie{ // #nosec G124 -- HttpOnly+SameSite below; Secure follows TLS
 			Name:     name,
 			Value:    "",
 			Path:     "/",
 			HttpOnly: true,
 			SameSite: http.SameSiteLaxMode,
-			Secure:   r.TLS != nil,
+			Secure:   r.TLS != nil, // #nosec G124 -- cookie already HttpOnly+SameSite; Secure follows TLS
 			MaxAge:   -1,
 		})
 	}
