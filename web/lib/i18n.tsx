@@ -436,6 +436,7 @@ const en = {
   librarySearchPlaceholder: "Search videos…",
   libraryAllCategories: "All categories",
   libraryEmpty: "No public videos yet — check back soon.",
+  libraryNoResults: "No videos match your search — try different keywords or categories.",
   libraryError: "Could not load the library — try again later.",
   libraryResults: "{total} video{s}",
   librarySortLabel: "Sort videos",

@@ -284,7 +284,9 @@ export default function LibraryPage() {
             ) : items.length === 0 ? (
               <div className="flex flex-col items-center justify-center gap-2 py-24 text-center">
                 <FilmIcon className="size-8 text-muted-foreground/50" />
-                <p className="text-sm text-muted-foreground">{t("libraryEmpty")}</p>
+                <p className="text-sm text-muted-foreground">
+                  {q || category ? t("libraryNoResults") : t("libraryEmpty")}
+                </p>
               </div>
             ) : (
               <>
