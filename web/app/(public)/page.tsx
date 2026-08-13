@@ -177,9 +177,9 @@ export default function LibraryPage() {
       </header>
 
       <div className="mx-auto w-full max-w-6xl px-4 py-6">
-        {/* Toolbar: search + sort above the categories (e-commerce style) */}
+        {/* Toolbar: search + sort in one row; search fills, sort auto-sizes */}
         <div className="flex flex-wrap items-center gap-2">
-          <div className="relative w-full max-w-md">
+          <div className="relative min-w-0 flex-1">
             <SearchIcon className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               type="search"
@@ -190,7 +190,7 @@ export default function LibraryPage() {
               className="h-9 w-full pl-8 text-sm"
             />
           </div>
-          <div className="ml-auto">
+          <div className="shrink-0">
             <Select
               options={[
                 { value: "newest", label: t("librarySortNewest") },
