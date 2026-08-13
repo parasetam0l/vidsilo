@@ -4,9 +4,10 @@ import { useRender } from "@base-ui/react/use-render"
 
 import { cn } from "@/lib/utils"
 import { ChevronRightIcon, MoreHorizontalIcon } from "lucide-react"
+import { useT } from "@/lib/i18n";
 
 function Breadcrumb({ className, ...props }: React.ComponentProps<"nav">) {
-  return (
+    return (
     <nav
       aria-label="breadcrumb"
       data-slot="breadcrumb"
@@ -96,6 +97,7 @@ function BreadcrumbEllipsis({
   className,
   ...props
 }: React.ComponentProps<"span">) {
+  const t = useT();
   return (
     <span
       data-slot="breadcrumb-ellipsis"
@@ -109,7 +111,7 @@ function BreadcrumbEllipsis({
     >
       <MoreHorizontalIcon
       />
-      <span className="sr-only">More</span>
+      <span className="sr-only">{t("srMore")}</span>
     </span>
   )
 }

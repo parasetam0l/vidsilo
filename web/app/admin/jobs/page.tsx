@@ -89,7 +89,7 @@ export default function JobsPage() {
     {
       title: "Total Jobs",
       value: String(total),
-      hint: `${done} completed`,
+      hint: t("jobsDoneCount", { n: done }),
       icon: ListChecksIcon,
       tile: "bg-blue-500/10 text-blue-500",
       blob: "bg-blue-500/15",
@@ -97,7 +97,7 @@ export default function JobsPage() {
     {
       title: t("jobRunning"),
       value: String(running),
-      hint: "Active background encoding",
+      hint: t("jobsActiveEncoding"),
       icon: Loader2Icon,
       tile: "bg-emerald-500/10 text-emerald-500",
       blob: "bg-emerald-500/15",
@@ -105,7 +105,7 @@ export default function JobsPage() {
     {
       title: t("jobQueued"),
       value: String(queued),
-      hint: "Waiting for worker pool",
+      hint: t("jobsWaitingPool"),
       icon: ClockIcon,
       tile: "bg-amber-500/10 text-amber-500",
       blob: "bg-amber-500/15",
@@ -113,7 +113,7 @@ export default function JobsPage() {
     {
       title: t("statusFailed"),
       value: String(failed),
-      hint: "Requires attention or retry",
+      hint: t("jobsRequiresAttention"),
       icon: CircleAlertIcon,
       tile: "bg-red-500/10 text-red-500",
       blob: "bg-red-500/15",

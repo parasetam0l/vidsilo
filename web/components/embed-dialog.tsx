@@ -74,7 +74,7 @@ function EmbedDialogContent({ entry, onClose }: { entry: EmbedSource; onClose: (
         <div className="flex flex-col gap-2.5 rounded-xl border border-border/60 bg-muted/40 p-4 shrink-0">
           <div className="flex items-center gap-2">
             <Link2Icon className="size-4 text-primary shrink-0" />
-            <span className="text-xs font-semibold text-foreground">Direct Link</span>
+            <span className="text-xs font-semibold text-foreground">{t("directLink")}</span>
           </div>
           <Input
             readOnly
@@ -97,7 +97,7 @@ function EmbedDialogContent({ entry, onClose }: { entry: EmbedSource; onClose: (
               ) : (
                 <>
                   <Copy className="size-3.5" />
-                  <span>Copy Direct Link</span>
+                  <span>{t("copyDirectLink")}</span>
                 </>
               )}
             </Button>
@@ -108,7 +108,7 @@ function EmbedDialogContent({ entry, onClose }: { entry: EmbedSource; onClose: (
         <div className="flex flex-col gap-2.5 rounded-xl border border-border/60 bg-muted/40 p-4 shrink-0">
           <div className="flex items-center gap-2">
             <Code2Icon className="size-4 text-primary shrink-0" />
-            <span className="text-xs font-semibold text-foreground">Embed Code</span>
+            <span className="text-xs font-semibold text-foreground">{t("embedCode")}</span>
           </div>
           <Textarea
             readOnly
@@ -132,7 +132,7 @@ function EmbedDialogContent({ entry, onClose }: { entry: EmbedSource; onClose: (
               ) : (
                 <>
                   <Copy className="size-3.5" />
-                  <span>Copy Embed Code</span>
+                  <span>{t("copyEmbedCode")}</span>
                 </>
               )}
             </Button>

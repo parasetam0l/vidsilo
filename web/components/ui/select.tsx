@@ -18,6 +18,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { useT } from "@/lib/i18n";
 
 interface Option {
   value: string;
@@ -46,6 +47,7 @@ export function Select({
   searchable = false,
   className,
 }: SelectProps) {
+  const t = useT();
   const [open, setOpen] = React.useState(false);
 
   const selectedOption = options.find((o) => o.value === value);
@@ -84,7 +86,7 @@ export function Select({
           <Command>
             {searchable && <CommandInput placeholder="Search..." />}
             <CommandList>
-              <CommandEmpty>No results found.</CommandEmpty>
+              <CommandEmpty>{t("selectNoResults")}</CommandEmpty>
               <CommandGroup>
                 {options.map((option) => (
                   <CommandItem

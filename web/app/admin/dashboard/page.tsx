@@ -278,7 +278,7 @@ export default function DashboardPage() {
               href="/entries"
               className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-primary transition-colors"
             >
-              <span>View all</span>
+              <span>{t("dashboardViewAll")}</span>
               <ArrowRightIcon className="size-3.5" />
             </Link>
           </CardHeader>

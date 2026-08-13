@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useT } from "@/lib/i18n";
 
 // Zero-dependency SVG line chart for the analytics tabs, with hover tooltips.
 export function SvgChart({
@@ -10,11 +11,12 @@ export function SvgChart({
   points: { label: string; value: number }[];
   height?: number;
 }) {
+  const t = useT();
   const [hover, setHover] = React.useState<number | null>(null);
   const width = 640;
   const pad = 24;
   if (points.length === 0) {
-    return <p className="text-sm text-muted-foreground">No data yet.</p>;
+    return <p className="text-sm text-muted-foreground">{t("chartNoData")}</p>;
   }
   const max = Math.max(...points.map((p) => p.value), 1);
   const innerW = width - pad * 2;

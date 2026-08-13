@@ -872,7 +872,7 @@ function UploadSubtitleDialog({
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5 p-1">
       <DialogHeader>
-        <DialogTitle className="text-base font-semibold">Upload Subtitle Track</DialogTitle>
+        <DialogTitle className="text-base font-semibold">{t("subtitleUploadTitle")}</DialogTitle>
         <DialogDescription className="text-xs text-muted-foreground">
           Upload a WebVTT (.vtt) caption file to support multi-language playback.
         </DialogDescription>
@@ -880,7 +880,7 @@ function UploadSubtitleDialog({
 
       <div className="space-y-4">
         <div className="flex flex-col gap-1.5">
-          <Label className="text-xs font-medium text-foreground">Subtitle File (.vtt)</Label>
+          <Label className="text-xs font-medium text-foreground">{t("subtitleFileLabel")}</Label>
           <input
             ref={fileRef}
             type="file"
@@ -917,8 +917,8 @@ function UploadSubtitleDialog({
                   </>
                 ) : (
                   <>
-                    <p className="text-xs font-medium text-foreground">Click to select .vtt file</p>
-                    <p className="text-[11px] text-muted-foreground">WebVTT caption format required</p>
+                    <p className="text-xs font-medium text-foreground">{t("subtitleClickToSelect")}</p>
+                    <p className="text-[11px] text-muted-foreground">{t("subtitleVttRequired")}</p>
                   </>
                 )}
               </div>
@@ -936,7 +936,7 @@ function UploadSubtitleDialog({
 
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">
-            <Label className="text-xs font-medium text-foreground">Language Code</Label>
+            <Label className="text-xs font-medium text-foreground">{t("languageCode")}</Label>
             <Input
               className="rounded-lg text-xs"
               placeholder="e.g. en, es, tr"
@@ -945,7 +945,7 @@ function UploadSubtitleDialog({
             />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label className="text-xs font-medium text-foreground">Display Label</Label>
+            <Label className="text-xs font-medium text-foreground">{t("displayLabel")}</Label>
             <Input
               className="rounded-lg text-xs"
               placeholder="e.g. English (CC)"
@@ -1017,8 +1017,8 @@ function SubtitlesTab({
       {/* Top Header Row with Upload Subtitle Button */}
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h3 className="text-sm font-medium text-foreground">Subtitles & Captions</h3>
-          <p className="text-xs text-muted-foreground">Manage WebVTT caption tracks for multi-language playback.</p>
+          <h3 className="text-sm font-medium text-foreground">{t("subtitlesSectionTitle")}</h3>
+          <p className="text-xs text-muted-foreground">{t("subtitlesSectionDesc")}</p>
         </div>
         <Button
           size="sm"
@@ -1035,8 +1035,8 @@ function SubtitlesTab({
         <Table>
           <TableHeader className="bg-muted/50">
             <TableRow className="hover:bg-transparent">
-              <TableHead>Language Code</TableHead>
-              <TableHead>Display Label</TableHead>
+              <TableHead>{t("languageCode")}</TableHead>
+              <TableHead>{t("displayLabel")}</TableHead>
               <TableHead>VTT File Key</TableHead>
               <TableHead className="w-16" />
             </TableRow>
@@ -1229,7 +1229,7 @@ function EmbedTab({ entry }: { entry: EntryDetail }) {
       <div className="flex flex-col gap-2.5 rounded-xl border border-border/60 bg-muted/40 p-4">
         <div className="flex items-center gap-2">
           <Link2Icon className="size-4 text-primary shrink-0" />
-          <span className="text-xs font-semibold text-foreground">Direct Link</span>
+          <span className="text-xs font-semibold text-foreground">{t("directLink")}</span>
         </div>
         <Input
           readOnly
@@ -1252,7 +1252,7 @@ function EmbedTab({ entry }: { entry: EntryDetail }) {
             ) : (
               <>
                 <Copy className="size-3.5" />
-                <span>Copy Direct Link</span>
+                <span>{t("copyDirectLink")}</span>
               </>
             )}
           </Button>
@@ -1263,7 +1263,7 @@ function EmbedTab({ entry }: { entry: EntryDetail }) {
       <div className="flex flex-col gap-2.5 rounded-xl border border-border/60 bg-muted/40 p-4">
         <div className="flex items-center gap-2">
           <Code2Icon className="size-4 text-primary shrink-0" />
-          <span className="text-xs font-semibold text-foreground">Embed Code</span>
+          <span className="text-xs font-semibold text-foreground">{t("embedCode")}</span>
         </div>
         <Textarea
           readOnly
@@ -1287,7 +1287,7 @@ function EmbedTab({ entry }: { entry: EntryDetail }) {
             ) : (
               <>
                 <Copy className="size-3.5" />
-                <span>Copy Embed Code</span>
+                <span>{t("copyEmbedCode")}</span>
               </>
             )}
           </Button>
