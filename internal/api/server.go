@@ -246,6 +246,13 @@ func (s *Server) serveUI(w http.ResponseWriter, r *http.Request) {
 	if p == "" {
 		p = "index.html"
 	}
+	// The admin export is a directory of pages, not a single admin.html —
+	// /admin (with or without a trailing slash) would fall through to a raw
+	// directory listing. Land on the dashboard instead.
+	if p == "admin" || p == "admin/" {
+		http.Redirect(w, r, "/admin/dashboard", http.StatusFound)
+		return
+	}
 	if strings.HasPrefix(p, "_next/") {
 		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 		http.FileServer(http.FS(s.uiFS)).ServeHTTP(w, r)

@@ -327,8 +327,8 @@ export default function DashboardPage() {
                 icon={ClapperboardIcon}
                 description={t("dashRecentEmpty")}
                 action={
-                  <Button variant="link" size="sm" onClick={openUpload}>
-                    {t("dashUploadFirst")}
+                  <Button size="sm" className="gap-1.5" onClick={openUpload}>
+                    <UploadCloudIcon className="size-3.5" /> {t("dashUploadFirst")}
                   </Button>
                 }
               />
@@ -407,7 +407,15 @@ export default function DashboardPage() {
                 </div>
               </div>
             ) : (
-              <EmptyState icon={FilmIcon} description={t("dashStatusEmpty")} />
+              <EmptyState
+                icon={FilmIcon}
+                description={t("dashStatusEmpty")}
+                action={
+                  <Button size="sm" className="gap-1.5" onClick={openUpload}>
+                    <UploadCloudIcon className="size-3.5" /> {t("dashUploadFirst")}
+                  </Button>
+                }
+              />
             )}
           </CardContent>
         </Card>
