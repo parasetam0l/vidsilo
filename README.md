@@ -15,6 +15,8 @@ with your own branded player — no third-party platform.
 The fastest path is the install wizard (Ubuntu LTS):
 
 ```bash
+git clone https://github.com/parasetam0l/vidsilo.git
+cd vidsilo
 sudo sh deploy/install.sh
 ```
 

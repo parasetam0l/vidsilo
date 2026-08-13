@@ -5,6 +5,8 @@ by default and idempotent — run it on Ubuntu LTS (24.04/26.04, amd64 or
 arm64) as root:
 
 ```bash
+git clone https://github.com/parasetam0l/vidsilo.git
+cd vidsilo
 sudo sh deploy/install.sh
 ```
 
