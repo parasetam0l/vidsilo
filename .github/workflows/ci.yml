@@ -38,6 +38,7 @@ jobs:
           --health-retries 20
       minio:
         image: minio/minio:latest
+        command: server /data
         env:
           MINIO_ROOT_USER: vod
           MINIO_ROOT_PASSWORD: vod-vod-vod
