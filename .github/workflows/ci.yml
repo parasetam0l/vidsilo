@@ -55,6 +55,24 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      # The Go binary embeds the static web export (go:embed web/out), so it
+      # must be built and synced before any Go compilation — the export dir
+      # is gitignored in the checkout.
+      - name: Web install
+        run: npm ci
+        working-directory: web
+      - name: Web build (static export, embedded by the Go binary)
+        run: |
+          npm run build
+          cp -r web/out/. ../internal/ui/web/out/
+        working-directory: web
+        env:
+          NEXT_OUTPUT: export
       - name: Install ffmpeg
         run: |
           sudo apt-get update -qq
@@ -70,25 +88,12 @@ jobs:
           S3_ACCESS_KEY: vod
           S3_SECRET_KEY: vod-vod-vod
           S3_REGION: us-east-1
-      - uses: actions/setup-node@v7
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: web/package-lock.json
-      - name: Web install
-        run: npm ci
-        working-directory: web
       - name: Web lint
         run: npm run lint
         working-directory: web
       - name: Web tests
         run: npm test
         working-directory: web
-      - name: Web build (static export, as in the Docker image)
-        run: npm run build
-        working-directory: web
-        env:
-          NEXT_OUTPUT: export
 
   security:
     name: Security scan
@@ -100,6 +105,21 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      # gosec/govulncheck load the Go packages — the embedded web export
+      # must exist for the go:embed patterns to resolve.
+      - name: Web export for embedded UI
+        run: |
+          npm ci
+          npm run build
+          cp -r web/out/. ../internal/ui/web/out/
+        working-directory: web
+        env:
+          NEXT_OUTPUT: export
       - name: gosec (Go static analysis)
         uses: securego/gosec-action@v2
         with:
