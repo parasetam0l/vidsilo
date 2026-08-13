@@ -41,7 +41,6 @@ func (s *Server) registerViewerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/viewer/refresh", s.handleViewerRefresh)
 	mux.HandleFunc("POST /api/viewer/logout", s.handleViewerLogout)
 	mux.Handle("GET /api/viewer/me", s.requireViewer(http.HandlerFunc(s.handleViewerMe)))
-	mux.Handle("POST /api/viewer/password", s.requireViewer(http.HandlerFunc(s.handleViewerChangePassword)))
 	mux.Handle("GET /api/viewers", s.requireRole(roleAdmin)(http.HandlerFunc(s.handleViewersList)))
 	mux.Handle("POST /api/viewers", s.requireRole(roleAdmin)(http.HandlerFunc(s.handleViewerCreate)))
 	mux.Handle("PATCH /api/viewers/{id}", s.requireRole(roleAdmin)(http.HandlerFunc(s.handleViewerUpdate)))
@@ -150,47 +149,6 @@ func (s *Server) handleViewerLogout(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleViewerMe(w http.ResponseWriter, r *http.Request) {
 	v := viewerFromContext(r.Context())
 	writeJSON(w, http.StatusOK, v)
-}
-
-// handleViewerChangePassword rotates the viewer's own password; other
-// sessions are revoked by deleting their refresh tokens (their access
-// tokens still live out their short TTL).
-func (s *Server) handleViewerChangePassword(w http.ResponseWriter, r *http.Request) {
-	v := viewerFromContext(r.Context())
-	var req changePasswordRequest
-	if err := decodeJSON(r, &req); err != nil {
-		writeError(w, http.StatusBadRequest, "bad_request", "invalid JSON body")
-		return
-	}
-	if len(req.NewPassword) < 8 {
-		writeError(w, http.StatusBadRequest, "bad_request", "new password must be at least 8 characters")
-		return
-	}
-	ok, _ := password.Verify(req.CurrentPassword, v.PasswordHash)
-	if !ok {
-		writeError(w, http.StatusUnauthorized, "unauthorized", "current password is incorrect")
-		return
-	}
-	hash, err := password.Hash(req.NewPassword)
-	if err != nil {
-		s.internalError(w, r, "hash viewer password", err)
-		return
-	}
-	if _, err := db.UpdateViewer(r.Context(), s.pool, v.ID, v.Email, v.NameSurname, hash, v.Disabled); err != nil {
-		s.internalError(w, r, "update viewer password", err)
-		return
-	}
-	// Revoke every other viewer session (keep this one, like the admin
-	// password flow); their access tokens live out their short TTL.
-	if c, err := r.Cookie(viewerRefreshCookieName); err == nil && c.Value != "" {
-		hash := sha256.Sum256([]byte(c.Value))
-		_, _ = s.pool.Exec(r.Context(), `
-			DELETE FROM viewer_refresh_tokens WHERE viewer_id = $1 AND token_hash <> $2`,
-			v.ID, hex.EncodeToString(hash[:]))
-	} else {
-		_, _ = s.pool.Exec(r.Context(), `DELETE FROM viewer_refresh_tokens WHERE viewer_id = $1`, v.ID)
-	}
-	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *Server) issueViewerSession(w http.ResponseWriter, r *http.Request, v db.Viewer) {
