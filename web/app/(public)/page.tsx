@@ -8,9 +8,11 @@ import { getSiteConfig, useSiteName } from "@/lib/site-config";
 import { useT } from "@/lib/i18n";
 import { formatDuration } from "@/lib/format";
 import { LoadingCircle } from "@/components/loading";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { ClapperboardIcon, FilmIcon, SearchIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -140,15 +142,25 @@ export default function LibraryPage() {
             <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <ClapperboardIcon className="size-4" />
             </div>
-            <span className="text-sm font-semibold text-foreground">{siteName}</span>
+            <span className="flex flex-col leading-none">
+              <span className="text-sm font-semibold text-foreground">{siteName}</span>
+              <span className="mt-0.5 text-xs text-muted-foreground">{t("appVersion")}</span>
+            </span>
           </Link>
-          <h1 className="text-base font-semibold tracking-tight text-foreground">{t("libraryTitle")}</h1>
           <div className="ml-auto flex items-center gap-2">
             {viewer ? (
-              <Button variant="ghost" size="sm" onClick={signOut} className="h-8 gap-1.5 text-xs">
-                {t("librarySignOut")}
-              </Button>
+              <>
+                <Avatar className="size-8 rounded-lg">
+                  <AvatarFallback className="rounded-lg bg-primary/10 text-primary text-xs font-semibold">
+                    {viewer.email.slice(0, 2).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <Button variant="ghost" size="sm" onClick={signOut} className="h-8 gap-1.5 text-xs">
+                  {t("librarySignOut")}
+                </Button>
+              </>
             ) : null}
+            <ThemeToggle />
             <div className="relative">
               <SearchIcon className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input

@@ -49,6 +49,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     () => "dark",
   )
 
+  // Re-assert the class after hydration (the inline bootstrap script runs
+  // pre-paint; this guarantees the DOM always matches the snapshot, even
+  // after cross-tab storage events).
+  React.useEffect(() => {
+    applyTheme(theme)
+  }, [theme])
+
   function set(next: Theme) {
     localStorage.setItem(STORAGE_KEY, next)
     applyTheme(next)

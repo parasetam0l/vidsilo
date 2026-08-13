@@ -38,8 +38,12 @@ const themeInitScript = `(function(){try{var t=localStorage.getItem("theme");var
 // pages never load the auth/dialog/upload bundles.
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
+    // suppressHydrationWarning: the inline theme script adds the "dark"
+    // class to <html> before paint; React must not patch the class during
+    // hydration or the page flashes to the wrong theme.
     <html
       lang="en"
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <head>
