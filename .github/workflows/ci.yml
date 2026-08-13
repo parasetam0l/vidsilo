@@ -227,6 +227,10 @@ jobs:
     name: GitHub Release (binaries)
     needs: [docker-build, trivy]
     if: ${{ inputs.release_tag != '' }}
+    # The workflow defaults to contents: read; creating the release needs
+    # write, scoped to this job only.
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
