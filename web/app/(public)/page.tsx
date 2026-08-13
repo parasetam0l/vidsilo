@@ -135,7 +135,7 @@ export default function LibraryPage() {
 
   return (
     <main className="min-h-screen w-full">
-      {/* Top bar: shadcn-styled, sticky like the admin header */}
+      {/* Top bar: brand + session controls only (search/sort live below) */}
       <header className="sticky top-0 z-20 border-b bg-background/85 backdrop-blur">
         <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
           <Link href="/" className="flex items-center gap-2.5 transition-opacity hover:opacity-80">
@@ -161,17 +161,25 @@ export default function LibraryPage() {
               </>
             ) : null}
             <ThemeToggle />
-            <div className="relative">
-              <SearchIcon className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                type="search"
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder={t("librarySearchPlaceholder")}
-                aria-label={t("librarySearchPlaceholder")}
-                className="h-8 w-44 pl-8 text-sm sm:w-60"
-              />
-            </div>
+          </div>
+        </div>
+      </header>
+
+      <div className="mx-auto w-full max-w-6xl px-4 py-6">
+        {/* Toolbar: search + sort above the categories (e-commerce style) */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative w-full max-w-md">
+            <SearchIcon className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="search"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder={t("librarySearchPlaceholder")}
+              aria-label={t("librarySearchPlaceholder")}
+              className="h-9 w-full pl-8 text-sm"
+            />
+          </div>
+          <div className="ml-auto">
             <Select
               options={[
                 { value: "newest", label: t("librarySortNewest") },
@@ -179,133 +187,142 @@ export default function LibraryPage() {
                 { value: "title", label: t("librarySortTitle") },
                 { value: "duration", label: t("librarySortDuration") },
               ]}
-              className="h-8 w-auto text-sm"
+              className="h-9 w-auto text-sm"
               value={sort}
               onChange={setSort}
               aria-label={t("librarySortLabel")}
             />
           </div>
         </div>
-      </header>
 
-      <div className="mx-auto w-full max-w-6xl px-4 py-6">
-        {categories.length > 0 ? (
-          <nav className="flex flex-wrap gap-2" aria-label={t("navCategories")}>
-            <button
-              onClick={() => setCategory("")}
-              className={cn(
-                "rounded-full border px-3 py-1 text-sm transition-colors",
-                category === ""
-                  ? "border-foreground bg-foreground text-background"
-                  : "hover:bg-muted",
-              )}
-            >
-              {t("libraryAllCategories")}
-            </button>
-            {categories.map((c) => (
-              <React.Fragment key={c.id}>
+        <div className="mt-5 flex flex-col gap-6 md:flex-row">
+          {/* Category sidebar: top + sub categories, click to filter */}
+          <aside className="w-full shrink-0 md:w-52">
+            {categories.length > 0 ? (
+              <nav
+                className="flex gap-1 overflow-x-auto pb-1 md:sticky md:top-20 md:flex-col md:gap-0.5 md:overflow-visible md:rounded-xl md:border md:bg-card md:p-1.5"
+                aria-label={t("navCategories")}
+              >
                 <button
-                  onClick={() => setCategory(String(c.id))}
+                  onClick={() => setCategory("")}
                   className={cn(
-                    "rounded-full border px-3 py-1 text-sm transition-colors",
-                    category === String(c.id)
-                      ? "border-foreground bg-foreground text-background"
-                      : "hover:bg-muted",
+                    "flex items-center justify-between gap-2 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-sm transition-colors",
+                    category === ""
+                      ? "bg-accent font-medium text-accent-foreground"
+                      : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
                   )}
                 >
-                  {c.name}
-                  {c.count > 0 ? (
-                    <span className="ml-1 text-xs opacity-60">{c.count}</span>
-                  ) : null}
+                  {t("libraryAllCategories")}
                 </button>
-                {c.children?.map((child) => (
-                  <button
-                    key={child.id}
-                    onClick={() => setCategory(String(child.id))}
-                    className={cn(
-                      "rounded-full border px-3 py-1 text-sm transition-colors",
-                      category === String(child.id)
-                        ? "border-foreground bg-foreground text-background"
-                        : "text-muted-foreground hover:bg-muted",
-                    )}
-                  >
-                    {child.name}
-                    {child.count > 0 ? (
-                      <span className="ml-1 text-xs opacity-60">{child.count}</span>
-                    ) : null}
-                  </button>
+                {categories.map((c) => (
+                  <React.Fragment key={c.id}>
+                    <button
+                      onClick={() => setCategory(String(c.id))}
+                      className={cn(
+                        "flex items-center justify-between gap-2 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-sm transition-colors",
+                        category === String(c.id)
+                          ? "bg-accent font-medium text-accent-foreground"
+                          : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+                      )}
+                    >
+                      <span className="truncate">{c.name}</span>
+                      {c.count > 0 ? (
+                        <span className="shrink-0 text-xs opacity-60 tabular-nums">{c.count}</span>
+                      ) : null}
+                    </button>
+                    {c.children?.map((child) => (
+                      <button
+                        key={child.id}
+                        onClick={() => setCategory(String(child.id))}
+                        className={cn(
+                          "flex items-center justify-between gap-2 whitespace-nowrap rounded-lg py-1.5 pl-7 pr-2.5 text-sm transition-colors",
+                          category === String(child.id)
+                            ? "bg-accent font-medium text-accent-foreground"
+                            : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+                        )}
+                      >
+                        <span className="truncate">{child.name}</span>
+                        {child.count > 0 ? (
+                          <span className="shrink-0 text-xs opacity-60 tabular-nums">{child.count}</span>
+                        ) : null}
+                      </button>
+                    ))}
+                  </React.Fragment>
                 ))}
-              </React.Fragment>
-            ))}
-          </nav>
-        ) : null}
-
-        <p className="mt-4 text-sm text-muted-foreground">
-          {t("libraryResults", { total, n: total })}
-        </p>
-
-        {error ? (
-          <div className="flex flex-col items-center gap-2 py-16 text-center">
-            <FilmIcon className="size-8 text-muted-foreground/50" />
-            <p className="text-sm text-muted-foreground">{error}</p>
-          </div>
-        ) : loading && items.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 py-16">
-            <LoadingCircle />
-            <span className="text-sm text-muted-foreground">{t("loading")}</span>
-          </div>
-        ) : items.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-16 text-center">
-            <FilmIcon className="size-8 text-muted-foreground/50" />
-            <p className="text-sm text-muted-foreground">{t("libraryEmpty")}</p>
-          </div>
-        ) : (
-          <>
-            <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-              {items.map((item) => (
-                <Link
-                  key={item.id}
-                  href={`/play/${item.id}`}
-                  className="group block overflow-hidden rounded-xl border bg-card shadow-xs transition-shadow hover:shadow-md"
-                >
-                  <div className="relative aspect-video w-full overflow-hidden bg-muted">
-                    {item.poster ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={item.poster}
-                        alt={item.title}
-                        loading="lazy"
-                        className="h-full w-full object-cover transition-transform group-hover:scale-[1.03]"
-                      />
-                    ) : (
-                      <div className="grid h-full w-full place-items-center text-muted-foreground">
-                        <FilmIcon className="size-8" />
-                      </div>
-                    )}
-                    {item.durationMs != null && item.durationMs > 0 ? (
-                      <span className="absolute bottom-1.5 right-1.5 rounded bg-black/70 px-1.5 py-0.5 text-xs tabular-nums text-white">
-                        {formatDuration(item.durationMs)}
-                      </span>
-                    ) : null}
-                  </div>
-                  <div className="p-2.5">
-                    <p className="truncate text-sm font-medium text-foreground">{item.title}</p>
-                    {item.category ? (
-                      <p className="truncate text-xs text-muted-foreground">{item.category}</p>
-                    ) : null}
-                  </div>
-                </Link>
-              ))}
-            </div>
-            {hasMore ? (
-              <div className="mt-6 flex justify-center">
-                <Button variant="outline" onClick={loadMore} className="h-8 gap-1.5 text-xs">
-                  {t("libraryLoadMore")}
-                </Button>
-              </div>
+              </nav>
             ) : null}
-          </>
-        )}
+          </aside>
+
+          {/* Catalog */}
+          <div className="min-w-0 flex-1">
+            <p className="text-sm text-muted-foreground">
+              {t("libraryResults", { total, n: total })}
+            </p>
+
+            {error ? (
+              <div className="flex flex-col items-center justify-center gap-2 py-24 text-center">
+                <FilmIcon className="size-8 text-muted-foreground/50" />
+                <p className="text-sm text-muted-foreground">{error}</p>
+              </div>
+            ) : loading && items.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-3 py-24">
+                <LoadingCircle />
+                <span className="text-sm text-muted-foreground">{t("loading")}</span>
+              </div>
+            ) : items.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-2 py-24 text-center">
+                <FilmIcon className="size-8 text-muted-foreground/50" />
+                <p className="text-sm text-muted-foreground">{t("libraryEmpty")}</p>
+              </div>
+            ) : (
+              <>
+                <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+                  {items.map((item) => (
+                    <Link
+                      key={item.id}
+                      href={`/play/${item.id}`}
+                      className="group block overflow-hidden rounded-xl border bg-card shadow-xs transition-shadow hover:shadow-md"
+                    >
+                      <div className="relative aspect-video w-full overflow-hidden bg-muted">
+                        {item.poster ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={item.poster}
+                            alt={item.title}
+                            loading="lazy"
+                            className="h-full w-full object-cover transition-transform group-hover:scale-[1.03]"
+                          />
+                        ) : (
+                          <div className="grid h-full w-full place-items-center text-muted-foreground">
+                            <FilmIcon className="size-8" />
+                          </div>
+                        )}
+                        {item.durationMs != null && item.durationMs > 0 ? (
+                          <span className="absolute bottom-1.5 right-1.5 rounded bg-black/70 px-1.5 py-0.5 text-xs tabular-nums text-white">
+                            {formatDuration(item.durationMs)}
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="p-2.5">
+                        <p className="truncate text-sm font-medium text-foreground">{item.title}</p>
+                        {item.category ? (
+                          <p className="truncate text-xs text-muted-foreground">{item.category}</p>
+                        ) : null}
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+                {hasMore ? (
+                  <div className="mt-6 flex justify-center">
+                    <Button variant="outline" onClick={loadMore} className="h-8 gap-1.5 text-xs">
+                      {t("libraryLoadMore")}
+                    </Button>
+                  </div>
+                ) : null}
+              </>
+            )}
+          </div>
+        </div>
       </div>
     </main>
   );
