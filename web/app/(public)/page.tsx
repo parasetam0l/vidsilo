@@ -263,14 +263,15 @@ export default function LibraryPage() {
                 ))}
               </nav>
             ) : null}
+            {/* Video count under the category card */}
+            <div className="mt-2 flex items-center gap-1.5 rounded-xl border bg-card px-3 py-2 text-xs text-muted-foreground">
+              <FilmIcon className="size-3.5 shrink-0" />
+              <span>{t("libraryResults", { total, n: total })}</span>
+            </div>
           </aside>
 
           {/* Catalog */}
           <div className="min-w-0 flex-1">
-            <p className="text-sm text-muted-foreground">
-              {t("libraryResults", { total, n: total })}
-            </p>
-
             {error ? (
               <div className="flex flex-col items-center justify-center gap-2 py-24 text-center">
                 <FilmIcon className="size-8 text-muted-foreground/50" />

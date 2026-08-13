@@ -24,14 +24,14 @@ func (s *Server) registerMediaRoutes(mux *http.ServeMux) {
 	// registering an explicit HEAD wildcard would conflict with the more
 	// specific GET /media/branding/logo pattern below. /media is per-IP
 	// rate-limited so public streams cannot be hammered for bandwidth.
-	mux.Handle("GET /media/{key...}", s.rateLimit(s.mediaLimiter, authed(s.mediaACL(http.HandlerFunc(s.handleMedia)))))
+	mux.Handle("GET /media/{key...}", s.rateLimit(s.mediaLimiter, s.optionalViewer(authed(s.mediaACL(http.HandlerFunc(s.handleMedia))))))
 	// Logo proxy for player branding: external logo URLs are fetched
 	// server-side (SSRF-guarded) and served from our own origin, so the
 	// strict img-src 'self' CSP keeps working. More specific than
 	// /media/{key...}, so it wins.
 	mux.Handle("GET /media/branding/logo", s.rateLimit(s.apiLimiter, http.HandlerFunc(s.handleBrandingLogo)))
 	mux.Handle("GET /play/{uuid}", http.HandlerFunc(s.handlePlayPage))
-	mux.Handle("GET /play/{uuid}/playinfo.json", authed(http.HandlerFunc(s.handlePlayInfo)))
+	mux.Handle("GET /play/{uuid}/playinfo.json", s.optionalViewer(authed(http.HandlerFunc(s.handlePlayInfo))))
 	mux.Handle("GET /embed/{uuid}", authed(s.embedACL(http.HandlerFunc(s.handleEmbedPage))))
 
 	// Public catalog: the library/browse page for end users. The category
@@ -493,6 +493,14 @@ func (s *Server) handlePlayInfo(w http.ResponseWriter, r *http.Request) {
 	// visitors (signed-in viewers may watch); access-denied entries are
 	// invisible to everyone except editors/admins, who keep preview access.
 	u := userFromContext(r.Context())
+	v := viewerFromContext(r.Context())
+	// login_only mode: playback requires a viewer or staff session, so a
+	// shared play/embed link cannot bypass the sign-in gate for public
+	// entries either.
+	if s.libraryMode() == "login_only" && u.ID == 0 && v.ID == 0 {
+		writeError(w, http.StatusUnauthorized, "unauthorized", "library requires sign-in")
+		return
+	}
 	if e.AccessDenied {
 		if u.ID == 0 || (u.Role != db.RoleAdmin && u.Role != db.RoleEditor) {
 			writeError(w, http.StatusForbidden, "forbidden", "video access denied")

@@ -125,6 +125,14 @@ func (s *Server) mediaACL(next http.Handler) http.Handler {
 			writeError(w, http.StatusNotFound, "not_found", "not found")
 			return
 		}
+		// login_only mode: media playback requires a viewer or staff
+		// session, so segment URLs cannot bypass the sign-in gate.
+		if s.libraryMode() == "login_only" &&
+			userFromContext(r.Context()).ID == 0 &&
+			viewerFromContext(r.Context()).ID == 0 {
+			writeError(w, http.StatusUnauthorized, "unauthorized", "library requires sign-in")
+			return
+		}
 		// Original source files are never served over HTTP — no download
 		// path exists for any role. The worker reads originals directly from
 		// the store, so blocking them here doesn't affect processing.
