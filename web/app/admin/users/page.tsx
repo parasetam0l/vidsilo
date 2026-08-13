@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { PencilIcon, Trash2, UsersIcon } from "lucide-react";
+import { CircleAlertIcon, CircleCheckIcon, PencilIcon, Trash2, UsersIcon } from "lucide-react";
 
 import { api, ApiError, displayName, type Role, type User } from "@/lib/api";
 import { useT } from "@/lib/i18n";
@@ -176,10 +176,15 @@ export default function UsersPage() {
                         variant="outline"
                         className={
                           u.disabled
-                            ? "bg-red-500/10 text-red-500 border-red-500/30"
-                            : "bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
+                            ? "gap-1.5 capitalize bg-red-500/15 text-red-500 border-red-500/30"
+                            : "gap-1.5 capitalize bg-emerald-500/15 text-emerald-500 border-emerald-500/30"
                         }
                       >
+                        {u.disabled ? (
+                          <CircleAlertIcon className="size-3" />
+                        ) : (
+                          <CircleCheckIcon className="size-3" />
+                        )}
                         {u.disabled ? t("statusDisabled") : t("statusActive")}
                       </Badge>
                     </TableCell>
