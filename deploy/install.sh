@@ -1,13 +1,25 @@
 #!/bin/sh
-# VOD install script — Ubuntu LTS only (24.04 / 26.04, amd64/arm64).
-# Idempotent. Roles:
-#   ./install.sh                app node (server: API + UI + media)
-#   ./install.sh --role worker  transcode node
-#   ./install.sh --role db      postgres node
-# Options: --env-file /path/to/env   --no-start
+# VOD install wizard — the only install mechanism.
+#
+# Paths:
+#   Single Server + Docker       (PATH A)
+#   Single Server + Bare metal   (PATH B: postgres + app + worker all-in-one)
+#   High Availability + Bare metal  (PATH C: component wizard)
+#   High Availability + Kubernetes (PATH D)
+#
+# Interactive by default; non-interactive via flags:
+#   --mode=single|ha --target=docker|baremetal|kubernetes
+#   --component=app|worker|db|lb   --yes (assume defaults)
+# Legacy flags kept: --role=app|worker|db, --env-file, --db-password,
+# TLS flags, --no-start.
 set -eu
 
-ROLE="app"
+# --- defaults & flag parsing --------------------------------------------------
+MODE=""
+TARGET=""
+COMPONENT=""
+YES=0
+ROLE=""
 ENV_FILE=""
 NO_START=0
 VOD_USER=vod
@@ -15,10 +27,23 @@ DATA_DIR=/var/lib/vod-app/data
 CERT_DIR=/var/lib/vod-app/certs
 ENV_DIR=/etc/vod-app
 BIN=/usr/local/bin/vod-app
+DB_ENV="$ENV_DIR/env"
+GENERATED_DB_PASSWORD=0
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+ARCH="$(uname -m)"
+case "$ARCH" in
+    x86_64) BIN_ARCH=amd64 ;;
+    aarch64|arm64) BIN_ARCH=arm64 ;;
+    *) echo "unsupported architecture: $ARCH"; exit 1 ;;
+esac
 
 for arg in "$@"; do
     case "$arg" in
+        --mode=*) MODE="${arg#*=}" ;;
+        --target=*) TARGET="${arg#*=}" ;;
+        --component=*) COMPONENT="${arg#*=}" ;;
         --role=*) ROLE="${arg#*=}" ;;
+        --yes) YES=1 ;;
         --env-file=*) ENV_FILE="${arg#*=}" ;;
         --db-password=*) DB_PASSWORD="${arg#*=}" ;;
         --domain=*) TLS_MODE=letsencrypt; TLS_DOMAINS="${arg#*=}" ;;
@@ -27,91 +52,187 @@ for arg in "$@"; do
         --ssl-key=*) TLS_MODE=files; TLS_KEY_FILE="${arg#*=}" ;;
         --no-start) NO_START=1 ;;
         --help|-h)
-            echo "usage: $0 [--role=app|worker|db] [--env-file=FILE] [--db-password=PW] [--no-start]"
-            echo "TLS options (app role):"
-            echo "  --domain=d1,d2   HTTPS via Let's Encrypt for these domains (autocert, ports 80/443)"
-            echo "  --selfsigned     HTTPS with a locally generated self-signed certificate"
-            echo "  --ssl-cert=F --ssl-key=F   HTTPS with your own certificate files"
-            echo "  (interactive: answering 'y' to the HTTPS question asks how to obtain SSL)"
-            echo "  --db-password sets a scram password on the vod role (default: a random one is generated)"
+            echo "usage: $0 [options]"
+            echo "  --mode=single|ha          install topology (interactive by default)"
+            echo "  --target=docker|baremetal|kubernetes"
+            echo "  --component=app|worker|db|lb   HA bare-metal node role"
+            echo "  --yes                     assume defaults, never prompt"
+            echo "  --env-file=FILE           copy a pre-made env file"
+            echo "  --db-password=PW          postgres scram password"
+            echo "  --domain=d1,d2 / --selfsigned / --ssl-cert=F --ssl-key=F   TLS"
+            echo "  --no-start                install without starting services"
             exit 0 ;;
         *) echo "unknown option: $arg"; exit 2 ;;
     esac
 done
 
-case "$ROLE" in
-    app|worker|db) ;;
-    *) echo "invalid role: $ROLE (app|worker|db)"; exit 2 ;;
-esac
+# Legacy --role maps to single-server bare metal.
+if [ -n "$ROLE" ]; then
+    MODE=single; TARGET=baremetal; COMPONENT="$ROLE"
+fi
 
-# --- OS detection -------------------------------------------------------------
+# --- interactive wizard -------------------------------------------------------
+ask() { # ask PROMPT DEFAULT
+    printf "%s [%s]: " "$1" "$2"
+    read -r REPLY
+    REPLY="${REPLY:-$2}"
+}
+
+# interactive is true only on a real TTY without --yes.
+interactive() { [ -t 0 ] && [ "$YES" = "0" ]; }
+
+if [ -t 0 ] && [ "$YES" = "0" ]; then
+    if [ -z "$MODE" ]; then
+        echo "How do you want to install VOD?"
+        echo "  1) Single server"
+        echo "  2) High availability"
+        ask "Choice" 1
+        [ "$REPLY" = "2" ] && MODE=ha || MODE=single
+    fi
+    if [ "$MODE" = "single" ] && [ -z "$TARGET" ]; then
+        echo "Where will it run?"
+        echo "  1) Bare metal"
+        echo "  2) Docker"
+        ask "Choice" 1
+        [ "$REPLY" = "2" ] && TARGET=docker || TARGET=baremetal
+    elif [ "$MODE" = "ha" ] && [ -z "$TARGET" ]; then
+        echo "Where will it run?"
+        echo "  1) Bare metal"
+        echo "  2) Kubernetes"
+        ask "Choice" 1
+        [ "$REPLY" = "2" ] && TARGET=kubernetes || TARGET=baremetal
+    fi
+    if [ "$MODE" = "ha" ] && [ "$TARGET" = "baremetal" ] && [ -z "$COMPONENT" ]; then
+        echo "Which component is this node?"
+        echo "  1) Load balancer"
+        echo "  2) Application (API + UI + media)"
+        echo "  3) Worker (transcoding)"
+        echo "  4) Database"
+        ask "Choice" 2
+        case "$REPLY" in
+            1) COMPONENT=lb ;; 2) COMPONENT=app ;;
+            3) COMPONENT=worker ;; 4) COMPONENT=db ;;
+            *) echo "invalid choice"; exit 2 ;;
+        esac
+    fi
+fi
+
+MODE="${MODE:-single}"
+TARGET="${TARGET:-baremetal}"
+COMPONENT="${COMPONENT:-app}"
+
+case "$MODE:$TARGET" in
+    single:docker|single:baremetal|ha:baremetal|ha:kubernetes) ;;
+    *) echo "invalid combination: mode=$MODE target=$TARGET"; exit 2 ;;
+esac
+if [ "$MODE" = "ha" ] && [ "$TARGET" = "baremetal" ]; then
+    case "$COMPONENT" in
+        app|worker|db|lb) ;;
+        *) echo "invalid component: $COMPONENT"; exit 2 ;;
+    esac
+fi
+
+# --- preflight ----------------------------------------------------------------
 . /etc/os-release 2>/dev/null || { echo "cannot detect OS"; exit 1; }
-case "$ID" in
-    ubuntu) ;;
-    *) echo "only Ubuntu LTS is supported (found $ID)"; exit 1 ;;
-esac
-case "$VERSION_ID" in
-    24.04|26.04) ;;
-    *) echo "Ubuntu LTS >= 24.04 required (found $VERSION_ID)"; exit 1 ;;
-esac
-
-if [ "$(id -u)" -ne 0 ]; then
-    echo "run as root (sudo sh $0 ...)"; exit 1
-fi
-
-# --- system packages ----------------------------------------------------------
+[ "$ID" = "ubuntu" ] || { echo "only Ubuntu LTS is supported (found $ID)"; exit 1; }
+case "$VERSION_ID" in 24.04|26.04) ;; *) echo "Ubuntu LTS >= 24.04 required (found $VERSION_ID)"; exit 1 ;; esac
+[ "$(id -u)" -eq 0 ] || { echo "run as root (sudo sh $0 ...)"; exit 1; }
 apt-get update -qq
-apt-get install -y -qq ca-certificates openssl
+apt-get install -y -qq ca-certificates openssl curl
 
-if [ "$ROLE" = "db" ] || [ "$ROLE" = "app" ] || [ "$ROLE" = "worker" ]; then
-    if ! command -v psql >/dev/null 2>&1; then
-        apt-get install -y -qq postgresql
+# --- PATH A: single server, docker --------------------------------------------
+install_docker_single() {
+    if ! command -v docker >/dev/null 2>&1; then
+        echo "Docker is not installed."
+        if [ -t 0 ] && [ "$YES" = "0" ]; then
+            ask "Install Docker Engine + compose plugin?" y
+            if [ "$REPLY" = "y" ] || [ "$REPLY" = "Y" ]; then
+                apt-get install -y -qq docker.io docker-compose-plugin
+                systemctl enable --now docker
+            else
+                echo "aborted — install Docker and re-run"; exit 1
+            fi
+        else
+            echo "aborted — install Docker and re-run (apt install docker.io docker-compose-plugin)"; exit 1
+        fi
     fi
-    if ! command -v ffmpeg >/dev/null 2>&1; then
-        apt-get install -y -qq ffmpeg
-    fi
-    if ! ffmpeg -encoders 2>/dev/null | grep -q libx264 || ! ffmpeg -encoders 2>/dev/null | grep -q libx265; then
-        echo "WARNING: ffmpeg lacks libx264/libx265 encoders; transcoding will fail"
-    fi
-fi
+    docker compose version >/dev/null 2>&1 || { echo "docker compose plugin missing"; exit 1; }
 
-# --- user + directories -------------------------------------------------------
-if ! id "$VOD_USER" >/dev/null 2>&1; then
-    useradd --system --create-home "$VOD_USER"
-fi
-mkdir -p "$DATA_DIR" "$CERT_DIR" "$ENV_DIR" /var/log/vod-app
-chown -R "$VOD_USER":"$VOD_USER" "$DATA_DIR" "$CERT_DIR" /var/log/vod-app
-
-# --- database (db role creates the role+db; others assume it exists) ---------
-# Auth model: the db role always gets a scram password — when --db-password is
-# not given, install.sh generates one (openssl) and prints it once. Same-host
-# app/worker nodes pick it up from the env file automatically; remote nodes
-# must pass the same --db-password when installing (or copy /etc/vod-app/env).
-DB_ENV="$ENV_DIR/env"
-DB_PASSWORD="${DB_PASSWORD:-}"
-GENERATED_DB_PASSWORD=0
-if [ "$ROLE" = "db" ] && [ -z "$DB_PASSWORD" ]; then
-    DB_PASSWORD="$(openssl rand -hex 24)"
-    GENERATED_DB_PASSWORD=1
-    echo "generated a random postgres password (printed once below)"
-fi
-if [ "$ROLE" = "db" ]; then
-    if ! command -v pg_ctlcluster >/dev/null 2>&1; then
-        apt-get install -y -qq postgresql
+    cd "$REPO_ROOT"
+    BUILD_MODE=1
+    if interactive; then
+        echo "What should the docker image be?"
+        echo "  1) Pull from ghcr.io/parasetam0l/vod-app (recommended)"
+        echo "  2) Build locally"
+        ask "Choice" 1
+        BUILD_MODE="$REPLY"
     fi
-    systemctl enable --now postgresql 2>/dev/null || true
-    if ! su -s /bin/sh postgres -c "psql -tAc \"SELECT 1 FROM pg_roles WHERE rolname='vod'\"" | grep -q 1; then
-        su -s /bin/sh postgres -c "psql -c \"CREATE ROLE vod LOGIN PASSWORD '$DB_PASSWORD'\""
-        echo "created postgres role 'vod' with a scram password"
-    fi
-    su -s /bin/sh postgres -c "psql -tAc \"SELECT 1 FROM pg_database WHERE datname='vod'\"" | grep -q 1 ||
-        su -s /bin/sh postgres -c "createdb -O vod vod"
-fi
 
-# --- TLS (app role only) -------------------------------------------------------
-# Interactive: ask about HTTPS, then where the SSL certificate comes from.
-# Non-interactive: use --domain / --selfsigned / --ssl-cert+--ssl-key.
-if [ "$ROLE" = "app" ] && [ -z "${TLS_MODE:-}" ] && [ -t 0 ]; then
+    # .env with generated secrets + TLS.
+    sh deploy/gen-env.sh
+    ENV_FILE_PATH="$REPO_ROOT/.env"
+    tls_prompt  # sets TLS_* vars
+    if [ -n "${TLS_MODE:-}" ]; then
+        {
+            echo "TLS_MODE=$TLS_MODE"
+            [ -z "${TLS_DOMAINS:-}" ] || echo "TLS_DOMAINS=$TLS_DOMAINS"
+            [ -z "${TLS_CERT_FILE:-}" ] || echo "TLS_CERT_FILE=$TLS_CERT_FILE"
+            [ -z "${TLS_KEY_FILE:-}" ] || echo "TLS_KEY_FILE=$TLS_KEY_FILE"
+        } >> "$ENV_FILE_PATH"
+    fi
+
+    if [ "$BUILD_MODE" = "2" ]; then
+        docker compose up -d --build
+    else
+        docker compose pull
+        docker compose up -d
+    fi
+
+    echo "install complete (single server, docker)"
+    echo "first-run admin password: docker compose -f $REPO_ROOT/docker-compose.yml logs app | grep 'First-run admin'"
+    if [ -t 0 ] && [ "$YES" = "0" ]; then
+        ask "Install a daily backup cron (pg_dump + media)?" y
+        if [ "$REPLY" = "y" ] || [ "$REPLY" = "Y" ]; then
+            mkdir -p /var/backups/vod
+            ( crontab -l 2>/dev/null | grep -v vod-backup; \
+              echo "0 3 * * * cd $REPO_ROOT && docker compose exec -T db pg_dump -U vod vod | gzip > /var/backups/vod/vod-\$(date +\\%Y\\%m\\%d).sql.gz" ) | crontab -
+            echo "backup cron installed (daily 03:00 → /var/backups/vod)"
+        fi
+    fi
+}
+
+# --- binary acquisition -------------------------------------------------------
+install_binary() {
+    if [ -x "$BIN" ]; then return; fi
+    echo "vod-app binary not found at $BIN."
+    if command -v docker >/dev/null 2>&1; then
+        if [ -t 0 ] && [ "$YES" = "0" ]; then
+            ask "Download the latest release binary? (y=release, n=extract from ghcr image)" y
+            [ "$REPLY" = "n" ] || [ "$REPLY" = "N" ] && SRC=image || SRC=release
+        else
+            SRC=release
+        fi
+    else
+        SRC=release
+    fi
+    if [ "$SRC" = "release" ]; then
+        echo "downloading latest release binary (linux-$BIN_ARCH)..."
+        curl -fL -o "$BIN" "https://github.com/parasetam0l/vod-app/releases/latest/download/vod-app-linux-$BIN_ARCH"
+    else
+        echo "extracting binary from ghcr.io/parasetam0l/vod-app:latest..."
+        docker pull ghcr.io/parasetam0l/vod-app:latest >/dev/null
+        CID="$(docker create ghcr.io/parasetam0l/vod-app:latest)"
+        docker cp "$CID:/usr/local/bin/vod-app" "$BIN"
+        docker rm "$CID" >/dev/null
+    fi
+    chmod +x "$BIN"
+    echo "binary installed: $BIN"
+}
+
+# --- TLS prompt ---------------------------------------------------------------
+tls_prompt() {
+    if [ -n "${TLS_MODE:-}" ]; then return; fi
+    [ -t 0 ] && [ "$YES" = "0" ] || return
     printf "Serve over HTTPS? [y/N] "
     read -r HTTPS_ANSWER
     case "$HTTPS_ANSWER" in
@@ -123,83 +244,72 @@ if [ "$ROLE" = "app" ] && [ -z "${TLS_MODE:-}" ] && [ -t 0 ]; then
             printf "Choice [1]: "
             read -r SSL_CHOICE
             case "${SSL_CHOICE:-1}" in
-                1)
-                    printf "Domain(s), comma-separated (must resolve to this host, ports 80/443 open): "
-                    read -r TLS_DOMAINS
-                    TLS_MODE=letsencrypt ;;
-                2)
-                    TLS_MODE=selfsigned ;;
-                3)
-                    printf "Certificate file path: "
-                    read -r TLS_CERT_FILE
-                    printf "Private key file path: "
-                    read -r TLS_KEY_FILE
-                    TLS_MODE=files ;;
+                1) printf "Domain(s), comma-separated: "; read -r TLS_DOMAINS; TLS_MODE=letsencrypt ;;
+                2) TLS_MODE=selfsigned ;;
+                3) printf "Certificate file path: "; read -r TLS_CERT_FILE
+                   printf "Private key file path: "; read -r TLS_KEY_FILE
+                   TLS_MODE=files ;;
                 *) echo "invalid choice: $SSL_CHOICE"; exit 2 ;;
             esac ;;
     esac
-fi
+}
 
-case "${TLS_MODE:-}" in
-    ""|selfsigned) ;;
-    letsencrypt)
-        [ -n "${TLS_DOMAINS:-}" ] || { echo "Let's Encrypt needs a domain (--domain=d1,d2)"; exit 2; } ;;
-    files)
-        [ -n "${TLS_CERT_FILE:-}" ] && [ -n "${TLS_KEY_FILE:-}" ] || { echo "bring-your-own SSL needs --ssl-cert and --ssl-key"; exit 2; }
-        [ -f "$TLS_CERT_FILE" ] && [ -f "$TLS_KEY_FILE" ] || { echo "certificate/key files not found"; exit 2; } ;;
-    *) echo "invalid TLS mode: $TLS_MODE"; exit 2 ;;
-esac
+# --- DB role (bare metal) -----------------------------------------------------
+setup_db() { # DB_HOST (empty = same host)
+    if ! command -v pg_ctlcluster >/dev/null 2>&1; then
+        apt-get install -y -qq postgresql
+    fi
+    systemctl enable --now postgresql 2>/dev/null || true
+    if ! su -s /bin/sh postgres -c "psql -tAc \"SELECT 1 FROM pg_roles WHERE rolname='vod'\"" | grep -q 1; then
+        su -s /bin/sh postgres -c "psql -c \"CREATE ROLE vod LOGIN PASSWORD '$DB_PASSWORD'\""
+        echo "created postgres role 'vod' with a scram password"
+    fi
+    su -s /bin/sh postgres -c "psql -tAc \"SELECT 1 FROM pg_database WHERE datname='vod'\"" | grep -q 1 ||
+        su -s /bin/sh postgres -c "createdb -O vod vod"
+}
 
-# --- env file -----------------------------------------------------------------
-if [ "$ROLE" = "app" ] || [ "$ROLE" = "worker" ]; then
+# --- env file (bare metal) ----------------------------------------------------
+write_env() { # DB_HOST, STORAGE vars pre-set in the environment
     if [ -n "$ENV_FILE" ]; then
         cp "$ENV_FILE" "$DB_ENV"
     elif [ ! -f "$DB_ENV" ]; then
-        echo "creating $DB_ENV — edit DATABASE_URL/STORAGE_DRIVER as needed"
-        if [ -n "$DB_PASSWORD" ]; then
+        echo "creating $DB_ENV"
+        if [ -n "${DB_HOST:-}" ]; then
             cat > "$DB_ENV" <<EOF
-DATABASE_URL=postgres://vod:$DB_PASSWORD@localhost:5432/vod
+DATABASE_URL=postgres://vod:$DB_PASSWORD@$DB_HOST:5432/vod
 DATA_DIR=$DATA_DIR
-STORAGE_DRIVER=local
+STORAGE_DRIVER=${STORAGE_DRIVER:-local}
 EOF
         else
-            # Peer auth via the unix socket (same-host installs).
             cat > "$DB_ENV" <<EOF
 DATABASE_URL=postgres:///vod?host=/var/run/postgresql
 DATA_DIR=$DATA_DIR
-STORAGE_DRIVER=local
+STORAGE_DRIVER=${STORAGE_DRIVER:-local}
 EOF
         fi
+        [ -z "${TRUSTED_PROXIES:-}" ] || echo "TRUSTED_PROXIES=$TRUSTED_PROXIES" >> "$DB_ENV"
+        [ -z "${S3_ENDPOINT:-}" ] || echo "S3_ENDPOINT=$S3_ENDPOINT" >> "$DB_ENV"
+        [ -z "${S3_BUCKET:-}" ] || echo "S3_BUCKET=$S3_BUCKET" >> "$DB_ENV"
+        [ -z "${S3_ACCESS_KEY:-}" ] || echo "S3_ACCESS_KEY=$S3_ACCESS_KEY" >> "$DB_ENV"
+        [ -z "${S3_SECRET_KEY:-}" ] || echo "S3_SECRET_KEY=$S3_SECRET_KEY" >> "$DB_ENV"
+        [ -z "${S3_REGION:-}" ] || echo "S3_REGION=$S3_REGION" >> "$DB_ENV"
     fi
     chown "$VOD_USER":"$VOD_USER" "$DB_ENV"
     chmod 600 "$DB_ENV"
-fi
-
-# --- TLS env ------------------------------------------------------------------
-if [ "$ROLE" = "app" ] && [ -n "${TLS_MODE:-}" ]; then
-    if grep -q '^TLS_MODE=' "$DB_ENV" 2>/dev/null; then
-        echo "TLS already configured in $DB_ENV — leaving untouched (edit manually to change)"
-    else
+    if [ -n "${TLS_MODE:-}" ] && ! grep -q '^TLS_MODE=' "$DB_ENV" 2>/dev/null; then
         {
             echo "TLS_MODE=$TLS_MODE"
             [ -z "${TLS_DOMAINS:-}" ] || echo "TLS_DOMAINS=$TLS_DOMAINS"
             [ -z "${TLS_CERT_FILE:-}" ] || echo "TLS_CERT_FILE=$TLS_CERT_FILE"
             [ -z "${TLS_KEY_FILE:-}" ] || echo "TLS_KEY_FILE=$TLS_KEY_FILE"
-            [ "$TLS_MODE" = "files" ] || echo "TLS_CERT_DIR=$CERT_DIR"
+            echo "TLS_CERT_DIR=$CERT_DIR"
         } >> "$DB_ENV"
         chown "$VOD_USER":"$VOD_USER" "$DB_ENV"
-        echo "wrote TLS config to $DB_ENV"
     fi
-fi
+}
 
-# --- binary -------------------------------------------------------------------
-if [ ! -x "$BIN" ]; then
-    echo "place the vod-app binary at $BIN first (e.g. cp vod-app $BIN && chmod +x $BIN)"
-    exit 1
-fi
-
-# --- systemd ------------------------------------------------------------------
-if [ "$ROLE" = "app" ]; then
+# --- systemd units (bare metal) ------------------------------------------------
+install_unit_app() {
     install -m 644 -o root -g root /dev/stdin /etc/systemd/system/vod-app.service <<'UNIT'
 [Unit]
 Description=VOD app server
@@ -216,8 +326,6 @@ RestartSec=2s
 StateDirectory=vod-app
 LogsDirectory=vod-app
 AmbientCapabilities=CAP_NET_BIND_SERVICE
-# Lightweight process: a hard cap keeps a runaway worker or a media burst
-# from starving the host.
 MemoryHigh=384M
 MemoryMax=512M
 OOMScoreAdjust=100
@@ -227,9 +335,9 @@ WantedBy=multi-user.target
 UNIT
     systemctl daemon-reload
     [ "$NO_START" = "1" ] || systemctl enable --now vod-app
-fi
+}
 
-if [ "$ROLE" = "worker" ]; then
+install_unit_worker() {
     install -m 644 -o root -g root /dev/stdin /etc/systemd/system/vod-worker.service <<'UNIT'
 [Unit]
 Description=VOD worker
@@ -245,11 +353,6 @@ Restart=on-failure
 RestartSec=2s
 Nice=10
 IOSchedulingClass=idle
-# ffmpeg burst protection: MemoryMax hard-caps the whole worker cgroup, so a
-# transcode cannot OOM the host — the kernel (or systemd-oomd on Ubuntu 24.04,
-# enabled by default) kills the offending ffmpeg, the job fails and stays
-# retryable. MemoryHigh throttles before the cap. Tune per machine RAM:
-# transcode.concurrency parallel encoders × ~1-2 GB each.
 MemoryHigh=3G
 MemoryMax=4G
 OOMScoreAdjust=500
@@ -259,12 +362,191 @@ WantedBy=multi-user.target
 UNIT
     systemctl daemon-reload
     [ "$NO_START" = "1" ] || systemctl enable --now vod-worker
-fi
+}
 
-echo "install complete (role=$ROLE)"
-if [ "$ROLE" = "db" ] && [ "$GENERATED_DB_PASSWORD" = "1" ]; then
-    echo "postgres password for the vod role (save this — it is not stored on disk):"
-    echo "    $DB_PASSWORD"
-    echo "remote app/worker nodes: install with --db-password=$DB_PASSWORD"
-fi
-[ "$ROLE" = "app" ] && echo "first-run admin password: journalctl -u vod-app | grep 'First-run admin'"
+# --- shared dirs ---------------------------------------------------------------
+setup_dirs() {
+    if ! id "$VOD_USER" >/dev/null 2>&1; then
+        useradd --system --create-home "$VOD_USER"
+    fi
+    mkdir -p "$DATA_DIR" "$CERT_DIR" "$ENV_DIR" /var/log/vod-app
+    chown -R "$VOD_USER":"$VOD_USER" "$DATA_DIR" "$CERT_DIR" /var/log/vod-app
+    if ! command -v ffmpeg >/dev/null 2>&1; then
+        apt-get install -y -qq ffmpeg
+    fi
+    if ! ffmpeg -encoders 2>/dev/null | grep -q libx264 || ! ffmpeg -encoders 2>/dev/null | grep -q libx265; then
+        echo "WARNING: ffmpeg lacks libx264/libx265 encoders; transcoding will fail"
+    fi
+}
+
+# --- storage question (HA app/worker) ------------------------------------------
+ask_storage() {
+    echo "How should media be shared across nodes?"
+    echo "  1) S3 / MinIO (recommended for HA)"
+    echo "  2) NFS shared mount"
+    ask "Choice" 1
+    if [ "$REPLY" = "2" ]; then
+        printf "NFS export (server:/path, e.g. 10.0.0.5:/srv/vod): "
+        read -r NFS_EXPORT
+        apt-get install -y -qq nfs-common
+        mkdir -p "$DATA_DIR"
+        grep -q "$NFS_EXPORT" /etc/fstab || echo "$NFS_EXPORT $DATA_DIR nfs defaults,noatime 0 0" >> /etc/fstab
+        mount -a
+        chown -R "$VOD_USER":"$VOD_USER" "$DATA_DIR"
+        STORAGE_DRIVER=local
+    else
+        printf "S3 endpoint (e.g. https://s3.amazonaws.com or http://minio:9000): "
+        read -r S3_ENDPOINT
+        printf "S3 bucket: "; read -r S3_BUCKET
+        printf "S3 access key: "; read -r S3_ACCESS_KEY
+        printf "S3 secret key: "; read -r S3_SECRET_KEY
+        S3_REGION="${S3_REGION:-us-east-1}"
+        STORAGE_DRIVER=s3
+    fi
+}
+
+# --- PATH B: single server, bare metal -----------------------------------------
+install_baremetal_single() {
+    install_binary
+    setup_dirs
+    if [ -z "${DB_PASSWORD:-}" ]; then
+        DB_PASSWORD="$(openssl rand -hex 24)"
+        GENERATED_DB_PASSWORD=1
+    fi
+    setup_db
+    tls_prompt
+    write_env
+    install_unit_app
+    install_unit_worker
+    echo "install complete (single server, bare metal)"
+    [ "$GENERATED_DB_PASSWORD" = "1" ] && {
+        echo "postgres password for the vod role (save this — it is not stored on disk):"
+        echo "    $DB_PASSWORD"
+    }
+    echo "first-run admin password: journalctl -u vod-app | grep 'First-run admin'"
+}
+
+# --- PATH C: HA bare metal -----------------------------------------------------
+install_ha_baremetal() {
+    case "$COMPONENT" in
+        db)
+            install_binary || true
+            DB_PASSWORD="${DB_PASSWORD:-$(openssl rand -hex 24)}"
+            GENERATED_DB_PASSWORD=1
+            setup_db
+            echo "install complete (ha, db node)"
+            echo "postgres password for the vod role (save this — it is not stored on disk):"
+            echo "    $DB_PASSWORD"
+            echo "app/worker nodes: install with --db-password=$DB_PASSWORD" ;;
+        app)
+            install_binary
+            setup_dirs
+            if interactive; then
+                printf "Database host (IP or hostname): "; read -r DB_HOST
+                printf "Postgres password for the vod role: "; read -r DB_PASSWORD
+                ask_storage
+                printf "Load balancer IP (for TRUSTED_PROXIES; empty to skip): "; read -r LB_IP
+                [ -z "$LB_IP" ] || TRUSTED_PROXIES="$LB_IP"
+            elif [ -z "$ENV_FILE" ]; then
+                echo "app installs need interactivity or --env-file"; exit 1
+            fi
+            tls_prompt
+            write_env
+            install_unit_app
+            echo "install complete (ha, app node)"
+            echo "first-run admin password: journalctl -u vod-app | grep 'First-run admin'" ;;
+        worker)
+            install_binary
+            setup_dirs
+            if interactive; then
+                printf "Database host (IP or hostname): "; read -r DB_HOST
+                printf "Postgres password for the vod role: "; read -r DB_PASSWORD
+                ask_storage
+            elif [ -z "$ENV_FILE" ]; then
+                echo "worker installs need interactivity or --env-file"; exit 1
+            fi
+            write_env
+            install_unit_worker
+            echo "install complete (ha, worker node)" ;;
+        lb)
+            interactive || { echo "the load balancer install is interactive-only"; exit 1; }
+            apt-get install -y -qq nginx
+            echo "App node addresses (IPs or hostnames, one per line; blank line to finish):"
+            > /tmp/vod_upstreams
+            while :; do
+                printf "  app node: "; read -r NODE
+                [ -z "$NODE" ] && break
+                echo "    server $NODE:80 max_fails=3 fail_timeout=30s;" >> /tmp/vod_upstreams
+            done
+            if [ ! -s /tmp/vod_upstreams ]; then
+                echo "no app nodes given — aborting"; exit 1
+            fi
+            {
+                echo "upstream vod_apps {"
+                cat /tmp/vod_upstreams
+                echo "}"
+                sed -n '/^server {/,$p' "$REPO_ROOT/deploy/lb/vod-app.conf" | sed '/upstream vod_apps {/,/^}/d'
+            } > /etc/nginx/sites-available/vod-app.conf
+            rm -f /tmp/vod_upstreams
+            ln -sf /etc/nginx/sites-available/vod-app.conf /etc/nginx/sites-enabled/vod-app.conf
+            rm -f /etc/nginx/sites-enabled/default
+            nginx -t
+            systemctl enable --now nginx
+            systemctl reload nginx
+            MYIP="$(hostname -I 2>/dev/null | awk '{print $1}')"
+            echo "install complete (ha, load balancer)"
+            echo "set TRUSTED_PROXIES=$MYIP on every app node (install with --env or edit /etc/vod-app/env)" ;;
+    esac
+}
+
+# --- PATH D: HA kubernetes -----------------------------------------------------
+install_kubernetes() {
+    interactive || { echo "the kubernetes install is interactive-only"; exit 1; }
+    command -v kubectl >/dev/null 2>&1 || { echo "kubectl is not installed — install it (e.g. apt install kubectl) and re-run"; exit 1; }
+    kubectl cluster-info >/dev/null 2>&1 || { echo "cannot reach the cluster — is kubeconfig set?"; exit 1; }
+    tls_prompt
+    ask "Media storage — 1) in-cluster PVC  2) S3" 1
+    if [ "$REPLY" = "2" ]; then
+        printf "S3 endpoint: "; read -r S3_ENDPOINT
+        printf "S3 bucket: "; read -r S3_BUCKET
+        printf "S3 access key: "; read -r S3_ACCESS_KEY
+        printf "S3 secret key: "; read -r S3_SECRET_KEY
+    fi
+    printf "Site domain (for the ingress; empty to skip): "; read -r DOMAIN
+    if kubectl get clusterissuer >/dev/null 2>&1; then
+        ask "cert-manager cluster issuer available — use it for TLS?" y
+        [ "$REPLY" = "y" ] || [ "$REPLY" = "Y" ] && CERT_MANAGER=1 || CERT_MANAGER=0
+    else
+        CERT_MANAGER=0
+    fi
+
+    DB_PASSWORD="${DB_PASSWORD:-$(openssl rand -hex 24)}"
+    K8S_DIR="$REPO_ROOT/deploy/k8s"
+    kubectl create secret generic vod-secrets --dry-run=client -o yaml \
+        --from-literal=db-password="$DB_PASSWORD" \
+        --from-literal=database-url="postgres://vod:$DB_PASSWORD@vod-postgres:5432/vod" \
+        ${S3_ACCESS_KEY:+--from-literal=S3_ACCESS_KEY=$S3_ACCESS_KEY} \
+        ${S3_SECRET_KEY:+--from-literal=S3_SECRET_KEY=$S3_SECRET_KEY} \
+        | kubectl apply -f -
+    if [ "$REPLY" = "2" ]; then
+        kubectl patch configmap vod-config --type merge -p "{\"data\":{\"STORAGE_DRIVER\":\"s3\",\"S3_ENDPOINT\":\"$S3_ENDPOINT\",\"S3_BUCKET\":\"$S3_BUCKET\"}}"
+    fi
+    kubectl apply -f "$K8S_DIR"
+    if [ -n "${DOMAIN:-}" ]; then
+        kubectl patch ingress vod-app --type json \
+            -p '[{"op":"replace","path":"/spec/rules/0/host","value":"'$DOMAIN'"}]'
+        [ "$CERT_MANAGER" = "1" ] && kubectl patch ingress vod-app --type json \
+            -p '[{"op":"add","path":"/spec/tls","value":[{"hosts":["'$DOMAIN'"],"secretName":"vod-tls"}]}]'
+    fi
+    echo "install complete (ha, kubernetes)"
+    echo "watch rollout: kubectl rollout status deployment/vod-app deployment/vod-worker"
+    echo "first-run admin password: kubectl logs deployment/vod-app -c app | grep 'First-run admin'"
+}
+
+# --- dispatch ------------------------------------------------------------------
+case "$MODE:$TARGET" in
+    single:docker) install_docker_single ;;
+    single:baremetal) install_baremetal_single ;;
+    ha:baremetal) install_ha_baremetal ;;
+    ha:kubernetes) install_kubernetes ;;
+esac

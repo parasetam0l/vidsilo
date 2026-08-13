@@ -22,6 +22,7 @@ services:
     networks: [vod]
 
   app:
+    image: ghcr.io/parasetam0l/vod-app
     build: .
     environment:
       DATABASE_URL: postgres://vod:${POSTGRES_PASSWORD:-vod}@db:5432/vod
@@ -60,6 +61,7 @@ services:
     networks: [vod]
 
   worker:
+    image: ghcr.io/parasetam0l/vod-app
     build: .
     command: ["worker"]
     # The worker is a queue consumer with no HTTP listener; the Dockerfile
