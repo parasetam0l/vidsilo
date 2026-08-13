@@ -254,16 +254,6 @@ func (s *Server) serveUI(w http.ResponseWriter, r *http.Request) {
 	if p == "" {
 		p = "index.html"
 	}
-	// The library moved to the root; old /library links keep working.
-	// (/library/play/{uuid} is handled by its own route above serveUI.)
-	if p == "library" || p == "library/" {
-		http.Redirect(w, r, "/", http.StatusMovedPermanently)
-		return
-	}
-	if strings.HasPrefix(p, "library/") {
-		http.Redirect(w, r, "/"+strings.TrimPrefix(p, "library/"), http.StatusMovedPermanently)
-		return
-	}
 	// The admin export is a directory of pages, not a single admin.html —
 	// /admin (with or without a trailing slash) would fall through to a raw
 	// directory listing. Land on the dashboard instead.
