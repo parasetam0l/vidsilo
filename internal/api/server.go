@@ -42,6 +42,7 @@ type Server struct {
 
 	apiLimiter   *rateLimiter
 	loginLimiter *rateLimiter
+	mediaLimiter *rateLimiter
 	loginGuard   *loginGuard
 	denylist     *Denylist
 	respCache    *responseCache
@@ -67,6 +68,12 @@ type HealthCheck struct {
 const (
 	apiRate   = 120.0 // generous burst on general API
 	loginRate = 5.0   // tight on auth endpoints
+	// mediaRate is the per-IP burst for /media traffic; the refill rate is
+	// deliberately low (10/s) so a bandwidth hammer gets one burst and then
+	// only ~10 requests per second, while legitimate HLS playback (a burst
+	// of segments, then roughly one per segment length) never trips it.
+	mediaRate    = 600.0
+	mediaRefill  = 10.0
 )
 
 func NewServer(log *slog.Logger, uiFS fs.FS, pool *pgxpool.Pool, secret []byte, st store.Store, svc *settings.Service, q *queue.Queue, m *media.Manager, ds *upload.DataStore, acc *analytics.Accumulator) *Server {
@@ -83,8 +90,9 @@ func NewServer(log *slog.Logger, uiFS fs.FS, pool *pgxpool.Pool, secret []byte, 
 		media:        m,
 		analytics:    acc,
 		uiFS:         uiFS,
-		apiLimiter:   newRateLimiter(apiRate, apiRate),
-		loginLimiter: newRateLimiter(loginRate, loginRate),
+	apiLimiter:   newRateLimiter(apiRate, apiRate),
+	loginLimiter: newRateLimiter(loginRate, loginRate),
+	mediaLimiter: newRateLimiter(mediaRefill, mediaRate),
 		loginGuard:   &loginGuard{failures: map[string]int{}, lockedAt: map[string]time.Time{}},
 		denylist:     NewDenylist(pool),
 		respCache:    newResponseCache(),

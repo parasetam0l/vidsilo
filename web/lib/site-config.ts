@@ -2,6 +2,8 @@
 // default language). Fetched once per TTL — pages never re-ask on load.
 "use client";
 
+import * as React from "react";
+
 export interface SiteConfig {
   siteName: string;
   defaultLang: string;
@@ -19,20 +21,28 @@ interface CacheEntry {
 
 let inFlight: Promise<SiteConfig> | null = null;
 
+// cachedSiteConfig synchronously reads the localStorage cache (fresh within
+// the TTL), so first paint can use the stored site name without a flash.
+function cachedSiteConfig(): SiteConfig | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    const entry = JSON.parse(raw) as CacheEntry;
+    if (Date.now() - entry.ts < CACHE_TTL_MS) return entry.data;
+  } catch {
+    /* corrupted cache — ignored */
+  }
+  return null;
+}
+
 export function getSiteConfig(): Promise<SiteConfig> {
   if (typeof window === "undefined") {
     return Promise.resolve({ siteName: "VOD", defaultLang: "en", libraryMode: "disabled" });
   }
-  try {
-    const raw = localStorage.getItem(CACHE_KEY);
-    if (raw) {
-      const entry = JSON.parse(raw) as CacheEntry;
-      if (Date.now() - entry.ts < CACHE_TTL_MS) {
-        return Promise.resolve(entry.data);
-      }
-    }
-  } catch {
-    /* corrupted cache — refetch */
+  const cached = cachedSiteConfig();
+  if (cached) {
+    return Promise.resolve(cached);
   }
   if (!inFlight) {
     inFlight = fetch("/api/site-config", { cache: "no-store" })
@@ -53,4 +63,23 @@ export function getSiteConfig(): Promise<SiteConfig> {
       });
   }
   return inFlight;
+}
+
+// useSiteName renders the admin-configured site name ("App Name" setting),
+// served from the cached site-config. It falls back to the i18n app name
+// until the config resolves, so there is never a visible flash.
+export function useSiteName(): string {
+  const [name, setName] = React.useState<string>(() => cachedSiteConfig()?.siteName ?? "VOD");
+  React.useEffect(() => {
+    let alive = true;
+    getSiteConfig()
+      .then((cfg) => {
+        if (alive && cfg.siteName) setName(cfg.siteName);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+  return name;
 }

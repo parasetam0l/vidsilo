@@ -25,12 +25,14 @@ export default function PlayPage() {
   const [info, setInfo] = React.useState<PlayInfo | null>(null);
   const [error, setError] = React.useState(false);
   const [opts] = React.useState(() => {
-    if (typeof window === "undefined") return { autoplay: false, muted: false, loop: false };
+    if (typeof window === "undefined") return { autoplay: false, muted: false, loop: false, startTime: 0 };
     const p = new URLSearchParams(window.location.search);
+    const t = Number(p.get("t"));
     return {
       autoplay: p.get("autoplay") === "1",
       muted: p.get("muted") === "1",
       loop: p.get("loop") === "1",
+      startTime: Number.isFinite(t) && t > 0 ? t : 0,
     };
   });
 
@@ -99,7 +101,7 @@ export default function PlayPage() {
         </div>
       ) : (
         <>
-          <VODPlayer info={info} publicId={uuid} autoplay={opts.autoplay} muted={opts.muted} loop={opts.loop} branding={info.player} />
+          <VODPlayer info={info} publicId={uuid} autoplay={opts.autoplay} muted={opts.muted} loop={opts.loop} branding={info.player} startTime={opts.startTime} />
           <h1 className="mt-4 text-xl font-semibold">{info.title}</h1>
           {info.description ? (
             <p className="mt-1 text-sm text-muted-foreground">{info.description}</p>

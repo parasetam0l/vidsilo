@@ -32,6 +32,7 @@ export function VODPlayer({
   muted,
   loop,
   branding,
+  startTime,
 }: {
   info: PlayInfo;
   publicId: string;
@@ -40,6 +41,8 @@ export function VODPlayer({
   loop?: boolean;
   /** Player design (accent color, logo, loader). Absent = the Default look. */
   branding?: PlayerConfig;
+  /** Start playback at this offset in seconds (?t= deep links). */
+  startTime?: number;
 }) {
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -78,6 +81,7 @@ export function VODPlayer({
   const watchedRef = React.useRef(0);
   const lastBeaconRef = React.useRef(0);
   const playedRef = React.useRef(false);
+  const startAppliedRef = React.useRef(false);
 
   React.useEffect(() => {
     const video = videoRef.current;
@@ -137,6 +141,11 @@ export function VODPlayer({
     const onTime = () => setCurrent(video.currentTime * 1000);
     const onMeta = () => {
       if (video.duration > 0) setDuration(video.duration * 1000);
+      // ?t= deep link: seek once the stream is ready, before playback starts.
+      if (!startAppliedRef.current && startTime != null && startTime > 0 && startTime < video.duration) {
+        startAppliedRef.current = true;
+        video.currentTime = startTime;
+      }
     };
     const onPlay = () => {
       setPlaying(true);

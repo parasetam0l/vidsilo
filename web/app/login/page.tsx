@@ -4,7 +4,7 @@ import { ClapperboardIcon, EyeIcon, EyeOffIcon } from "lucide-react";
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useT } from "@/lib/i18n";
-import { getSiteConfig } from "@/lib/site-config";
+import { getSiteConfig, useSiteName } from "@/lib/site-config";
 import { useToast } from "@/hooks/use-toast";
 import { fieldErrors, loginSchema, type FieldErrors } from "@/lib/validators";
 import { FormError } from "@/components/form-error";
@@ -36,6 +36,7 @@ export default function LoginPage() {
 
 function LoginForm() {
   const t = useT();
+  const siteName = useSiteName();
   const { login, user } = useAuth();
   const router = useRouter();
   const params = useSearchParams();
@@ -98,7 +99,7 @@ function LoginForm() {
           <ClapperboardIcon className="size-5" />
         </div>
         <span className="text-2xl font-semibold tracking-tight">
-          {t("appName")}
+          {siteName}
         </span>
       </div>
       <Card className="w-full max-w-sm">

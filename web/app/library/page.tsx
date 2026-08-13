@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 
 import { api, type CatalogCategory, type CatalogResponse, type Viewer } from "@/lib/api";
-import { getSiteConfig } from "@/lib/site-config";
+import { getSiteConfig, useSiteName } from "@/lib/site-config";
 import { useT } from "@/lib/i18n";
 import { formatDuration } from "@/lib/format";
 import { LoadingCircle } from "@/components/loading";
@@ -18,6 +18,7 @@ const PAGE_SIZE = 24;
 
 export default function LibraryPage() {
   const t = useT();
+  const siteName = useSiteName();
   const [q, setQ] = React.useState("");
   const [debouncedQ, setDebouncedQ] = React.useState("");
   const [category, setCategory] = React.useState<string>("");
@@ -135,9 +136,11 @@ export default function LibraryPage() {
       {/* Top bar: shadcn-styled, sticky like the admin header */}
       <header className="sticky top-0 z-20 border-b bg-background/85 backdrop-blur">
         <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
-          <Link href="/" className="flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground">
-            <ClapperboardIcon className="size-5 text-primary" />
-            <span className="text-sm font-semibold">{t("appName")}</span>
+          <Link href="/" className="flex items-center gap-2.5 transition-opacity hover:opacity-80">
+            <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <ClapperboardIcon className="size-4" />
+            </div>
+            <span className="text-sm font-semibold text-foreground">{siteName}</span>
           </Link>
           <h1 className="text-base font-semibold tracking-tight text-foreground">{t("libraryTitle")}</h1>
           <div className="ml-auto flex items-center gap-2">

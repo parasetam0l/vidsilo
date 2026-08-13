@@ -22,8 +22,9 @@ func (s *Server) registerMediaRoutes(mux *http.ServeMux) {
 	authed := s.optionalAuth
 	// GET patterns also serve HEAD (ServeContent suppresses the body);
 	// registering an explicit HEAD wildcard would conflict with the more
-	// specific GET /media/branding/logo pattern below.
-	mux.Handle("GET /media/{key...}", authed(s.mediaACL(http.HandlerFunc(s.handleMedia))))
+	// specific GET /media/branding/logo pattern below. /media is per-IP
+	// rate-limited so public streams cannot be hammered for bandwidth.
+	mux.Handle("GET /media/{key...}", s.rateLimit(s.mediaLimiter, authed(s.mediaACL(http.HandlerFunc(s.handleMedia)))))
 	// Logo proxy for player branding: external logo URLs are fetched
 	// server-side (SSRF-guarded) and served from our own origin, so the
 	// strict img-src 'self' CSP keeps working. More specific than
