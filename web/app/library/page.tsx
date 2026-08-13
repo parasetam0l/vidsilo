@@ -6,15 +6,23 @@ import Link from "next/link";
 import { api, type CatalogCategory, type CatalogResponse, type Viewer } from "@/lib/api";
 import { getSiteConfig } from "@/lib/site-config";
 import { useT } from "@/lib/i18n";
+import { useDialog } from "@/hooks/use-dialog";
 import { formatDuration } from "@/lib/format";
 import { LoadingCircle } from "@/components/loading";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { FormError } from "@/components/form-error";
+import { DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ClapperboardIcon, FilmIcon, SearchIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { changePasswordSchema, fieldErrors } from "@/lib/validators";
 
 const PAGE_SIZE = 24;
 
 export default function LibraryPage() {
   const t = useT();
+  const dialog = useDialog();
   const [q, setQ] = React.useState("");
   const [debouncedQ, setDebouncedQ] = React.useState("");
   const [category, setCategory] = React.useState<string>("");
@@ -59,6 +67,16 @@ export default function LibraryPage() {
     api("/api/viewer/logout", { method: "POST" })
       .catch(() => {})
       .finally(() => window.location.reload());
+  };
+
+  const openChangePassword = () => {
+    if (!viewer) return;
+    dialog.open({
+      content: (close) => <ViewerPasswordContent onClose={close} />,
+      size: "sm",
+      dismissible: false,
+      showCloseButton: false,
+    });
   };
 
   React.useEffect(() => {
@@ -137,12 +155,20 @@ export default function LibraryPage() {
         <h1 className="ml-2 text-2xl font-semibold">{t("libraryTitle")}</h1>
         <div className="ml-auto flex items-center gap-2">
           {viewer ? (
-            <button
-              onClick={signOut}
-              className="rounded-md border px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
-            >
-              {t("librarySignOut")}
-            </button>
+            <>
+              <button
+                onClick={openChangePassword}
+                className="rounded-md border px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                {t("libraryChangePassword")}
+              </button>
+              <button
+                onClick={signOut}
+                className="rounded-md border px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                {t("librarySignOut")}
+              </button>
+            </>
           ) : null}
           <div className="relative">
             <SearchIcon className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -290,5 +316,93 @@ export default function LibraryPage() {
         </>
       )}
     </main>
+  );
+}
+
+// ViewerPasswordContent lets a signed-in viewer rotate their own password
+// (the admin can also do it from /admin/viewers).
+function ViewerPasswordContent({ onClose }: { onClose: () => void }) {
+  const t = useT();
+  const [current, setCurrent] = React.useState("");
+  const [next, setNext] = React.useState("");
+  const [confirm, setConfirm] = React.useState("");
+  const [error, setError] = React.useState<string | null>(null);
+  const [saving, setSaving] = React.useState(false);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const errs = fieldErrors(changePasswordSchema, {
+      currentPassword: current,
+      newPassword: next,
+      confirm,
+    });
+    if (Object.keys(errs).length > 0) {
+      setError(errs.confirm ?? errs.currentPassword ?? errs.newPassword ?? t("error"));
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      await api("/api/viewer/password", {
+        method: "POST",
+        body: JSON.stringify({ currentPassword: current, newPassword: next }),
+      });
+      onClose();
+      window.location.reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("error"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <form
+      className="flex flex-col gap-4"
+      onSubmit={submit}
+      noValidate
+    >
+      <DialogHeader className="px-4 pt-4">
+        <DialogTitle>{t("libraryChangePassword")}</DialogTitle>
+      </DialogHeader>
+      <div className="flex flex-col gap-4 px-4">
+        <div className="flex flex-col gap-2">
+          <Label className="text-xs font-medium">{t("currentPassword")}</Label>
+          <Input
+            type="password"
+            value={current}
+            onChange={(e) => setCurrent(e.target.value)}
+            className="rounded-lg"
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label className="text-xs font-medium">{t("newPassword")}</Label>
+          <Input
+            type="password"
+            value={next}
+            onChange={(e) => setNext(e.target.value)}
+            className="rounded-lg"
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label className="text-xs font-medium">{t("confirmPassword")}</Label>
+          <Input
+            type="password"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            className="rounded-lg"
+          />
+        </div>
+        {error ? <FormError message={error} /> : null}
+      </div>
+      <DialogFooter className="mx-0 mb-0">
+        <Button type="button" variant="ghost" onClick={onClose} disabled={saving}>
+          {t("cancel")}
+        </Button>
+        <Button type="submit" disabled={saving || !current || !next}>
+          {saving ? t("loading") : t("save")}
+        </Button>
+      </DialogFooter>
+    </form>
   );
 }
