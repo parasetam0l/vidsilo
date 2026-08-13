@@ -245,13 +245,11 @@ install_binary() {
     if interactive; then
         echo "How should we get the vod-app binary?"
         echo "  1) Download the prebuilt release (recommended)"
-        echo "  2) Extract from the ghcr.io docker image"
-        echo "  3) Build from source"
+        echo "  2) Build from source"
         ask "Choice" 1
         case "$REPLY" in
             1) SRC=release ;;
-            2) SRC=image ;;
-            3) SRC=source ;;
+            2) SRC=source ;;
             *) echo "invalid choice"; exit 2 ;;
         esac
     fi
@@ -259,14 +257,6 @@ install_binary() {
         release)
             echo "downloading latest release binary (linux-$BIN_ARCH)..."
             curl -fL -o "$BIN" "https://github.com/parasetam0l/vod-app/releases/latest/download/vod-app-linux-$BIN_ARCH"
-            ;;
-        image)
-            command -v docker >/dev/null 2>&1 || { echo "docker is required for the image-extract path — use option 1 or 3"; exit 1; }
-            echo "extracting binary from ghcr.io/parasetam0l/vod-app:latest..."
-            docker pull ghcr.io/parasetam0l/vod-app:latest >/dev/null
-            CID="$(docker create ghcr.io/parasetam0l/vod-app:latest)"
-            docker cp "$CID:/usr/local/bin/vod-app" "$BIN"
-            docker rm "$CID" >/dev/null
             ;;
         source)
             build_from_source
