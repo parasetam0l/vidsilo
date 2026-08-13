@@ -93,7 +93,7 @@ export default function PlayPage() {
         </div>
       </header>
 
-      <div className="mx-auto w-full max-w-4xl px-4 py-6">
+      <div className="mx-auto w-full max-w-6xl px-4 py-6">
         {error ? (
           <div className="flex flex-col items-center gap-3 py-16 text-center">
             <FilmIcon className="size-8 text-muted-foreground/50" />
