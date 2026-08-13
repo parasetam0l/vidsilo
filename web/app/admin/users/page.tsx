@@ -15,7 +15,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { EmptyState } from "@/components/empty-state";
@@ -315,9 +314,17 @@ function UserFormContent({
           />
         </div>
         {editing ? (
-          <div className="flex items-center justify-between rounded-xl border bg-muted/30 p-3">
-            <Label className="text-xs font-medium">{t("statusDisabled")}</Label>
-            <Switch checked={disabled} onCheckedChange={setDisabled} />
+          <div className="flex items-center justify-between gap-3 rounded-xl border bg-muted/30 p-3">
+            <Label className="text-sm font-medium">{t("colStatus")}</Label>
+            <Select
+              options={[
+                { value: "active", label: t("statusActive") },
+                { value: "disabled", label: t("statusDisabled") },
+              ]}
+              className="w-36 rounded-lg"
+              value={disabled ? "disabled" : "active"}
+              onChange={(v) => setDisabled(v === "disabled")}
+            />
           </div>
         ) : null}
       </div>
