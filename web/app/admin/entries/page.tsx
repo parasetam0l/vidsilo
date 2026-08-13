@@ -74,7 +74,7 @@ export default function EntriesPage() {
   const { data: list } = useQuery({
     queryKey: ["entries", { q, status, category, page, limit }],
     queryFn: () => {
-      const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+      const params = new URLSearchParams({ page: String(page), limit: String(limit), sort: "created" });
       if (q) params.set("q", q);
       if (status) params.set("status", status);
       if (category) params.set("category", category);
