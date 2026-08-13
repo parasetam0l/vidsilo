@@ -189,13 +189,7 @@ export default function SettingsPage() {
       });
       const fresh = await api<SettingsResponse>("/api/settings");
       setData(fresh);
-      toast.success(
-        t("settingsSaved", {
-          keys: Object.keys(patch)
-            .map((k) => specs[k]?.label ?? k)
-            .join(", "),
-        }),
-      );
+      toast.success(t("settingsSaved"));
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t("error"));
     } finally {

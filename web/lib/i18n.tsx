@@ -398,7 +398,7 @@ const en = {
   settingsRestart: "Restart required",
   settingsRestartDesc:
     "Changes to {keys} take effect after the server restarts (Docker: docker compose restart app).",
-  settingsSaved: "Saved {keys}",
+  settingsSaved: "Settings saved",
   gGeneral: "General",
   gGeneralDesc: "Site identity and upload rules",
   gStorage: "Storage",
