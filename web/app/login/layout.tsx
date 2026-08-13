@@ -1,5 +1,5 @@
-import { LoginProviders } from "./providers";
+import { ViewerLoginProviders } from "./providers";
 
 export default function LoginLayout({ children }: { children: React.ReactNode }) {
-  return <LoginProviders>{children}</LoginProviders>;
+  return <ViewerLoginProviders>{children}</ViewerLoginProviders>;
 }

@@ -101,7 +101,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   async function handleLogout() {
     await logout()
-    router.push("/login")
+    router.push("/admin/login")
   }
 
   function askLogout() {

@@ -53,7 +53,7 @@ export default function LibraryPage() {
           .catch(() =>
             api("/api/auth/me")
               .then(() => setViewer(null))
-              .catch(() => window.location.replace("/library/login")),
+              .catch(() => window.location.replace("/login")),
           );
       })
       .catch(() => {});
@@ -253,7 +253,7 @@ export default function LibraryPage() {
               {items.map((item) => (
                 <Link
                   key={item.id}
-                  href={`/library/play/${item.id}`}
+                  href={`/play/${item.id}`}
                   className="group block overflow-hidden rounded-xl border bg-card shadow-xs transition-shadow hover:shadow-md"
                 >
                   <div className="relative aspect-video w-full overflow-hidden bg-muted">

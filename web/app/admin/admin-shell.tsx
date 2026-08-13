@@ -66,6 +66,10 @@ function AdminLayoutBody({ children }: { children: React.ReactNode }) {
   const createPlayer = useCreatePlayerAction();
   const createViewer = useCreateViewerAction();
 
+  // The staff login renders inside the providers but without the sidebar
+  // chrome and without the auth gate (it must show while unauthenticated).
+  const isLogin = pathname === "/admin/login";
+
   // Per-page app-bar action (page title lives in this header already).
   const action =
     pathname === "/admin/entries"
@@ -106,6 +110,7 @@ function AdminLayoutBody({ children }: { children: React.ReactNode }) {
   // after every commit, deferred past React's head sync. The site name comes
   // from the cached site-config (defaults to the app title on first paint).
   React.useEffect(() => {
+    if (isLogin) return;
     const id = window.setTimeout(() => {
       getSiteConfig()
         .then((cfg) => {
@@ -118,14 +123,18 @@ function AdminLayoutBody({ children }: { children: React.ReactNode }) {
     return () => window.clearTimeout(id);
   });
 
-  // Unauthenticated visitors are sent to the login page, returning to the
+  // Unauthenticated visitors are sent to the staff login, returning to the
   // page they tried to open after signing in.
   React.useEffect(() => {
+    if (isLogin) return;
     if (!loading && !user) {
-      router.replace(`/login?next=${encodeURIComponent(pathname)}`);
+      router.replace(`/admin/login?next=${encodeURIComponent(pathname)}`);
     }
-  }, [loading, user, pathname, router]);
+  }, [loading, user, pathname, router, isLogin]);
 
+  if (isLogin) {
+    return <>{children}</>;
+  }
   if (loading || !user) {
     return <PageLoader />;
   }

@@ -30,9 +30,14 @@ func (s *Server) registerMediaRoutes(mux *http.ServeMux) {
 	// strict img-src 'self' CSP keeps working. More specific than
 	// /media/{key...}, so it wins.
 	mux.Handle("GET /media/branding/logo", s.rateLimit(s.apiLimiter, http.HandlerFunc(s.handleBrandingLogo)))
-	mux.Handle("GET /library/play/{uuid}", http.HandlerFunc(s.handlePlayPage))
+	mux.Handle("GET /play/{uuid}", http.HandlerFunc(s.handlePlayPage))
 	mux.Handle("GET /play/{uuid}/playinfo.json", authed(http.HandlerFunc(s.handlePlayInfo)))
 	mux.Handle("GET /embed/{uuid}", authed(s.embedACL(http.HandlerFunc(s.handleEmbedPage))))
+	// Compatibility: the library lived under /library/ until it moved to the
+	// root; old links keep working.
+	mux.Handle("GET /library/play/{uuid}", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/play/"+r.PathValue("uuid"), http.StatusMovedPermanently)
+	}))
 
 	// Public catalog: the library/browse page for end users. The category
 	// tree is cached briefly; the entry list filters per visitor (private

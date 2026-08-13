@@ -236,23 +236,33 @@ func (s *Server) internalError(w http.ResponseWriter, r *http.Request, op string
 // Pages are served with no-cache (a truncated mid-deploy response must never
 // stick in a heuristic cache); content-hashed _next assets are immutable.
 func (s *Server) serveUI(w http.ResponseWriter, r *http.Request) {
-	// Server-side root redirect: no blank flash / history entry from the
-	// client-side window.location.replace. Library mode decides where
-	// visitors land.
+	// Server-side root handling: the library IS the root when enabled (the
+	// export's index.html renders it); login_only visitors go to the viewer
+	// login; disabled visitors land on the staff dashboard.
 	if r.URL.Path == "/" {
 		switch s.libraryMode() {
-		case "enabled":
-			http.Redirect(w, r, "/library", http.StatusFound)
 		case "login_only":
-			http.Redirect(w, r, "/library/login", http.StatusFound)
-		default:
+			http.Redirect(w, r, "/login", http.StatusFound)
+		case "disabled":
 			http.Redirect(w, r, "/admin/dashboard", http.StatusFound)
 		}
-		return
+		if r.URL.Path != "/" {
+			return
+		}
 	}
 	p := strings.TrimPrefix(r.URL.Path, "/")
 	if p == "" {
 		p = "index.html"
+	}
+	// The library moved to the root; old /library links keep working.
+	// (/library/play/{uuid} is handled by its own route above serveUI.)
+	if p == "library" || p == "library/" {
+		http.Redirect(w, r, "/", http.StatusMovedPermanently)
+		return
+	}
+	if strings.HasPrefix(p, "library/") {
+		http.Redirect(w, r, "/"+strings.TrimPrefix(p, "library/"), http.StatusMovedPermanently)
+		return
 	}
 	// The admin export is a directory of pages, not a single admin.html —
 	// /admin (with or without a trailing slash) would fall through to a raw

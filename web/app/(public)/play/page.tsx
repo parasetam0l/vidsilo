@@ -74,7 +74,7 @@ export default function PlayPage() {
       <header className="mb-4 flex items-center justify-between gap-2 text-muted-foreground">
         <div className="flex items-center gap-2">
           <ClapperboardIcon className="size-5" />
-          <Link href="/library" className="text-sm font-medium hover:text-foreground">
+          <Link href="/" className="text-sm font-medium hover:text-foreground">
             {t("libraryTitle")}
           </Link>
         </div>
@@ -83,7 +83,7 @@ export default function PlayPage() {
         <div className="flex flex-col items-center gap-3 py-16 text-center">
           <FilmIcon className="size-8 text-muted-foreground/50" />
           <p className="text-sm text-muted-foreground">{t("videoUnavailable")}</p>
-          <Link href="/library" className="text-sm font-medium text-primary hover:underline">
+          <Link href="/" className="text-sm font-medium text-primary hover:underline">
             {t("libraryBackToLibrary")}
           </Link>
         </div>
@@ -95,7 +95,7 @@ export default function PlayPage() {
       ) : info.status !== "ready" ? (
         <div className="flex flex-col items-center gap-3 py-16 text-center">
           <p className="text-sm text-muted-foreground">{t("playerVideoStatus")}</p>
-          <Link href="/library" className="text-sm font-medium text-primary hover:underline">
+          <Link href="/" className="text-sm font-medium text-primary hover:underline">
             {t("libraryBackToLibrary")}
           </Link>
         </div>

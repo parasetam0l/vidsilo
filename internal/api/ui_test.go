@@ -17,7 +17,7 @@ func TestServeUICleanURLs(t *testing.T) {
 	// /upload is intentionally absent: the page became a dialog and the
 	// path is owned by the tus subtree. Admin pages live under /admin;
 	// the old root-level routes must 404 (nothing stale embedded).
-	for _, path := range []string{"/login", "/admin/dashboard", "/admin/entries", "/library", "/library/login"} {
+	for _, path := range []string{"/login", "/admin/login", "/admin/dashboard", "/admin/entries", "/play"} {
 		req := httptest.NewRequest("GET", path, nil)
 		rec := httptest.NewRecorder()
 		s.serveUI(rec, req)
@@ -28,7 +28,7 @@ func TestServeUICleanURLs(t *testing.T) {
 			t.Fatalf("%s missing content type", path)
 		}
 	}
-	for _, path := range []string{"/dashboard", "/entries", "/play"} {
+	for _, path := range []string{"/dashboard", "/entries", "/library"} {
 		req := httptest.NewRequest("GET", path, nil)
 		rec := httptest.NewRecorder()
 		s.serveUI(rec, req)
