@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 
 // Default range: the trailing 14 days.
 function defaultRange(): { from: string; to: string } {
@@ -36,22 +36,18 @@ export function AnalyticsRange() {
 
   return (
     <div className="ml-auto flex items-center gap-1.5">
-      <Input
-        type="date"
+      <DatePicker
         value={from}
         max={to || undefined}
-        onChange={(e) => go(e.target.value, to)}
-        aria-label="From"
-        className="h-8 w-auto rounded-lg text-xs"
+        onChange={(v) => go(v, to)}
+        ariaLabel="From"
       />
       <span className="text-xs text-muted-foreground">–</span>
-      <Input
-        type="date"
+      <DatePicker
         value={to}
         min={from || undefined}
-        onChange={(e) => go(from, e.target.value)}
-        aria-label="To"
-        className="h-8 w-auto rounded-lg text-xs"
+        onChange={(v) => go(from, v)}
+        ariaLabel="To"
       />
     </div>
   );
