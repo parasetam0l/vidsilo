@@ -14,6 +14,12 @@ func TestServeUICleanURLs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// A source checkout embeds the placeholder UI (see internal/ui): the
+	// SPA clean-URL assertions need the real static export, which CI and
+	// the Dockerfile produce before compiling the binary.
+	if _, err := fs.Open("_next/placeholder.txt"); err == nil {
+		t.Skip("placeholder UI embedded — build the web export to test SPA routes")
+	}
 	// Nil settings = "enabled" mode (see libraryMode): pages serve normally.
 	s := NewServer(nil, fs, nil, nil, nil, nil, nil, nil, nil, nil)
 	// /upload is intentionally absent: the page became a dialog and the

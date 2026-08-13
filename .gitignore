@@ -26,6 +26,9 @@ data/
 .idea/
 .vscode/
 
-# built web export (placeholder index.html stays committed)
+# built web export (placeholder index.html stays committed; _next/placeholder.txt
+# keeps the //go:embed web/out/_next pattern resolvable on fresh checkouts)
 internal/ui/web/out/
 !internal/ui/web/out/index.html
+!internal/ui/web/out/_next/
+!internal/ui/web/out/_next/placeholder.txt
