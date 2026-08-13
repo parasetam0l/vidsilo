@@ -223,7 +223,8 @@ export default function LibraryPage() {
                       : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
                   )}
                 >
-                  {t("libraryAllCategories")}
+                  <span className="truncate">{t("libraryAllCategories")}</span>
+                  <span className="shrink-0 text-xs opacity-60 tabular-nums">{total}</span>
                 </button>
                 {categories.map((c) => (
                   <React.Fragment key={c.id}>

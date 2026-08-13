@@ -136,14 +136,14 @@ func (s *Server) handleCatalogCategories(w http.ResponseWriter, r *http.Request)
 // catalogEntry is the public view of an entry: title, slug, poster and link,
 // no internal ids or keys.
 type catalogEntry struct {
-	ID         string `json:"id"`
-	Title      string `json:"title"`
-	Slug       string `json:"slug"`
-	CategoryID *int64 `json:"categoryId"`
-	Category   string `json:"category,omitempty"`
-	Poster     string `json:"poster,omitempty"`
-	DurationMs *int64 `json:"durationMs"`
-	CreatedAt  string `json:"createdAt"`
+	ID         string    `json:"id"`
+	Title      string    `json:"title"`
+	Slug       string    `json:"slug"`
+	CategoryID *int64    `json:"categoryId"`
+	Category   string    `json:"category,omitempty"`
+	Poster     string    `json:"poster,omitempty"`
+	DurationMs *int64    `json:"durationMs"`
+	CreatedAt  time.Time `json:"createdAt"`
 }
 
 // handleCatalog lists public, ready entries for the library page (search,

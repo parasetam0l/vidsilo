@@ -66,10 +66,12 @@ export function getSiteConfig(): Promise<SiteConfig> {
 }
 
 // useSiteName renders the admin-configured site name ("App Name" setting),
-// served from the cached site-config. It falls back to the i18n app name
-// until the config resolves, so there is never a visible flash.
+// served from the cached site-config. The initial state matches the SSR
+// default so hydration never mismatches (localStorage reads during the
+// first client render would crash with a hydration error); the cached or
+// fetched value lands right after hydration.
 export function useSiteName(): string {
-  const [name, setName] = React.useState<string>(() => cachedSiteConfig()?.siteName ?? "VOD App");
+  const [name, setName] = React.useState<string>("VOD App");
   React.useEffect(() => {
     let alive = true;
     getSiteConfig()
