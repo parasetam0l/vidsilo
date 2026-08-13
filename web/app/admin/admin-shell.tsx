@@ -32,6 +32,7 @@ import { AuthProvider } from "@/components/auth-provider";
 import { DialogProvider } from "@/hooks/use-dialog";
 import { Toaster } from "@/components/toaster";
 import { UploadNotifications } from "@/components/upload-notifications";
+import { AnalyticsRange } from "@/components/analytics-range";
 
 // AdminProviders mounts everything the admin pages need. This lives here —
 // not in the root layout — so the public pages stay lean.
@@ -158,7 +159,11 @@ function AdminLayoutBody({ children }: { children: React.ReactNode }) {
               className="mx-2 h-4 self-center"
             />
             <h1 className="text-base font-medium">{pageTitle}</h1>
-            {action ? (
+            {pathname === "/admin/analytics" ? (
+              <React.Suspense fallback={null}>
+                <AnalyticsRange />
+              </React.Suspense>
+            ) : action ? (
               <Button className="ml-auto" onClick={action.onClick}>
                 {action.icon} {action.label}
               </Button>

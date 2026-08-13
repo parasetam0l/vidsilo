@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useSearchParams } from "next/navigation";
 import {
   ActivityIcon,
   BarChartIcon,
@@ -15,7 +16,6 @@ import { useT } from "@/lib/i18n";
 import { useEntryDetailDialog } from "@/components/entry-detail-dialog";
 import { EmptyState } from "@/components/empty-state";
 import { SvgChart } from "@/components/svg-chart";
-import { padSeries } from "@/lib/charts";
 import { formatGb, formatWatchHours } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -34,14 +34,63 @@ interface Summary {
   topEntries: { publicId: string; title: string; plays: number; watchSeconds: number; bytes: number }[];
 }
 
+// padRange fills every day between from and to with the series values
+// (zero for gaps), so charts span the selected window exactly.
+function padRange(
+  points: { day: string; value: number }[],
+  from: string,
+  to: string,
+): { day: string; value: number }[] {
+  const byDay = new Map(points.map((p) => [p.day, p.value]));
+  const out: { day: string; value: number }[] = [];
+  const d = new Date(`${from}T00:00:00Z`);
+  const end = new Date(`${to}T00:00:00Z`);
+  while (d <= end) {
+    const key = d.toISOString().slice(0, 10);
+    out.push({ day: key, value: byDay.get(key) ?? 0 });
+    d.setUTCDate(d.getUTCDate() + 1);
+  }
+  return out;
+}
+
 export default function AnalyticsPage() {
+  // useSearchParams must sit under a Suspense boundary for the static export.
+  return (
+    <React.Suspense fallback={<AnalyticsSkeleton />}>
+      <AnalyticsInner />
+    </React.Suspense>
+  );
+}
+
+function AnalyticsSkeleton() {
+  return (
+    <div className="flex flex-1 flex-col gap-4 px-4 pb-4 pt-0">
+      <div className="grid gap-4 md:grid-cols-4">
+        {[1, 2, 3, 4].map((i) => (
+          <Skeleton key={i} className="h-28 rounded-xl" />
+        ))}
+      </div>
+      <Skeleton className="h-64 rounded-xl" />
+    </div>
+  );
+}
+
+function AnalyticsInner() {
   const t = useT();
+  const params = useSearchParams();
+  const from = params.get("from") ?? "";
+  const to = params.get("to") ?? "";
   const [data, setData] = React.useState<Summary | null>(null);
   const openEntryDetail = useEntryDetailDialog();
 
   const load = React.useCallback(() => {
-    api<Summary>("/api/analytics/summary").then(setData).catch(() => {});
-  }, []);
+    const q = new URLSearchParams();
+    if (from) q.set("from", from);
+    if (to) q.set("to", to);
+    api<Summary>(`/api/analytics/summary?${q}`)
+      .then(setData)
+      .catch(() => {});
+  }, [from, to]);
 
   React.useEffect(load, [load]);
 
@@ -53,24 +102,19 @@ export default function AnalyticsPage() {
   }, [load]);
 
   if (!data) {
-    return (
-      <div className="flex flex-1 flex-col gap-4 px-4 pb-4 pt-0">
-        <div className="grid gap-4 md:grid-cols-4">
-          {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-28 rounded-xl" />
-          ))}
-        </div>
-        <Skeleton className="h-64 rounded-xl" />
-      </div>
-    );
+    return <AnalyticsSkeleton />;
   }
 
   const series = data.series ?? [];
-  const plays = padSeries(series.map((d) => ({ day: d.day, value: d.plays }))).map(
-    (p) => ({ label: p.day, value: p.value }),
-  );
-  const watch = padSeries(
+  const plays = padRange(
+    series.map((d) => ({ day: d.day, value: d.plays })),
+    from,
+    to,
+  ).map((p) => ({ label: p.day, value: p.value }));
+  const watch = padRange(
     series.map((d) => ({ day: d.day, value: Math.round(d.watchSeconds / 60) })),
+    from,
+    to,
   ).map((p) => ({ label: p.day, value: p.value }));
 
   const cards = [
