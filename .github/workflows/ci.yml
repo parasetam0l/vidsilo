@@ -68,6 +68,7 @@ jobs:
           S3_BUCKET: ci-test
           S3_ACCESS_KEY: vod
           S3_SECRET_KEY: vod-vod-vod
+          S3_REGION: us-east-1
       - uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
