@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { LanguageSelect } from "@/components/language-select";
 import { ClapperboardIcon, FilmIcon, SearchIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -160,6 +161,7 @@ export default function LibraryPage() {
                 </Button>
               </>
             ) : null}
+            <LanguageSelect />
             <ThemeToggle />
           </div>
         </div>

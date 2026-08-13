@@ -64,6 +64,8 @@ const en = {
   signOutDesc: "You will be signed out of this session.",
   darkMode: "Dark mode",
   lightMode: "Light mode",
+  themeSwitchToLight: "Switch to light mode",
+  themeSwitchToDark: "Switch to dark mode",
   appearance: "Appearance",
   editUserTitle: "Edit user",
   editCategoryTitle: "Edit category",
