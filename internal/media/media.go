@@ -258,7 +258,7 @@ func TranscodeFlavor(ctx context.Context, srcPath, outDir string, f Flavor, prog
 		"-force_key_frames", fmt.Sprintf("expr:gte(t,n_forced*%d)", f.GopSecs),
 		"-c:a", "aac", "-b:a", strconv.Itoa(f.AudioBitrate)+"k", "-ac", "2",
 		"-hls_time", strconv.Itoa(f.SegmentSecs),
-		"-hls_playlist_type", "vidsilo",
+		"-hls_playlist_type", "vod",
 		"-hls_segment_filename", path.Join(outDir, "seg_%05d.ts"),
 		path.Join(outDir, "index.m3u8"),
 	)

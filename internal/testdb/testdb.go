@@ -28,6 +28,16 @@ func Pool(t *testing.T) *pgxpool.Pool {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Ensure pg_trgm exists in public BEFORE the per-process schema exists:
+	// CREATE EXTENSION with search_path=test_x,public would otherwise plant
+	// gin_trgm_ops inside whichever test process runs migration 0005 first,
+	// and the other parallel processes could then not resolve it. The admin
+	// connection uses the default search_path, so the extension lands in
+	// public and every isolated schema resolves it via the fallback.
+	if _, err := admin.Exec(ctx, `CREATE EXTENSION IF NOT EXISTS pg_trgm`); err != nil {
+		admin.Close(ctx)
+		t.Fatal(err)
+	}
 	if _, err := admin.Exec(ctx, `CREATE SCHEMA IF NOT EXISTS `+schema); err != nil {
 		admin.Close(ctx)
 		t.Fatal(err)
