@@ -291,7 +291,7 @@ export default function LibraryPage() {
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xxl:grid-cols-4">
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xxxl:grid-cols-4">
                   {items.map((item) => (
                     <Link
                       key={item.id}

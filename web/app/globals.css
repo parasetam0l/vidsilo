@@ -5,8 +5,9 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-  /* 4-column library grid kicks in only on very wide screens. */
+  /* Library grid steps: 3-up on wide screens, 4-up only on very wide ones. */
   --breakpoint-xxl: 100rem;
+  --breakpoint-xxxl: 120rem;
 }
 
 @theme inline {
